@@ -1,0 +1,25 @@
+services:
+
+  moneyflow-db:
+    image: postgres:16
+    ports:
+      - 5437:5432
+    environment:
+      POSTGRES_USER: jay
+      POSTGRES_PASSWORD: jay123
+      POSTGRES_HOST_AUTH_METHOD: md5
+      TZ: Asia/Manila
+    command: postgres -c "listen_addresses=*"
+    networks:
+      - moneyflow-network
+    restart: always
+    volumes:
+      - moneyflow-db-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+
+networks:
+  moneyflow-network:
+    driver: bridge
+
+volumes:
+  moneyflow-db-data:
