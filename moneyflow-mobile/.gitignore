@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+build/
+dist/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# React Native
+.expo/
+.expo-shared/
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/app/release/
+android/app/debug/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+*.keystore
+
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcuserstate
+ios/DerivedData/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+tmp/
+temp/
+
+# Coverage
+coverage/
+
+# Jest
+jest/
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+ios/Pods/
+
+# Flipper
+ios/Flipper/
+
+# React Native Debugger
+.vscode/
+
+# Metro
+.metro-health-check*
+
+# Testing
+__tests__/
+*.test.*
+*.spec.*
+
+# Misc
+.watchmanconfig
+.flowconfig
+.buckconfig
+.bundle
+vendor/bundle/
