@@ -1,0 +1,286 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma';
+import { CreateUserIncomeDto, UpdateUserIncomeDto, FindUserIncomeDto } from './dto';
+import { UserIncomeEntity } from './entities/user-income.entity';
+import { Decimal } from '@prisma/client/runtime/library';
+import { CategoryType } from '@prisma/client';
+
+@Injectable()
+export class UserIncomeService {
+    constructor(private readonly prisma: PrismaService) {}
+
+    async create_user_income(user_id: string, create_user_income_dto: CreateUserIncomeDto): Promise<UserIncomeEntity> {
+        const { category_id, amount, notes } = create_user_income_dto;
+
+        try {
+            // Verify category exists and belongs to user
+            const category = await this.prisma.userCategory.findFirst({
+                where: {
+                    id: category_id,
+                    user_id: user_id,
+                    type: CategoryType.INCOME, 
+                },
+            });
+
+            if (!category) {
+                throw new BadRequestException('Category not found or does not belong to user');
+            }
+
+            // Create the income
+            const income = await this.prisma.userIncome.create({
+                data: {
+                    user_id,
+                    category_id,
+                    amount: new Decimal(amount),
+                    notes,
+                },
+                include: {
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            return new UserIncomeEntity(income);
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to create user income');
+        }
+    }
+
+    async find_user_income(user_id: string, find_dto: FindUserIncomeDto): Promise<UserIncomeEntity[]> {
+        const { year, month } = find_dto;
+
+        try {
+            // Create start and end dates for the given month and year
+            const start_date = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
+            const end_date = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+
+            const income = await this.prisma.userIncome.findMany({
+                where: {
+                    user_id,
+                    created_at: {
+                        gte: start_date,
+                        lte: end_date,
+                    },
+                },
+                include: {
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+
+            return income.map(income_item => new UserIncomeEntity(income_item));
+        } catch (error) {
+            throw new BadRequestException('Failed to fetch user income');
+        }
+    }
+
+    async find_user_income_by_id(user_id: string, income_id: string): Promise<UserIncomeEntity> {
+        try {
+            const income = await this.prisma.userIncome.findFirst({
+                where: {
+                    id: income_id,
+                    user_id,
+                },
+                include: {
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            if (!income) {
+                throw new NotFoundException('User income not found');
+            }
+
+            return new UserIncomeEntity(income);
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to fetch user income');
+        }
+    }
+
+    async update_user_income(user_id: string, income_id: string, update_user_income_dto: UpdateUserIncomeDto): Promise<UserIncomeEntity> {
+        const { category_id, amount, notes } = update_user_income_dto;
+
+        try {
+            // Check if income exists and belongs to user
+            const existing_income = await this.prisma.userIncome.findFirst({
+                where: {
+                    id: income_id,
+                    user_id,
+                },
+            });
+
+            if (!existing_income) {
+                throw new NotFoundException('User income not found');
+            }
+
+            // If category_id is provided, verify it belongs to user
+            if (category_id) {
+                const category = await this.prisma.userCategory.findFirst({
+                    where: {
+                        id: category_id,
+                        user_id,
+                        type: CategoryType.INCOME,
+                    },
+                });
+
+                if (!category) {
+                    throw new BadRequestException('Category not found or does not belong to user');
+                }
+            }
+
+            // Update the income
+            const update_data: any = {};
+            if (category_id !== undefined) update_data.category_id = category_id;
+            if (amount !== undefined) update_data.amount = new Decimal(amount);
+            if (notes !== undefined) update_data.notes = notes;
+
+            const updated_income = await this.prisma.userIncome.update({
+                where: {
+                    id: income_id,
+                },
+                data: update_data,
+                include: {
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            return new UserIncomeEntity(updated_income);
+        } catch (error) {
+            if (error instanceof NotFoundException || error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to update user income');
+        }
+    }
+
+    async delete_user_income(user_id: string, income_id: string): Promise<void> {
+        try {
+            // Check if income exists and belongs to user
+            const existing_income = await this.prisma.userIncome.findFirst({
+                where: {
+                    id: income_id,
+                    user_id,
+                },
+            });
+
+            if (!existing_income) {
+                throw new NotFoundException('User income not found');
+            }
+
+            await this.prisma.userIncome.delete({
+                where: {
+                    id: income_id,
+                },
+            });
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to delete user income');
+        }
+    }
+
+    async get_user_income_summary(user_id: string, start_date?: string, end_date?: string): Promise<{
+        total_income: number;
+        total_amount: string;
+        categories_summary: Array<{
+            category_id: number;
+            category_name: string;
+            total_amount: string;
+            count: number;
+        }>;
+    }> {
+        const where: any = {
+            user_id,
+        };
+
+        if (start_date || end_date) {
+            where.created_at = {};
+            if (start_date) {
+                where.created_at.gte = new Date(start_date);
+            }
+            if (end_date) {
+                where.created_at.lte = new Date(end_date);
+            }
+        }
+
+        try {
+            const [total_income, income_by_category] = await Promise.all([
+                this.prisma.userIncome.count({ where }),
+                this.prisma.userIncome.groupBy({
+                    by: ['category_id'],
+                    where,
+                    _sum: {
+                        amount: true,
+                    },
+                    _count: {
+                        id: true,
+                    },
+                }),
+            ]);
+
+            // Get category names
+            const category_ids = income_by_category.map(item => item.category_id);
+            const categories = await this.prisma.userCategory.findMany({
+                where: {
+                    id: {
+                        in: category_ids,
+                    },
+                    user_id,
+                    type: CategoryType.INCOME, 
+                },
+                select: {
+                    id: true,
+                    name: true,
+                },
+            });
+
+            const categories_map = new Map(categories.map(cat => [cat.id, cat.name]));
+
+            const total_amount = income_by_category.reduce((sum, item) => {
+                return sum.plus(item._sum.amount || new Decimal(0));
+            }, new Decimal(0));
+
+            const categories_summary = income_by_category.map(item => ({
+                category_id: item.category_id,
+                category_name: categories_map.get(item.category_id) || 'Unknown',
+                total_amount: (item._sum.amount || new Decimal(0)).toString(),
+                count: item._count.id,
+            }));
+
+            return {
+                total_income,
+                total_amount: total_amount.toString(),
+                categories_summary,
+            };
+        } catch (error) {
+            throw new BadRequestException('Failed to get user income summary');
+        }
+    }
+}

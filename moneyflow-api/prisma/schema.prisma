@@ -1,6 +1,5 @@
 generator client {
 	provider = "prisma-client-js"
-	output   = "../generated/prisma"
 }
 
 datasource db {
@@ -16,10 +15,9 @@ model User {
 	registered_at DateTime @default(now()) @db.Timestamptz
 
 	// Relations
-	user_expense_categories UserExpenseCategory[]
-	user_income_categories  UserIncomeCategory[]
-	user_expenses           UserExpense[]
-	user_income             UserIncome[]
+	user_categories UserCategory[]
+	user_expenses   UserExpense[]
+	user_income     UserIncome[]
 
 	@@index([is_active])
 	@@index([registered_at])
@@ -42,32 +40,21 @@ enum CategoryType {
 	EXPENSE
 }
 
-model UserExpenseCategory {
-	id      Int    @id @default(autoincrement())
-	user_id String @db.Uuid
+model UserCategory {
+	id      Int          @id @default(autoincrement())
+	user_id String       @db.Uuid
 	name    String
+	type    CategoryType
 
 	// Relations
 	user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
 	user_expenses UserExpense[]
+	user_income   UserIncome[]
 
 	@@index([user_id])
-	@@unique([user_id, name])
-	@@map("user_expense_categories")
-}
-
-model UserIncomeCategory {
-	id      Int    @id @default(autoincrement())
-	user_id String @db.Uuid
-	name    String
-
-	// Relations
-	user        User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	user_income UserIncome[]
-
-	@@index([user_id])
-	@@unique([user_id, name])
-	@@map("user_income_categories")
+	@@index([user_id, type])
+	@@unique([user_id, name, type])
+	@@map("user_categories")
 }
 
 model UserExpense {
@@ -79,8 +66,8 @@ model UserExpense {
 	notes       String?
 
 	// Relations
-	user     User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	category UserExpenseCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+	user     User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
 	@@index([user_id, created_at])
@@ -99,8 +86,8 @@ model UserIncome {
 	notes       String?
 
 	// Relations
-	user     User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	category UserIncomeCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+	user     User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
 	@@index([user_id, created_at])
