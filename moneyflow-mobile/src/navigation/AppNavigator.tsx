@@ -9,7 +9,8 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 
 // Main Screens
 import { HomeScreen } from '../screens/main/HomeScreen';
-import { TransactionsScreen } from '../screens/main/TransactionsScreen';
+import { ExpenseScreen } from '../screens/main/ExpenseScreen';
+import { IncomeScreen } from '../screens/main/IncomeScreen';
 import { CategoriesScreen } from '../screens/main/CategoriesScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
 
@@ -33,29 +34,56 @@ const MainNavigator = () => {
     return (
         <MainTab.Navigator
             screenOptions={{
-                tabBarActiveTintColor: '#2E7D32',
+                tabBarActiveTintColor: '#3b82f6',
                 tabBarInactiveTintColor: '#666',
-                headerStyle: { backgroundColor: '#2E7D32' },
-                headerTintColor: 'white',
+                headerShown: false,
+                tabBarStyle: {
+                    paddingBottom: 5,
+                    height: 60,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 12,
+                    fontWeight: '500',
+                },
             }}
         >
             <MainTab.Screen
-                name="Home"
-                component={HomeScreen}
+                name="Expense"
+                component={ExpenseScreen}
                 options={{
-                    tabBarLabel: 'Home',
+                    tabBarLabel: 'Expense',
                     tabBarIcon: ({ size }) => (
-                        <TabIcon emoji="🏠" size={size} />
+                        <TabIcon emoji="💸" size={size} />
                     ),
                 }}
             />
             <MainTab.Screen
-                name="Transactions"
-                component={TransactionsScreen}
+                name="Income"
+                component={IncomeScreen}
                 options={{
-                    tabBarLabel: 'Transactions',
+                    tabBarLabel: 'Income',
                     tabBarIcon: ({ size }) => (
-                        <TabIcon emoji="📋" size={size} />
+                        <TabIcon emoji="💰" size={size} />
+                    ),
+                }}
+            />
+            <MainTab.Screen
+                name="CashFlow"
+                component={HomeScreen}
+                options={{
+                    tabBarLabel: 'Cash Flow',
+                    tabBarIcon: ({ size }) => (
+                        <TabIcon emoji="📊" size={size} />
+                    ),
+                }}
+            />
+            <MainTab.Screen
+                name="Accounts"
+                component={ProfileScreen}
+                options={{
+                    tabBarLabel: 'Accounts',
+                    tabBarIcon: ({ size }) => (
+                        <TabIcon emoji="🏦" size={size} />
                     ),
                 }}
             />
@@ -66,16 +94,6 @@ const MainNavigator = () => {
                     tabBarLabel: 'Categories',
                     tabBarIcon: ({ size }) => (
                         <TabIcon emoji="📂" size={size} />
-                    ),
-                }}
-            />
-            <MainTab.Screen
-                name="Profile"
-                component={ProfileScreen}
-                options={{
-                    tabBarLabel: 'Profile',
-                    tabBarIcon: ({ size }) => (
-                        <TabIcon emoji="👤" size={size} />
                     ),
                 }}
             />

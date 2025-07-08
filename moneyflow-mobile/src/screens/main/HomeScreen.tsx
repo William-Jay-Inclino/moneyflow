@@ -5,13 +5,13 @@ export const HomeScreen = () => {
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Dashboard</Text>
-                <Text style={styles.subtitle}>Welcome back!</Text>
+                <Text style={styles.title}>Cash Flow</Text>
+                <Text style={styles.subtitle}>Your financial overview</Text>
             </View>
 
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>Balance</Text>
-                <Text style={styles.balance}>$1,234.56</Text>
+                <Text style={styles.balance}>1,234.56</Text>
             </View>
 
             <View style={styles.card}>
@@ -21,8 +21,8 @@ export const HomeScreen = () => {
 
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>Monthly Summary</Text>
-                <Text style={styles.placeholder}>Income: $2,000.00</Text>
-                <Text style={styles.placeholder}>Expenses: $765.44</Text>
+                <Text style={styles.placeholder}>Income: 2,000.00</Text>
+                <Text style={styles.placeholder}>Expenses: 765.44</Text>
             </View>
         </ScrollView>
     );
@@ -31,47 +31,50 @@ export const HomeScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f8fafc',
     },
     header: {
-        padding: 20,
-        backgroundColor: '#2E7D32',
+        paddingTop: 50,
+        paddingHorizontal: 24,
+        paddingBottom: 32,
+        backgroundColor: '#3b82f6',
     },
     title: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: 'bold',
         color: 'white',
+        marginBottom: 4,
     },
     subtitle: {
         fontSize: 16,
-        color: '#E8F5E8',
-        marginTop: 5,
+        color: '#e0e7ff',
+        opacity: 0.9,
     },
     card: {
         backgroundColor: 'white',
-        margin: 15,
-        padding: 20,
-        borderRadius: 10,
+        margin: 16,
+        padding: 24,
+        borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     cardTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#333',
+        fontWeight: '600',
+        marginBottom: 12,
+        color: '#1e293b',
     },
     balance: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#2E7D32',
+        color: '#3b82f6',
     },
     placeholder: {
         fontSize: 16,
-        color: '#666',
-        marginBottom: 5,
+        color: '#64748b',
+        marginBottom: 8,
     },
 });
