@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     quickAddButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#3b82f6',
         padding: 12,
         borderRadius: 8,
         alignItems: 'center',
