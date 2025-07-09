@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsBoolean, IsOptional } from 'class-validator';
+import { IsEmail, IsString, IsBoolean, IsOptional, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -6,12 +6,23 @@ export class CreateUserDto {
     @IsEmail()
     email: string;
 
-    @ApiProperty({ description: 'Username (auto-generated from email)' })
+    @ApiProperty({ description: 'User password (minimum 6 characters)' })
     @IsString()
-    username: string;
+    @MinLength(6)
+    password: string;
 
     @ApiProperty({ description: 'User active status', default: true })
     @IsBoolean()
     @IsOptional()
     is_active?: boolean;
+
+    @ApiProperty({ description: 'Email verified status', default: false })
+    @IsBoolean()
+    @IsOptional()
+    email_verified?: boolean;
+
+    @ApiProperty({ description: 'Email verification token', required: false })
+    @IsString()
+    @IsOptional()
+    email_verify_token?: string;
 }

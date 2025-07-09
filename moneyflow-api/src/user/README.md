@@ -1,27 +1,26 @@
 # User Module
 
-This module handles user management with Google OAuth registration functionality.
+This module handles user management with email/password authentication and email verification functionality.
 
 ## Features
 
-- User registration via Google OAuth
+- User registration with email and password
+- Email verification system
+- User login with password authentication
 - User profile management
 - User lookup by email or ID
 - User active status management
 
 ## API Endpoints
 
-### POST /users/register/google
-Register a new user using Google OAuth credentials.
+### POST /users/register
+Register a new user with email and password.
 
 **Request Body:**
 ```json
 {
   "email": "user@example.com",
-  "username": "john_doe",
-  "googleId": "1234567890",
-  "fullName": "John Doe",
-  "profilePicture": "https://example.com/avatar.jpg"
+  "password": "password123"
 }
 ```
 
@@ -29,10 +28,71 @@ Register a new user using Google OAuth credentials.
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "username": "john_doe",
   "email": "user@example.com",
   "is_active": true,
+  "email_verified": false,
   "registered_at": "2023-01-01T00:00:00.000Z"
+}
+```
+
+### POST /users/login
+Login user with email and password.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "email": "user@example.com",
+  "is_active": true,
+  "email_verified": true,
+  "registered_at": "2023-01-01T00:00:00.000Z"
+}
+```
+
+### POST /users/verify-email
+Verify user email with token.
+
+**Request Body:**
+```json
+{
+  "user_id": "123e4567-e89b-12d3-a456-426614174000",
+  "token": "verification-token-here"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "email": "user@example.com",
+  "is_active": true,
+  "email_verified": true,
+  "registered_at": "2023-01-01T00:00:00.000Z"
+}
+```
+
+### POST /users/resend-verification
+Resend email verification.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Verification email sent successfully"
 }
 ```
 
@@ -43,9 +103,9 @@ Get user profile information by user ID.
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "username": "john_doe",
   "email": "user@example.com",
   "is_active": true,
+  "email_verified": true,
   "registered_at": "2023-01-01T00:00:00.000Z"
 }
 ```
@@ -57,9 +117,9 @@ Find user by email address.
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "username": "john_doe",
   "email": "user@example.com",
   "is_active": true,
+  "email_verified": true,
   "registered_at": "2023-01-01T00:00:00.000Z"
 }
 ```
@@ -67,8 +127,10 @@ Find user by email address.
 ## Error Handling
 
 The module includes comprehensive error handling for:
-- Duplicate email addresses
-- Username conflicts
+- Duplicate email addresses during registration
+- Invalid credentials during login
+- Unverified email addresses
+- Invalid verification tokens
 - Invalid input data
 - Database connection issues
 
@@ -79,6 +141,7 @@ The module includes comprehensive error handling for:
 - `class-validator`: Input validation
 - `class-transformer`: Data transformation
 - `@prisma/client`: Database ORM
+- `bcrypt`: Password hashing
 
 ## Integration
 
@@ -86,14 +149,15 @@ To use this module in your application:
 
 1. Import the UserModule in your app.module.ts
 2. Ensure PrismaModule is available
-3. Configure Google OAuth in your application
+3. Configure email service for verification emails
 4. Use the provided endpoints for user registration and management
 
 ## Next Steps
 
-For complete Google OAuth integration, you may want to add:
-- Google OAuth strategy with Passport
-- JWT token generation
+For complete authentication integration, you may want to add:
+- JWT token generation and validation
 - Authentication guards
-- User session management
-- OAuth callback handling
+- Password reset functionality
+- Email service integration
+- Rate limiting for authentication endpoints
+- Session management

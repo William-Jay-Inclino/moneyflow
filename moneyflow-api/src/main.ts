@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -17,6 +18,9 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
     }));
 
+    // Global class serializer interceptor to handle @Exclude decorators
+    app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
     // Swagger configuration
     const config = new DocumentBuilder()
         .setTitle('MoneyFlow API')
@@ -30,9 +34,9 @@ async function bootstrap() {
 
     const port = process.env.PORT || 7000;
 
-    await app.listen(port, '127.0.0.1', async () => {
-        console.log(`Running API in NODE ${process.env.NODE_ENV} on ${await app.getUrl()}`);
-        console.log(`Swagger docs available at ${await app.getUrl()}/docs`);
+    await app.listen(port, '0.0.0.0', async () => {
+        console.log(`Running API in NODE ${process.env.NODE_ENV} on http://0.0.0.0:${port}`);
+        console.log(`Swagger docs available at http://localhost:${port}/moneyflow/api/docs`);
     });
 }
 bootstrap();

@@ -1,24 +1,29 @@
-import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { UserEntity } from './entities/user.entity';
-import { CreateUserDto, GoogleAuthDto } from './dto';
+import { CreateUserDto, RegisterUserDto, LoginUserDto, VerifyEmailDto, ResendVerificationDto } from './dto';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UserService {
     constructor(private readonly prisma: PrismaService) {}
 
-    private generate_username_from_email(email: string): string {
-        // Extract the part before @ and replace non-alphanumeric characters with underscores
-        const base_username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-        
-        // Add timestamp to ensure uniqueness
-        const timestamp = Date.now().toString().slice(-6);
-        
-        return `${base_username}_${timestamp}`;
+    private async hash_password(password: string): Promise<string> {
+        const salt_rounds = 10;
+        return bcrypt.hash(password, salt_rounds);
     }
 
-    async register_with_google(google_auth_dto: GoogleAuthDto): Promise<UserEntity> {
-        const { email, google_id, name, profile_picture, id_token } = google_auth_dto;
+    private async verify_password(password: string, hash: string): Promise<boolean> {
+        return bcrypt.compare(password, hash);
+    }
+
+    private generate_verification_token(): string {
+        return randomBytes(32).toString('hex');
+    }
+
+    async register_user(register_user_dto: RegisterUserDto): Promise<UserEntity> {
+        const { email, password, is_active = true } = register_user_dto;
 
         try {
             // Check if user already exists
@@ -27,33 +32,149 @@ export class UserService {
             });
 
             if (existing_user) {
-                // Return existing user for mobile apps (no error)
-                return new UserEntity(existing_user);
+                throw new ConflictException('User with this email already exists');
             }
 
-            // Generate username from email
-            const username = this.generate_username_from_email(email);
-
-            // Ensure username is unique
-            let final_username = username;
-            let counter = 1;
-            while (await this.prisma.user.findUnique({ where: { username: final_username } })) {
-                final_username = `${username}_${counter}`;
-                counter++;
-            }
+            // Hash password
+            const hashed_password = await this.hash_password(password);
+            
+            // Generate verification token
+            const email_verify_token = this.generate_verification_token();
 
             // Create new user
             const user = await this.prisma.user.create({
                 data: {
                     email,
-                    username: final_username,
-                    is_active: true,
+                    password: hashed_password,
+                    is_active,
+                    email_verified: false,
+                    email_verify_token,
                 },
             });
 
+            // TODO: Send verification email here
+            console.log(`Email verification token for ${email}: ${email_verify_token}`);
+
             return new UserEntity(user);
         } catch (error) {
-            throw new BadRequestException('Failed to register user with Google');
+            if (error instanceof ConflictException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to register user');
+        }
+    }
+
+    async login_user(login_user_dto: LoginUserDto): Promise<UserEntity> {
+        const { email, password } = login_user_dto;
+
+        try {
+            // Find user by email
+            const user = await this.prisma.user.findUnique({
+                where: { email },
+            });
+
+            if (!user) {
+                throw new UnauthorizedException('Invalid email or password');
+            }
+
+            // Verify password
+            const is_password_valid = await this.verify_password(password, user.password);
+            if (!is_password_valid) {
+                throw new UnauthorizedException('Invalid email or password');
+            }
+
+            // Check if user is active
+            if (!user.is_active) {
+                throw new UnauthorizedException('Account is disabled');
+            }
+
+            // Check if email is verified
+            if (!user.email_verified) {
+                throw new UnauthorizedException('Please verify your email address before logging in');
+            }
+
+            return new UserEntity(user);
+        } catch (error) {
+            if (error instanceof UnauthorizedException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to login user');
+        }
+    }
+
+    async verify_email(verify_email_dto: VerifyEmailDto): Promise<UserEntity> {
+        const { user_id, token } = verify_email_dto;
+
+        try {
+            // Find user by ID and token
+            const user = await this.prisma.user.findFirst({
+                where: {
+                    id: user_id,
+                    email_verify_token: token,
+                },
+            });
+
+            if (!user) {
+                throw new BadRequestException('Invalid verification token');
+            }
+
+            if (user.email_verified) {
+                throw new BadRequestException('Email is already verified');
+            }
+
+            // Update user as verified
+            const updated_user = await this.prisma.user.update({
+                where: { id: user_id },
+                data: {
+                    email_verified: true,
+                    email_verify_token: null,
+                },
+            });
+
+            return new UserEntity(updated_user);
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to verify email');
+        }
+    }
+
+    async resend_verification(resend_verification_dto: ResendVerificationDto): Promise<{ message: string }> {
+        const { email } = resend_verification_dto;
+
+        try {
+            // Find user by email
+            const user = await this.prisma.user.findUnique({
+                where: { email },
+            });
+
+            if (!user) {
+                throw new BadRequestException('User not found');
+            }
+
+            if (user.email_verified) {
+                throw new BadRequestException('Email is already verified');
+            }
+
+            // Generate new verification token
+            const email_verify_token = this.generate_verification_token();
+
+            // Update user with new token
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: { email_verify_token },
+            });
+
+            // TODO: Send verification email here
+            console.log(`New email verification token for ${email}: ${email_verify_token}`);
+
+            return { message: 'Verification email sent successfully' };
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to resend verification email');
         }
     }
 

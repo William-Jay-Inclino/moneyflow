@@ -1,0 +1,270 @@
+import React, { useState, useEffect } from 'react';
+import { 
+    View, 
+    Text, 
+    StyleSheet, 
+    TouchableOpacity, 
+    TextInput, 
+    Alert,
+    ActivityIndicator 
+} from 'react-native';
+import { useAuthStore } from '@store/authStore';
+import { authApi } from '@services/api';
+
+export const EmailVerificationScreen = ({ navigation }: any) => {
+    const { 
+        pendingVerificationEmail, 
+        pendingVerificationUserId, 
+        login, 
+        clearPendingVerification,
+        setLoading 
+    } = useAuthStore();
+    
+    const [verificationCode, setVerificationCode] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isResending, setIsResending] = useState(false);
+
+    useEffect(() => {
+        // If no pending verification, redirect to login
+        if (!pendingVerificationEmail || !pendingVerificationUserId) {
+            navigation.navigate('Login');
+        }
+    }, [pendingVerificationEmail, pendingVerificationUserId, navigation]);
+
+    const handleVerifyEmail = async () => {
+        if (!verificationCode.trim()) {
+            Alert.alert('Error', 'Please enter the verification code');
+            return;
+        }
+
+        if (!pendingVerificationUserId) {
+            Alert.alert('Error', 'Verification session expired. Please sign up again.');
+            navigation.navigate('Signup');
+            return;
+        }
+
+        setIsLoading(true);
+        setLoading(true);
+
+        try {
+            const user = await authApi.verifyEmail({
+                user_id: pendingVerificationUserId,
+                token: verificationCode.trim()
+            });
+            
+            clearPendingVerification();
+            login(user, 'temp-token');
+            
+            Alert.alert(
+                'Email Verified!',
+                'Your email has been successfully verified. Welcome to MoneyFlow!',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Navigation will be handled by auth state change
+                        }
+                    }
+                ]
+            );
+            
+        } catch (error: any) {
+            console.error('Email verification error:', error);
+            
+            let errorMessage = 'An error occurred during verification';
+            
+            if (error.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'Invalid verification code';
+            } else if (!error.response) {
+                errorMessage = 'Network error. Please check your connection';
+            }
+            
+            Alert.alert('Verification Failed', errorMessage);
+        } finally {
+            setIsLoading(false);
+            setLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        if (!pendingVerificationEmail) {
+            Alert.alert('Error', 'No email address found. Please sign up again.');
+            navigation.navigate('Signup');
+            return;
+        }
+
+        setIsResending(true);
+
+        try {
+            await authApi.resendVerification({
+                email: pendingVerificationEmail
+            });
+            
+            Alert.alert(
+                'Code Sent',
+                'A new verification code has been sent to your email address.'
+            );
+            
+        } catch (error: any) {
+            console.error('Resend verification error:', error);
+            
+            let errorMessage = 'Failed to resend verification code';
+            
+            if (error.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'Email is already verified';
+            } else if (!error.response) {
+                errorMessage = 'Network error. Please check your connection';
+            }
+            
+            Alert.alert('Resend Failed', errorMessage);
+        } finally {
+            setIsResending(false);
+        }
+    };
+
+    const handleBackToSignup = () => {
+        clearPendingVerification();
+        navigation.navigate('Signup');
+    };
+
+    if (!pendingVerificationEmail) {
+        return null; // Will redirect via useEffect
+    }
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>Verify Your Email</Text>
+            <Text style={styles.subtitle}>
+                We've sent a verification code to:{'\n'}
+                <Text style={styles.email}>{pendingVerificationEmail}</Text>
+            </Text>
+
+            <View style={styles.form}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Enter verification code"
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                />
+
+                <TouchableOpacity 
+                    style={[styles.button, isLoading && styles.buttonDisabled]} 
+                    onPress={handleVerifyEmail}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <Text style={styles.buttonText}>Verify Email</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={[styles.secondaryButton, isResending && styles.buttonDisabled]} 
+                    onPress={handleResendCode}
+                    disabled={isResending || isLoading}
+                >
+                    {isResending ? (
+                        <ActivityIndicator color="#3b82f6" />
+                    ) : (
+                        <Text style={styles.secondaryButtonText}>Resend Code</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.backButton}
+                    onPress={handleBackToSignup}
+                    disabled={isLoading}
+                >
+                    <Text style={styles.backButtonText}>Back to Sign Up</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#3b82f6',
+        textAlign: 'center',
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 40,
+        textAlign: 'center',
+        lineHeight: 24,
+    },
+    email: {
+        fontWeight: 'bold',
+        color: '#3b82f6',
+    },
+    form: {
+        width: '100%',
+        maxWidth: 320,
+    },
+    input: {
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        marginBottom: 15,
+        fontSize: 16,
+        textAlign: 'center',
+        letterSpacing: 2,
+    },
+    button: {
+        backgroundColor: '#3b82f6',
+        paddingHorizontal: 40,
+        paddingVertical: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    buttonDisabled: {
+        backgroundColor: '#9ca3af',
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    secondaryButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#3b82f6',
+        paddingHorizontal: 40,
+        paddingVertical: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    secondaryButtonText: {
+        color: '#3b82f6',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    backButton: {
+        alignItems: 'center',
+        paddingVertical: 15,
+    },
+    backButtonText: {
+        color: '#666',
+        fontSize: 14,
+    },
+});

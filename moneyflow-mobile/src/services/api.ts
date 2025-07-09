@@ -4,6 +4,8 @@ import {
     ApiResponse,
     LoginRequest,
     RegisterRequest,
+    VerifyEmailRequest,
+    ResendVerificationRequest,
     User,
     CreateTransactionRequest,
     CreateCategoryRequest,
@@ -11,7 +13,10 @@ import {
     Category,
 } from '@/types';
 
-const API_BASE_URL = 'http://localhost:3000'; // Update this to your API URL
+// Use the host machine's network IP for Expo connectivity
+const API_BASE_URL = 'http://192.168.1.5:7000/moneyflow/api'; // Your network IP
+
+console.log('API_BASE_URL configured as:', API_BASE_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -55,27 +60,37 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-    login: async (
-        credentials: LoginRequest
-    ): Promise<ApiResponse<{ user: User; token: string }>> => {
-        const response = await api.post('/auth/login', credentials);
+    login: async (credentials: LoginRequest): Promise<User> => {
+        const response = await api.post('/users/login', credentials);
         return response.data;
     },
 
-    register: async (
-        data: RegisterRequest
-    ): Promise<ApiResponse<{ user: User; token: string }>> => {
-        const response = await api.post('/auth/register', data);
+    register: async (data: RegisterRequest): Promise<User> => {
+        console.log('Attempting to register with:', data);
+        console.log('Full URL will be:', `${API_BASE_URL}/users/register`);
+        const response = await api.post('/users/register', data);
+        console.log('Registration response:', response.data);
+        return response.data;
+    },
+
+    verifyEmail: async (data: VerifyEmailRequest): Promise<User> => {
+        const response = await api.post('/users/verify-email', data);
+        return response.data;
+    },
+
+    resendVerification: async (
+        data: ResendVerificationRequest
+    ): Promise<{ message: string }> => {
+        const response = await api.post('/users/resend-verification', data);
         return response.data;
     },
 
     logout: async (): Promise<void> => {
-        await api.post('/auth/logout');
         await AsyncStorage.removeItem('auth-token');
     },
 
-    getProfile: async (): Promise<ApiResponse<User>> => {
-        const response = await api.get('/auth/profile');
+    getProfile: async (userId: string): Promise<User> => {
+        const response = await api.get(`/users/${userId}`);
         return response.data;
     },
 };

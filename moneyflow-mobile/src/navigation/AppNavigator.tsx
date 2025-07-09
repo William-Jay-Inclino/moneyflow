@@ -5,7 +5,7 @@ import { Text } from 'react-native';
 import { useAuthStore } from '../store';
 
 // Auth Screens
-import { LoginScreen } from '../screens/auth/LoginScreen';
+import { LoginScreen, SignupScreen, EmailVerificationScreen } from '../screens/auth';
 
 // Main Screens
 import { HomeScreen } from '../screens/main/HomeScreen';
@@ -30,6 +30,8 @@ const AuthNavigator = () => {
     return (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
             <AuthStack.Screen name="Login" component={LoginScreen} />
+            <AuthStack.Screen name="Signup" component={SignupScreen} />
+            <AuthStack.Screen name="EmailVerification" component={EmailVerificationScreen} />
         </AuthStack.Navigator>
     );
 };

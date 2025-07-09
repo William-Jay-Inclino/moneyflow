@@ -1,10 +1,9 @@
 export interface User {
     id: string;
     email: string;
-    name: string;
-    avatar?: string;
-    createdAt: string;
-    updatedAt: string;
+    is_active: boolean;
+    email_verified: boolean;
+    registered_at: string;
 }
 
 export interface Category {
@@ -57,9 +56,17 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-    name: string;
     email: string;
     password: string;
+}
+
+export interface VerifyEmailRequest {
+    user_id: string;
+    token: string;
+}
+
+export interface ResendVerificationRequest {
+    email: string;
 }
 
 export interface CreateTransactionRequest {
@@ -76,3 +83,6 @@ export interface CreateCategoryRequest {
     color: string;
     type: 'income' | 'expense';
 }
+
+// Navigation types
+export * from './navigation';

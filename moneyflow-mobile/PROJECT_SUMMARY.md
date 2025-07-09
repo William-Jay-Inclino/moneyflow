@@ -27,7 +27,8 @@ src/
 ├── screens/            # Screen components
 │   ├── auth/           # Authentication screens
 │   │   ├── LoginScreen.tsx
-│   │   └── RegisterScreen.tsx
+│   │   ├── SignupScreen.tsx
+│   │   └── EmailVerificationScreen.tsx
 │   └── main/           # Main app screens
 │       ├── HomeScreen.tsx
 │       ├── TransactionsScreen.tsx
