@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 16,
         borderWidth: 1,
-        borderColor: '#bbf7d0',
+        borderColor: '#dcfce7',
     },
     categoryIcon: {
         fontSize: 24,

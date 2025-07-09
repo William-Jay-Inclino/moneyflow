@@ -11,10 +11,11 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { ExpenseScreen } from '../screens/main/ExpenseScreen';
 import { AllExpensesScreen } from '../screens/main/AllExpensesScreen';
+import { AllIncomeScreen } from '../screens/main/AllIncomeScreen';
 import { CashFlowScreen } from '../screens/main/CashFlowScreen';
 import { IncomeScreen } from '../screens/main/IncomeScreen';
 import { CategoriesScreen } from '../screens/main/CategoriesScreen';
-import { ProfileScreen } from '../screens/main/ProfileScreen';
+import { AccountScreen } from '../screens/main/AccountScreen';
 
 const AuthStack = createStackNavigator();
 const MainTab = createBottomTabNavigator();
@@ -90,7 +91,7 @@ const MainTabNavigator = () => {
             />
             <MainTab.Screen
                 name="Accounts"
-                component={ProfileScreen}
+                component={AccountScreen}
                 options={{
                     tabBarLabel: 'Accounts',
                     tabBarIcon: ({ size }) => (
@@ -117,7 +118,7 @@ const MainNavigator = () => {
         <MainStack.Navigator screenOptions={{ headerShown: false }}>
             <MainStack.Screen name="MainTabs" component={MainTabNavigator} />
             <MainStack.Screen name="AllExpenses" component={AllExpensesScreen} />
-            <MainStack.Screen name="AllIncome" component={CashFlowScreen} />
+            <MainStack.Screen name="AllIncome" component={AllIncomeScreen} />
         </MainStack.Navigator>
     );
 };
