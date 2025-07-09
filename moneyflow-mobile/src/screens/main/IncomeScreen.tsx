@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Dimensions } from 'react-native';
+import { IncomeItem, CategoryChip } from '../../components';
 
-export const IncomeScreen = () => {
+export const IncomeScreen = ({ navigation }: { navigation: any }) => {
     const [notes, setNotes] = useState('');
     const [amount, setAmount] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [dropdownVisible, setDropdownVisible] = useState<string | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0 });
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editFormData, setEditFormData] = useState({ id: '', amount: '', notes: '', category: '' });
+    const [showIncomeDetails, setShowIncomeDetails] = useState(false);
     const [incomeList, setIncomeList] = useState([
         {
             id: '1',
@@ -51,9 +52,9 @@ export const IncomeScreen = () => {
         }
     ]);
 
-    const categories = ['Salary', 'Freelance', 'Investments', 'Business', 'Bonus', 'Rewards', 'Other'];
+    const categories = useMemo(() => ['Salary', 'Freelance', 'Investments', 'Business', 'Bonus', 'Rewards', 'Other'], []);
 
-    const handleAddIncome = () => {
+    const handleAddIncome = useCallback(() => {
         if (!amount.trim()) {
             Alert.alert('Missing Amount', 'Please enter the income amount');
             return;
@@ -67,45 +68,35 @@ export const IncomeScreen = () => {
             return;
         }
 
-        if (editingId) {
-            // Update existing income
-            setIncomeList(prev => prev.map(item => 
-                item.id === editingId 
-                    ? { ...item, amount: parseFloat(amount), description: notes, category: selectedCategory }
-                    : item
-            ));
-            Alert.alert('Success', 'Income updated successfully');
-            setEditingId(null);
-        } else {
-            // Add new income
-            const newIncome = {
-                id: Date.now().toString(),
-                amount: parseFloat(amount),
-                description: notes,
-                category: selectedCategory,
-                date: new Date().toISOString().split('T')[0],
-                time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            };
-            setIncomeList(prev => [newIncome, ...prev]);
-            Alert.alert('Success', 'Income added successfully');
-        }
+        // Add new income
+        const newIncome = {
+            id: Date.now().toString(),
+            amount: parseFloat(amount),
+            description: notes,
+            category: selectedCategory,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        };
+        setIncomeList(prev => [newIncome, ...prev]);
+        Alert.alert('Success', 'Income added successfully');
         
         // Reset form
         setNotes('');
         setAmount('');
         setSelectedCategory('');
-    };
+    }, [amount, notes, selectedCategory]);
 
-    const handleEditIncome = (income: any) => {
-        setNotes(income.description);
-        setAmount(income.amount.toString());
-        setSelectedCategory(income.category);
-        setEditingId(income.id);
-        setDropdownVisible(null);
-    };
+    const handleEditIncome = useCallback((income: any) => {
+        setEditFormData({
+            id: income.id,
+            amount: income.amount.toString(),
+            notes: income.description,
+            category: income.category
+        });
+        setEditModalVisible(true);
+    }, []);
 
-    const handleDeleteIncome = (id: string) => {
-        setDropdownVisible(null);
+    const handleDeleteIncome = useCallback((id: string) => {
         Alert.alert(
             'Delete Income',
             'Are you sure you want to delete this income?',
@@ -121,38 +112,36 @@ export const IncomeScreen = () => {
                 }
             ]
         );
-    };
+    }, []);
 
-    const toggleDropdown = (id: string, event?: any) => {
-        if (dropdownVisible === id) {
-            setDropdownVisible(null);
-        } else {
-            // Calculate position for dropdown
-            const screenWidth = Dimensions.get('window').width;
-            const screenHeight = Dimensions.get('window').height;
-            
-            if (event && event.nativeEvent) {
-                const { pageX, pageY } = event.nativeEvent;
-                setDropdownPosition({ 
-                    x: Math.min(pageX - 100, screenWidth - 140), 
-                    y: Math.min(pageY + 10, screenHeight - 100) 
-                });
-            } else {
-                // Fallback position
-                setDropdownPosition({ x: screenWidth - 140, y: 100 });
-            }
-            
-            setDropdownVisible(id);
+    const handleSaveEdit = useCallback(() => {
+        if (!editFormData.amount.trim() || !editFormData.notes.trim() || !editFormData.category) {
+            Alert.alert('Error', 'Please fill in all fields');
+            return;
         }
-    };
 
-    const cancelEdit = () => {
-        setEditingId(null);
-        setNotes('');
-        setAmount('');
-        setSelectedCategory('');
-        setDropdownVisible(null);
-    };
+        setIncomeList(prev => prev.map(item => 
+            item.id === editFormData.id
+                ? { ...item, amount: parseFloat(editFormData.amount), description: editFormData.notes, category: editFormData.category }
+                : item
+        ));
+        
+        setEditModalVisible(false);
+        setEditFormData({ id: '', amount: '', notes: '', category: '' });
+        Alert.alert('Success', 'Income updated successfully');
+    }, [editFormData]);
+
+    const handleCategorySelect = useCallback((category: string) => {
+        setSelectedCategory(category);
+    }, []);
+
+    const handleScrollBeginDrag = useCallback(() => {
+        // Hide any open dropdowns when scrolling starts
+    }, []);
+
+    const updateEditFormData = useCallback((field: string, value: string) => {
+        setEditFormData(prev => ({ ...prev, [field]: value }));
+    }, []);
 
     const getCategoryIcon = (category: string) => {
         switch (category) {
@@ -175,30 +164,22 @@ export const IncomeScreen = () => {
         return date.toLocaleDateString('en-US', options);
     };
 
-    const incomeData = incomeList;
-    const totalIncome = incomeData.reduce((sum, item) => sum + item.amount, 0);
+    const totalIncome = useMemo(() => {
+        return incomeList.reduce((sum, item) => sum + item.amount, 0);
+    }, [incomeList]);
 
     return (
         <ScrollView 
             style={styles.container}
-            onScrollBeginDrag={() => setDropdownVisible(null)}
+            onScrollBeginDrag={handleScrollBeginDrag}
         >
             <View style={styles.header}>
-                <Text style={styles.title}>Income</Text>
-                <Text style={styles.subtitle}>Track your earnings</Text>
+                <Text style={styles.title}>Add Income</Text>
+                <Text style={styles.subtitle}>Quick and easy income tracking</Text>
             </View>
 
             {/* Quick Add Form */}
             <View style={styles.quickAddForm}>
-                {editingId && (
-                    <View style={styles.editingHeader}>
-                        <Text style={styles.editingText}>Editing Income</Text>
-                        <TouchableOpacity onPress={cancelEdit} style={styles.cancelButton}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-                
                 <View style={styles.formRow}>
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Amount</Text>
@@ -209,6 +190,7 @@ export const IncomeScreen = () => {
                             onChangeText={setAmount}
                             keyboardType="numeric"
                             placeholderTextColor="#94a3b8"
+                            autoFocus={true}
                         />
                     </View>
                     <View style={[styles.inputGroup, { flex: 2 }]}>
@@ -224,106 +206,154 @@ export const IncomeScreen = () => {
                 </View>
 
                 <View style={styles.categorySection}>
-                    <Text style={styles.inputLabel}>Category</Text>
+                    <Text style={styles.inputLabel}>Select Category</Text>
+                    <Text style={styles.helperText}>Slide to see more categories</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                         {categories.map((category) => (
-                            <TouchableOpacity
+                            <CategoryChip
                                 key={category}
-                                style={[
-                                    styles.categoryChip,
-                                    selectedCategory === category && styles.categoryChipSelected
-                                ]}
-                                onPress={() => setSelectedCategory(category)}
-                            >
-                                <Text style={[
-                                    styles.categoryChipText,
-                                    selectedCategory === category && styles.categoryChipTextSelected
-                                ]}>
-                                    {getCategoryIcon(category)} {category}
-                                </Text>
-                            </TouchableOpacity>
+                                category={category}
+                                isSelected={selectedCategory === category}
+                                onPress={handleCategorySelect}
+                                getCategoryIcon={getCategoryIcon}
+                            />
                         ))}
                     </ScrollView>
                 </View>
 
                 <TouchableOpacity style={styles.quickAddButton} onPress={handleAddIncome}>
-                    <Text style={styles.quickAddButtonText}>
-                        {editingId ? 'Update Income' : '+ Add Income'}
-                    </Text>
+                    <Text style={styles.quickAddButtonText}>+ Add Income</Text>
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Total Income This Month</Text>
-                <Text style={styles.summaryAmount}>+{totalIncome.toFixed(2)}</Text>
-            </View>
-
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Income</Text>
-                <TouchableOpacity>
-                    <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-            </View>
-
-            {incomeData.map((item) => (
-                <View key={item.id} style={styles.transactionCard}>
-                    <View style={styles.transactionLeft}>
-                        <View style={styles.iconContainer}>
-                            <Text style={styles.incomeIcon}>{getCategoryIcon(item.category)}</Text>
-                        </View>
-                        <View style={styles.transactionInfo}>
-                            <Text style={styles.transactionDescription}>{item.description}</Text>
-                            <Text style={styles.transactionCategory}>{item.category}</Text>
-                            <Text style={styles.transactionDate}>{formatDate(item.date)} • {item.time}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.transactionRight}>
-                        <Text style={styles.incomeAmount}>+{item.amount.toFixed(2)}</Text>
-                        <View style={styles.menuContainer}>
-                            <TouchableOpacity 
-                                style={styles.menuButton}
-                                onPress={(event) => toggleDropdown(item.id, event)}
-                            >
-                                <Text style={styles.menuButtonText}>⋯</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+            {/* Toggle Button for Income Details - Only show when details are hidden */}
+            {!showIncomeDetails && (
+                <View style={styles.toggleSection}>
+                    <TouchableOpacity 
+                        style={styles.toggleButton} 
+                        onPress={() => setShowIncomeDetails(!showIncomeDetails)}
+                    >
+                        <Text style={styles.toggleButtonText}>
+                            View Income Details
+                        </Text>
+                        <Text style={styles.toggleIcon}>
+                            ▼
+                        </Text>
+                    </TouchableOpacity>
                 </View>
-            ))}
+            )}
 
-            {/* Modal Dropdown */}
-            <Modal
-                visible={dropdownVisible !== null}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setDropdownVisible(null)}
-            >
-                <TouchableOpacity 
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setDropdownVisible(null)}
-                >
-                    <View style={[styles.dropdownMenu, { 
-                        left: dropdownPosition.x, 
-                        top: dropdownPosition.y 
-                    }]}>
-                        <TouchableOpacity 
-                            style={styles.dropdownItem}
-                            onPress={() => handleEditIncome(incomeList.find(item => item.id === dropdownVisible)!)}
-                        >
-                            <Text style={styles.dropdownText}>Edit</Text>
-                        </TouchableOpacity>
-                        <View style={styles.dropdownDivider} />
-                        <TouchableOpacity 
-                            style={styles.dropdownItem}
-                            onPress={() => dropdownVisible && handleDeleteIncome(dropdownVisible)}
-                        >
-                            <Text style={[styles.dropdownText, styles.deleteText]}>Delete</Text>
+            {/* Collapsible Income Details */}
+            {showIncomeDetails && (
+                <>
+                    <View style={styles.summaryCard}>
+                        <Text style={styles.summaryLabel}>Total Income This Month</Text>
+                        <Text style={styles.summaryAmount}>+{totalIncome.toFixed(2)}</Text>
+                    </View>
+
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Recent Income</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('AllIncome')}>
+                            <Text style={styles.seeAllText}>See All</Text>
                         </TouchableOpacity>
                     </View>
-                </TouchableOpacity>
-            </Modal>
 
+                    {incomeList.map((item) => (
+                        <IncomeItem
+                            key={item.id}
+                            item={item}
+                            getCategoryIcon={getCategoryIcon}
+                            formatDate={formatDate}
+                            onEdit={handleEditIncome}
+                            onDelete={handleDeleteIncome}
+                            editable={true}
+                        />
+                    ))}
+
+                    {/* Collapse Button */}
+                    <View style={styles.toggleSection}>
+                        <TouchableOpacity 
+                            style={styles.toggleButton} 
+                            onPress={() => setShowIncomeDetails(!showIncomeDetails)}
+                        >
+                            <Text style={styles.toggleButtonText}>
+                                Hide Income Details
+                            </Text>
+                            <Text style={styles.toggleIcon}>
+                                ▲
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </>
+            )}
+
+            {/* Edit Income Modal */}
+            <Modal
+                visible={editModalVisible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setEditModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity 
+                            onPress={() => setEditModalVisible(false)}
+                            style={styles.modalCancelButton}
+                        >
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.modalTitle}>Edit Income</Text>
+                        <TouchableOpacity 
+                            onPress={handleSaveEdit}
+                            style={styles.modalSaveButton}
+                        >
+                            <Text style={styles.modalSaveText}>Save</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={styles.modalContent}>
+                        <View style={styles.modalFormRow}>
+                            <View style={styles.modalInputGroup}>
+                                <Text style={styles.modalInputLabel}>Amount</Text>
+                                <TextInput
+                                    style={styles.modalAmountInput}
+                                    placeholder="0.00"
+                                    value={editFormData.amount}
+                                    onChangeText={(value) => updateEditFormData('amount', value)}
+                                    keyboardType="numeric"
+                                    placeholderTextColor="#94a3b8"
+                                />
+                            </View>
+                            <View style={[styles.modalInputGroup, { flex: 2 }]}>
+                                <Text style={styles.modalInputLabel}>Notes</Text>
+                                <TextInput
+                                    style={styles.modalNotesInput}
+                                    placeholder="Source of income?"
+                                    value={editFormData.notes}
+                                    onChangeText={(value) => updateEditFormData('notes', value)}
+                                    placeholderTextColor="#94a3b8"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.modalCategorySection}>
+                            <Text style={styles.modalInputLabel}>Category</Text>
+                            <Text style={styles.modalHelperText}>Select a category for this income</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modalCategoryScroll}>
+                                {categories.map((category) => (
+                                    <CategoryChip
+                                        key={category}
+                                        category={category}
+                                        isSelected={editFormData.category === category}
+                                        onPress={(cat) => updateEditFormData('category', cat)}
+                                        getCategoryIcon={getCategoryIcon}
+                                    />
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </ScrollView>
+                </View>
+            </Modal>
         </ScrollView>
     );
 };
@@ -337,7 +367,7 @@ const styles = StyleSheet.create({
         paddingTop: 50,
         paddingHorizontal: 24,
         paddingBottom: 32,
-        backgroundColor: '#3b82f6',
+        backgroundColor: '#10b981',
     },
     title: {
         fontSize: 28,
@@ -347,177 +377,8 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 16,
-        color: '#e0e7ff',
+        color: '#d1fae5',
         opacity: 0.9,
-    },
-    summaryCard: {
-        backgroundColor: 'white',
-        margin: 16,
-        padding: 24,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        alignItems: 'center',
-    },
-    summaryLabel: {
-        fontSize: 14,
-        color: '#64748b',
-        marginBottom: 8,
-        fontWeight: '500',
-    },
-    summaryAmount: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#10b981',
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        marginBottom: 12,
-        marginTop: 8,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1e293b',
-    },
-    seeAllText: {
-        fontSize: 14,
-        color: '#3b82f6',
-        fontWeight: '500',
-    },
-    transactionCard: {
-        backgroundColor: 'white',
-        marginHorizontal: 16,
-        marginBottom: 8,
-        padding: 16,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-        zIndex: 1,
-    },
-    transactionLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#ecfdf5',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    incomeIcon: {
-        fontSize: 24,
-    },
-    transactionInfo: {
-        flex: 1,
-    },
-    transactionDescription: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1e293b',
-        marginBottom: 2,
-    },
-    transactionCategory: {
-        fontSize: 14,
-        color: '#64748b',
-        marginBottom: 2,
-    },
-    transactionDate: {
-        fontSize: 12,
-        color: '#94a3b8',
-    },
-    transactionRight: {
-        alignItems: 'flex-end',
-    },
-    incomeAmount: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#10b981',
-        marginBottom: 4,
-    },
-    menuContainer: {
-        position: 'relative',
-        alignItems: 'flex-end',
-        zIndex: 1000,
-    },
-    menuButton: {
-        padding: 8,
-        borderRadius: 4,
-    },
-    menuButtonText: {
-        fontSize: 18,
-        color: '#94a3b8',
-        fontWeight: 'bold',
-        transform: [{ rotate: '90deg' }],
-    },
-    dropdown: {
-        position: 'absolute',
-        top: 35,
-        right: 0,
-        backgroundColor: 'white',
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 10,
-        minWidth: 120,
-        zIndex: 1001,
-    },
-    dropdownItem: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    dropdownText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#374151',
-    },
-    deleteText: {
-        color: '#ef4444',
-    },
-    dropdownDivider: {
-        height: 1,
-        backgroundColor: '#f1f5f9',
-    },
-    editingHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    editingText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#475569',
-    },
-    cancelButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-    },
-    cancelButtonText: {
-        color: '#64748b',
-        fontSize: 14,
-        fontWeight: '500',
     },
     // Quick Add Form Styles
     quickAddForm: {
@@ -564,29 +425,14 @@ const styles = StyleSheet.create({
     categorySection: {
         marginBottom: 16,
     },
-    categoryScroll: {
-        marginTop: 8,
-    },
-    categoryChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#d1d5db',
-        marginRight: 8,
-        backgroundColor: '#f9fafb',
-    },
-    categoryChipSelected: {
-        backgroundColor: '#3b82f6',
-        borderColor: '#3b82f6',
-    },
-    categoryChipText: {
+    helperText: {
         fontSize: 12,
         color: '#6b7280',
-        fontWeight: '500',
+        marginBottom: 8,
+        fontStyle: 'italic',
     },
-    categoryChipTextSelected: {
-        color: 'white',
+    categoryScroll: {
+        marginTop: 8,
     },
     quickAddButton: {
         backgroundColor: '#10b981',
@@ -599,22 +445,155 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    // Toggle Section
+    toggleSection: {
+        marginHorizontal: 16,
+        marginBottom: 16,
     },
-    dropdownMenu: {
-        position: 'absolute',
+    toggleButton: {
         backgroundColor: 'white',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 12,
         borderRadius: 8,
-        paddingVertical: 8,
-        minWidth: 120,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    toggleButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#6b7280',
+    },
+    toggleIcon: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginLeft: 8,
+    },
+    summaryCard: {
+        backgroundColor: 'white',
+        margin: 16,
+        padding: 24,
+        borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
-        elevation: 8,
+        elevation: 4,
+        alignItems: 'center',
+    },
+    summaryLabel: {
+        fontSize: 14,
+        color: '#64748b',
+        marginBottom: 8,
+        fontWeight: '500',
+    },
+    summaryAmount: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: '#10b981',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        marginBottom: 12,
+        marginTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1e293b',
+    },
+    seeAllText: {
+        fontSize: 14,
+        color: '#10b981',
+        fontWeight: '500',
+    },
+    // Modal Styles
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalCancelButton: {
+        padding: 8,
+    },
+    modalCancelText: {
+        fontSize: 16,
+        color: '#6b7280',
+        fontWeight: '500',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1e293b',
+    },
+    modalSaveButton: {
+        padding: 8,
+    },
+    modalSaveText: {
+        fontSize: 16,
+        color: '#10b981',
+        fontWeight: '600',
+    },
+    modalContent: {
+        flex: 1,
+        padding: 16,
+    },
+    modalFormRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 20,
+    },
+    modalInputGroup: {
+        flex: 1,
+    },
+    modalInputLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#374151',
+        marginBottom: 6,
+    },
+    modalAmountInput: {
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: 'white',
+    },
+    modalNotesInput: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: 'white',
+    },
+    modalCategorySection: {
+        marginBottom: 20,
+    },
+    modalHelperText: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginBottom: 8,
+        fontStyle: 'italic',
+    },
+    modalCategoryScroll: {
+        marginTop: 8,
     },
 });

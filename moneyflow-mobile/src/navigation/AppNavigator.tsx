@@ -11,6 +11,7 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { ExpenseScreen } from '../screens/main/ExpenseScreen';
 import { AllExpensesScreen } from '../screens/main/AllExpensesScreen';
+import { AllIncomeScreen } from '../screens/main/AllIncomeScreen';
 import { IncomeScreen } from '../screens/main/IncomeScreen';
 import { CategoriesScreen } from '../screens/main/CategoriesScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
@@ -116,6 +117,7 @@ const MainNavigator = () => {
         <MainStack.Navigator screenOptions={{ headerShown: false }}>
             <MainStack.Screen name="MainTabs" component={MainTabNavigator} />
             <MainStack.Screen name="AllExpenses" component={AllExpensesScreen} />
+            <MainStack.Screen name="AllIncome" component={AllIncomeScreen} />
         </MainStack.Navigator>
     );
 };
