@@ -229,7 +229,6 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                         <Text style={styles.inputLabel}>Notes</Text>
                         <TextInput
                             style={styles.notesInput}
-                            placeholder="What did you buy?"
                             value={notes}
                             onChangeText={setNotes}
                             placeholderTextColor="#94a3b8"
@@ -248,6 +247,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 isSelected={selectedCategory === category}
                                 onPress={handleCategorySelect}
                                 getCategoryIcon={getCategoryIcon}
+                                color="#3b82f6"
                             />
                         ))}
                     </ScrollView>
@@ -370,6 +370,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                         isSelected={editFormData.category === category}
                                         onPress={handleEditFormCategorySelect}
                                         getCategoryIcon={getCategoryIcon}
+                                        color="#3b82f6"
                                     />
                                 ))}
                             </ScrollView>

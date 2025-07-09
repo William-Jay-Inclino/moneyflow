@@ -703,8 +703,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     title: {
-        fontSize: 20,
-        fontWeight: '600',
+        fontSize: 28,
+        fontWeight: 'bold',
         color: 'white',
     },
     placeholder: {

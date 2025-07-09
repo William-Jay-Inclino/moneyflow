@@ -90,22 +90,22 @@ const MainTabNavigator = () => {
                 }}
             />
             <MainTab.Screen
-                name="Accounts"
-                component={AccountScreen}
-                options={{
-                    tabBarLabel: 'Accounts',
-                    tabBarIcon: ({ size }) => (
-                        <TabIcon emoji="🏦" size={size} />
-                    ),
-                }}
-            />
-            <MainTab.Screen
                 name="Categories"
                 component={CategoriesScreen}
                 options={{
                     tabBarLabel: 'Categories',
                     tabBarIcon: ({ size }) => (
                         <TabIcon emoji="📂" size={size} />
+                    ),
+                }}
+            />
+            <MainTab.Screen
+                name="Accounts"
+                component={AccountScreen}
+                options={{
+                    tabBarLabel: 'Accounts',
+                    tabBarIcon: ({ size }) => (
+                        <TabIcon emoji="🏦" size={size} />
                     ),
                 }}
             />

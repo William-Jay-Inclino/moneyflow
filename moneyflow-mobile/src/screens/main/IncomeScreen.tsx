@@ -197,7 +197,6 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         <Text style={styles.inputLabel}>Notes</Text>
                         <TextInput
                             style={styles.notesInput}
-                            placeholder="Source of income?"
                             value={notes}
                             onChangeText={setNotes}
                             placeholderTextColor="#94a3b8"
@@ -216,6 +215,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                                 isSelected={selectedCategory === category}
                                 onPress={handleCategorySelect}
                                 getCategoryIcon={getCategoryIcon}
+                                color="#10b981"
                             />
                         ))}
                     </ScrollView>
@@ -270,16 +270,16 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         />
                     ))}
 
-                    {/* Collapse Button */}
-                    <View style={styles.toggleSection}>
+                    {/* Hide Button at the bottom when details are shown */}
+                    <View style={styles.hideSection}>
                         <TouchableOpacity 
-                            style={styles.toggleButton} 
-                            onPress={() => setShowIncomeDetails(!showIncomeDetails)}
+                            style={styles.hideButton} 
+                            onPress={() => setShowIncomeDetails(false)}
                         >
-                            <Text style={styles.toggleButtonText}>
+                            <Text style={styles.hideButtonText}>
                                 Hide Income Details
                             </Text>
-                            <Text style={styles.toggleIcon}>
+                            <Text style={styles.hideIcon}>
                                 ▲
                             </Text>
                         </TouchableOpacity>
@@ -347,6 +347,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                                         isSelected={editFormData.category === category}
                                         onPress={(cat) => updateEditFormData('category', cat)}
                                         getCategoryIcon={getCategoryIcon}
+                                        color="#10b981"
                                     />
                                 ))}
                             </ScrollView>
@@ -448,30 +449,58 @@ const styles = StyleSheet.create({
     // Toggle Section
     toggleSection: {
         marginHorizontal: 16,
-        marginBottom: 16,
+        marginTop: 16,
+        marginBottom: 8,
     },
     toggleButton: {
-        backgroundColor: 'white',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 12,
+        backgroundColor: '#f8fafc',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
         borderRadius: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
     toggleButtonText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6b7280',
+        color: '#64748b',
+        marginRight: 8,
     },
     toggleIcon: {
         fontSize: 12,
-        color: '#6b7280',
-        marginLeft: 8,
+        color: '#94a3b8',
+        fontWeight: 'normal',
+    },
+    // Hide Section Styles
+    hideSection: {
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 20,
+    },
+    hideButton: {
+        backgroundColor: '#f8fafc',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    hideButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#64748b',
+        marginRight: 8,
+    },
+    hideIcon: {
+        fontSize: 12,
+        color: '#64748b',
+        fontWeight: 'bold',
     },
     summaryCard: {
         backgroundColor: 'white',

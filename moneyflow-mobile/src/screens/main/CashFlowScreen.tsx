@@ -220,14 +220,8 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={styles.backButtonText}>←</Text>
-                </TouchableOpacity>
                 <Text style={styles.title}>Cash Flow</Text>
-                <View style={styles.placeholder} />
+                <Text style={styles.subtitle}>Track your financial overview</Text>
             </View>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -301,29 +295,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8fafc',
     },
     header: {
-        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        justifyContent: 'center',
+        paddingTop: 50,
+        paddingHorizontal: 24,
+        paddingBottom: 32,
         backgroundColor: '#6366f1',
     },
-    backButton: {
-        padding: 8,
-        borderRadius: 8,
-    },
-    backButtonText: {
-        fontSize: 24,
-        color: 'white',
-        fontWeight: '600',
-    },
     title: {
-        fontSize: 20,
-        fontWeight: '600',
+        fontSize: 28,
+        fontWeight: 'bold',
         color: 'white',
+        marginBottom: 4,
     },
-    placeholder: {
-        width: 40,
+    subtitle: {
+        fontSize: 16,
+        color: '#c7d2fe',
+        opacity: 0.9,
     },
     scrollContainer: {
         flex: 1,

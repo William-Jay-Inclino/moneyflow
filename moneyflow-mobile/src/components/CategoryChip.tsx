@@ -6,18 +6,20 @@ interface CategoryChipProps {
     isSelected: boolean;
     onPress: (category: string) => void;
     getCategoryIcon: (category: string) => string;
+    color?: string;
 }
 
 export const CategoryChip = memo<CategoryChipProps>(({ 
     category, 
     isSelected, 
     onPress, 
-    getCategoryIcon 
+    getCategoryIcon,
+    color = '#3b82f6'
 }) => (
     <TouchableOpacity
         style={[
             styles.categoryChip,
-            isSelected && styles.categoryChipSelected
+            isSelected && [styles.categoryChipSelected, { backgroundColor: color, borderColor: color }]
         ]}
         onPress={() => onPress(category)}
     >
@@ -44,8 +46,7 @@ const styles = StyleSheet.create({
         minWidth: 80,
     },
     categoryChipSelected: {
-        backgroundColor: '#3b82f6',
-        borderColor: '#3b82f6',
+        // Dynamic color will be applied inline
     },
     categoryChipText: {
         fontSize: 12,

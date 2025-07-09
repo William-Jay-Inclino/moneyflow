@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Modal, TextInput, Alert, Dimensions } from 'react-native';
+import { useAuthStore } from '../../store';
 
 // Account Item Component
 const AccountItem = memo(({ 
@@ -211,6 +212,7 @@ const AccountModal = memo(({
 });
 
 export const AccountScreen = () => {
+    const { logout, user } = useAuthStore();
     const [accounts, setAccounts] = useState([
         {
             id: '1',
@@ -294,10 +296,31 @@ export const AccountScreen = () => {
         setEditingAccount(null);
     }, []);
 
+    const handleLogout = useCallback(() => {
+        Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Logout', 
+                    style: 'destructive',
+                    onPress: () => logout()
+                }
+            ]
+        );
+    }, [logout]);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Accounts</Text>
+                <View style={styles.headerContent}>
+                    <Text style={styles.title}>Accounts</Text>
+                    <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
+                </View>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <Text style={styles.logoutButtonText}>Logout</Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -367,15 +390,39 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        justifyContent: 'space-between',
+        paddingTop: 50,
+        paddingHorizontal: 24,
+        paddingBottom: 32,
         backgroundColor: '#8b5cf6',
     },
+    headerContent: {
+        flex: 1,
+    },
     title: {
-        fontSize: 20,
-        fontWeight: '600',
+        fontSize: 28,
+        fontWeight: 'bold',
         color: 'white',
+        marginBottom: 2,
+    },
+    userEmail: {
+        fontSize: 12,
+        color: '#ddd6fe',
+        opacity: 0.9,
+        fontWeight: '400',
+    },
+    logoutButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    logoutButtonText: {
+        fontSize: 12,
+        color: 'white',
+        fontWeight: '500',
     },
     scrollContainer: {
         flex: 1,
