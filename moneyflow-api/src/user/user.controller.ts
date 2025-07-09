@@ -98,6 +98,52 @@ export class UserController {
         return this.user_service.resend_verification(resend_verification_dto);
     }
 
+    @Post('debug/verify-by-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ 
+        summary: 'Debug: Verify user email by email address (Development only)',
+        description: 'Verify user email using email address and token. This is for development purposes only.'
+    })
+    @ApiBody({ 
+        schema: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', example: 'user@example.com' },
+                token: { type: 'string', example: 'verification-token' }
+            }
+        }
+    })
+    @ApiResponse({
+        status: HttpStatus.OK,
+        description: 'Email successfully verified',
+        type: UserEntity,
+    })
+    @ApiResponse({
+        status: HttpStatus.BAD_REQUEST,
+        description: 'Invalid verification token or email already verified',
+    })
+    async debug_verify_by_email(@Body() body: { email: string; token: string }): Promise<UserEntity> {
+        return this.user_service.debug_verify_by_email(body.email, body.token);
+    }
+
+    @Post('debug/test-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ 
+        summary: 'Debug: Test email configuration',
+        description: 'Test if email service is properly configured and can send emails'
+    })
+    @ApiBody({ 
+        schema: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', example: 'test@example.com' }
+            }
+        }
+    })
+    async test_email(@Body() body: { email: string }): Promise<{ message: string }> {
+        return this.user_service.test_email_configuration(body.email);
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Get user profile by ID' })
     @ApiParam({ name: 'id', description: 'User ID' })

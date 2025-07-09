@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     ScrollView 
 } from 'react-native';
+import { API_URL } from '@env';
 import { useAuthStore } from '@store/authStore';
 import { authApi } from '@services/api';
 import { validateEmail, validatePassword, formatValidationErrors } from '@utils/validation';
@@ -21,39 +22,62 @@ export const SignupScreen = ({ navigation }: any) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const testConnection = async () => {
-        const testUrls = [
-            'http://192.168.1.5:7000/moneyflow/api/health-check', // Your network IP (most likely to work)
-            'http://10.0.2.2:7000/moneyflow/api/health-check',    // Android emulator
-            'http://localhost:7000/moneyflow/api/health-check',     // localhost
-            'http://127.0.0.1:7000/moneyflow/api/health-check'      // localhost alternative
-        ];
-
-        for (const url of testUrls) {
-            try {
-                console.log('Testing URL:', url);
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-                
-                const response = await fetch(url, { 
-                    signal: controller.signal,
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                clearTimeout(timeoutId);
-                const text = await response.text();
-                console.log('✅ SUCCESS with URL:', url);
-                console.log('Response:', text);
-                Alert.alert('Connection Test', `✅ Success with: ${url}\nResponse: ${text}`);
-                return; // Exit on first success
-            } catch (error: any) {
-                console.log('❌ FAILED with URL:', url, 'Error:', error?.message || error?.name);
-            }
-        }
+        console.log('Testing API connection...');
+        console.log('API_URL from env:', API_URL);
         
-        Alert.alert('Connection Test', '❌ All URLs failed. Check backend and network.');
+        const healthCheckUrl = `${API_URL}/health-check`;
+        
+        try {
+            setIsLoading(true);
+            console.log('Testing URL:', healthCheckUrl);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            const response = await fetch(healthCheckUrl, { 
+                signal: controller.signal,
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const text = await response.text();
+            console.log('✅ SUCCESS with URL:', healthCheckUrl);
+            console.log('Response:', text);
+            
+            Alert.alert(
+                'Connection Test - SUCCESS ✅', 
+                `URL: ${healthCheckUrl}\n\nResponse: ${text}\n\nStatus: ${response.status}`,
+                [{ text: 'OK' }]
+            );
+            
+        } catch (error: any) {
+            console.log('❌ FAILED with URL:', healthCheckUrl, 'Error:', error?.message || error?.name);
+            
+            let errorMessage = '';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Request timed out (10s). Check if the server is running.';
+            } else if (error.message.includes('Network request failed')) {
+                errorMessage = 'Network error. Check your internet connection and server availability.';
+            } else {
+                errorMessage = error?.message || 'Unknown error occurred';
+            }
+            
+            Alert.alert(
+                'Connection Test - FAILED ❌',
+                `URL: ${healthCheckUrl}\n\nError: ${errorMessage}\n\nTroubleshooting:\n• Check if the API server is running\n• Verify the API_URL in your .env file\n• Check your internet connection`,
+                [{ text: 'OK' }]
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleSignup = async () => {
@@ -177,11 +201,15 @@ export const SignupScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.testButton]} 
+                    style={[styles.testButton, isLoading && styles.buttonDisabled]} 
                     onPress={testConnection}
                     disabled={isLoading}
                 >
-                    <Text style={styles.testButtonText}>Test API Connection</Text>
+                    {isLoading ? (
+                        <ActivityIndicator color="white" size="small" />
+                    ) : (
+                        <Text style={styles.testButtonText}>Test API Connection</Text>
+                    )}
                 </TouchableOpacity>
 
                 <View style={styles.loginContainer}>

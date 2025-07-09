@@ -1,5 +1,6 @@
 import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma';
+import { EmailService } from './email.service';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserDto, RegisterUserDto, LoginUserDto, VerifyEmailDto, ResendVerificationDto } from './dto';
 import * as bcrypt from 'bcrypt';
@@ -7,7 +8,10 @@ import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UserService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly emailService: EmailService
+    ) {}
 
     private async hash_password(password: string): Promise<string> {
         const salt_rounds = 10;
@@ -19,7 +23,8 @@ export class UserService {
     }
 
     private generate_verification_token(): string {
-        return randomBytes(32).toString('hex');
+        // Generate a 5-digit random number
+        return Math.floor(10000 + Math.random() * 90000).toString();
     }
 
     async register_user(register_user_dto: RegisterUserDto): Promise<UserEntity> {
@@ -54,6 +59,15 @@ export class UserService {
 
             // TODO: Send verification email here
             console.log(`Email verification token for ${email}: ${email_verify_token}`);
+            
+            // Send verification email
+            try {
+                await this.emailService.sendEmailVerification(email, email_verify_token);
+            } catch (emailError) {
+                console.error('Failed to send verification email:', emailError);
+                // Note: We don't throw here because user is created successfully
+                // They can always request a resend
+            }
 
             return new UserEntity(user);
         } catch (error) {
@@ -168,6 +182,14 @@ export class UserService {
 
             // TODO: Send verification email here
             console.log(`New email verification token for ${email}: ${email_verify_token}`);
+            
+            // Send verification email
+            try {
+                await this.emailService.sendEmailVerification(email, email_verify_token);
+            } catch (emailError) {
+                console.error('Failed to send verification email:', emailError);
+                // Continue anyway - user can try again
+            }
 
             return { message: 'Verification email sent successfully' };
         } catch (error) {
@@ -202,6 +224,42 @@ export class UserService {
         }
     }
 
+    async debug_verify_by_email(email: string, token: string): Promise<UserEntity> {
+        try {
+            // Find user by email and token
+            const user = await this.prisma.user.findFirst({
+                where: {
+                    email: email,
+                    email_verify_token: token,
+                },
+            });
+
+            if (!user) {
+                throw new BadRequestException('Invalid verification token or email not found');
+            }
+
+            if (user.email_verified) {
+                throw new BadRequestException('Email is already verified');
+            }
+
+            // Update user as verified
+            const updated_user = await this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    email_verified: true,
+                    email_verify_token: null,
+                },
+            });
+
+            return new UserEntity(updated_user);
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException('Failed to verify email');
+        }
+    }
+
     async get_user_profile(user_id: string): Promise<UserEntity> {
         try {
             const user = await this.prisma.user.findUnique({
@@ -231,6 +289,22 @@ export class UserService {
             return new UserEntity(user);
         } catch (error) {
             throw new BadRequestException('Failed to update user active status');
+        }
+    }
+
+    async test_email_configuration(email: string): Promise<{ message: string }> {
+        try {
+            console.log('🧪 Testing email configuration...');
+            console.log('📧 SYSTEM_EMAIL:', this.emailService['configService'].get('SYSTEM_EMAIL'));
+            console.log('🔑 SYSTEM_PASS length:', this.emailService['configService'].get('SYSTEM_PASS')?.length || 0);
+            
+            // Test sending a simple email
+            await this.emailService.sendEmailVerification(email, '12345');
+            
+            return { message: 'Email test successful! Check your inbox.' };
+        } catch (error) {
+            console.error('❌ Email test failed:', error);
+            throw new BadRequestException(`Email configuration test failed: ${error.message}`);
         }
     }
 }

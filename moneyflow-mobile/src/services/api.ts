@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '@env';
 import {
     ApiResponse,
     LoginRequest,
@@ -13,8 +14,8 @@ import {
     Category,
 } from '@/types';
 
-// Use the host machine's network IP for Expo connectivity
-const API_BASE_URL = 'http://192.168.1.5:7000/moneyflow/api'; // Your network IP
+// Use the API_URL from environment variables
+const API_BASE_URL = API_URL || 'http://192.168.1.5:7000/moneyflow/api'; // Fallback for development
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
 
