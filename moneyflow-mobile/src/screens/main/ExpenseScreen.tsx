@@ -155,7 +155,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const validateExpenseForm = (cost: string, notes: string, categoryId: string) => {
         if (!cost.trim()) return 'Please enter the expense amount';
         if (isNaN(parseFloat(cost.trim())) || parseFloat(cost.trim()) <= 0) return 'Please enter a valid positive amount';
-        if (!notes.trim()) return 'Please enter a description';
+        if (!notes.trim()) return 'Please enter notes';
         if (!categoryId) return 'Please select a category';
         if (!user?.id) return 'User not found. Please login again.';
         return null;
