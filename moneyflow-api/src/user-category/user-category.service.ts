@@ -9,32 +9,42 @@ export class UserCategoryService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create_user_category(user_id: string, create_user_category_dto: CreateUserCategoryDto): Promise<UserCategoryEntity> {
-        const { name, type } = create_user_category_dto;
+        const { category_id } = create_user_category_dto;
 
         try {
-            // Check if category with same name and type already exists for this user
-            const existing_category = await this.prisma.userCategory.findFirst({
-                where: {
-                    user_id,
-                    name,
-                    type,
-                },
+            // Check if the category exists
+            const category = await this.prisma.category.findUnique({
+                where: { id: category_id },
             });
 
-            if (existing_category) {
-                throw new BadRequestException(`Category with name "${name}" and type "${type}" already exists for this user`);
+            if (!category) {
+                throw new BadRequestException(`Category with ID ${category_id} does not exist`);
             }
 
-            // Create the category
-            const category = await this.prisma.userCategory.create({
-                data: {
+            // Check if user already has this category
+            const existing_user_category = await this.prisma.userCategory.findFirst({
+                where: {
                     user_id,
-                    name,
-                    type,
+                    category_id,
                 },
             });
 
-            return new UserCategoryEntity(category);
+            if (existing_user_category) {
+                throw new BadRequestException(`User already has this category`);
+            }
+
+            // Create the user category
+            const user_category = await this.prisma.userCategory.create({
+                data: {
+                    user_id,
+                    category_id,
+                },
+                include: {
+                    category: true,
+                },
+            });
+
+            return new UserCategoryEntity(user_category);
         } catch (error) {
             if (error instanceof BadRequestException) {
                 throw error;
@@ -48,18 +58,23 @@ export class UserCategoryService {
             const where_clause: any = { user_id };
             
             if (filter_dto?.type) {
-                where_clause.type = filter_dto.type;
+                where_clause.category = {
+                    type: filter_dto.type
+                };
             }
 
-            const categories = await this.prisma.userCategory.findMany({
+            const user_categories = await this.prisma.userCategory.findMany({
                 where: where_clause,
+                include: {
+                    category: true,
+                },
                 orderBy: [
-                    { type: 'asc' },
-                    { name: 'asc' },
+                    { category: { type: 'asc' } },
+                    { category: { name: 'asc' } },
                 ],
             });
 
-            return categories.map(category => new UserCategoryEntity(category));
+            return user_categories.map(user_category => new UserCategoryEntity(user_category));
         } catch (error) {
             throw new BadRequestException('Failed to fetch user categories');
         }
@@ -67,18 +82,21 @@ export class UserCategoryService {
 
     async find_user_category_by_id(user_id: string, category_id: number): Promise<UserCategoryEntity> {
         try {
-            const category = await this.prisma.userCategory.findFirst({
+            const user_category = await this.prisma.userCategory.findFirst({
                 where: {
                     id: category_id,
                     user_id,
                 },
+                include: {
+                    category: true,
+                },
             });
 
-            if (!category) {
+            if (!user_category) {
                 throw new NotFoundException('User category not found');
             }
 
-            return new UserCategoryEntity(category);
+            return new UserCategoryEntity(user_category);
         } catch (error) {
             if (error instanceof NotFoundException) {
                 throw error;
@@ -89,48 +107,56 @@ export class UserCategoryService {
 
     async update_user_category(user_id: string, category_id: number, update_user_category_dto: UpdateUserCategoryDto): Promise<UserCategoryEntity> {
         try {
-            // Check if category exists and belongs to user
-            const existing_category = await this.prisma.userCategory.findFirst({
+            // Check if user category exists and belongs to user
+            const existing_user_category = await this.prisma.userCategory.findFirst({
                 where: {
                     id: category_id,
                     user_id,
                 },
             });
 
-            if (!existing_category) {
+            if (!existing_user_category) {
                 throw new NotFoundException('User category not found');
             }
 
-            // Check if updating to a name/type combination that already exists
-            if (update_user_category_dto.name || update_user_category_dto.type) {
-                const name = update_user_category_dto.name || existing_category.name;
-                const type = update_user_category_dto.type || existing_category.type;
+            // If updating category_id, check if the new category exists and user doesn't already have it
+            if (update_user_category_dto.category_id) {
+                const category = await this.prisma.category.findUnique({
+                    where: { id: update_user_category_dto.category_id },
+                });
 
-                const duplicate_category = await this.prisma.userCategory.findFirst({
+                if (!category) {
+                    throw new BadRequestException(`Category with ID ${update_user_category_dto.category_id} does not exist`);
+                }
+
+                // Check if user already has this category
+                const duplicate_user_category = await this.prisma.userCategory.findFirst({
                     where: {
                         user_id,
-                        name,
-                        type,
+                        category_id: update_user_category_dto.category_id,
                         id: {
                             not: category_id,
                         },
                     },
                 });
 
-                if (duplicate_category) {
-                    throw new BadRequestException(`Category with name "${name}" and type "${type}" already exists for this user`);
+                if (duplicate_user_category) {
+                    throw new BadRequestException(`User already has this category`);
                 }
             }
 
-            // Update the category
-            const updated_category = await this.prisma.userCategory.update({
+            // Update the user category
+            const updated_user_category = await this.prisma.userCategory.update({
                 where: {
                     id: category_id,
                 },
                 data: update_user_category_dto,
+                include: {
+                    category: true,
+                },
             });
 
-            return new UserCategoryEntity(updated_category);
+            return new UserCategoryEntity(updated_user_category);
         } catch (error) {
             if (error instanceof NotFoundException || error instanceof BadRequestException) {
                 throw error;

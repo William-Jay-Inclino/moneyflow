@@ -69,6 +69,9 @@ export class UserService {
                 // They can always request a resend
             }
 
+            // Create default user categories
+            await this.create_default_user_categories(user.id);
+
             return new UserEntity(user);
         } catch (error) {
             if (error instanceof ConflictException) {
@@ -305,6 +308,33 @@ export class UserService {
         } catch (error) {
             console.error('❌ Email test failed:', error);
             throw new BadRequestException(`Email configuration test failed: ${error.message}`);
+        }
+    }
+
+    private async create_default_user_categories(user_id: string): Promise<void> {
+        try {
+            // Get all default categories
+            const default_categories = await this.prisma.category.findMany({
+                where: {
+                    is_default: true
+                }
+            });
+
+            // Create user categories from default categories
+            for (const default_category of default_categories) {
+                await this.prisma.userCategory.create({
+                    data: {
+                        user_id,
+                        category_id: default_category.id,
+                    },
+                });
+            }
+
+            console.log(`✅ Created ${default_categories.length} default categories for user ${user_id}`);
+        } catch (error) {
+            console.error('Error creating default user categories:', error);
+            // We don't throw here because user creation should not fail if default categories fail
+            // This can be handled separately or retried later
         }
     }
 }

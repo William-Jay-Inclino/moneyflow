@@ -44,9 +44,21 @@ export class UserIncomeEntity {
         description: 'Category information',
         required: false,
     })
+    @ApiProperty({
+        description: 'Category information',
+        required: false,
+    })
     category?: {
         id: number;
-        name: string;
+        category_id: number | null;
+        category?: {
+            id: number;
+            name: string;
+            type: string;
+            color: string;
+            icon: string;
+            is_default: boolean;
+        };
     };
 
     constructor(partial: Partial<UserIncomeEntity>) {

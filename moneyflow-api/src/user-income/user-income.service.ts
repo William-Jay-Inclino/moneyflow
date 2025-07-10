@@ -14,16 +14,18 @@ export class UserIncomeService {
 
         try {
             // Verify category exists and belongs to user
-            const category = await this.prisma.userCategory.findFirst({
+            const user_category = await this.prisma.userCategory.findFirst({
                 where: {
                     id: category_id,
                     user_id: user_id,
-                    type: CategoryType.INCOME, 
+                },
+                include: {
+                    category: true,
                 },
             });
 
-            if (!category) {
-                throw new BadRequestException('Category not found or does not belong to user');
+            if (!user_category || !user_category.category || user_category.category.type !== CategoryType.INCOME) {
+                throw new BadRequestException('Category not found, does not belong to user, or is not an income category');
             }
 
             // Create the income
@@ -36,9 +38,8 @@ export class UserIncomeService {
                 },
                 include: {
                     category: {
-                        select: {
-                            id: true,
-                            name: true,
+                        include: {
+                            category: true,
                         },
                     },
                 },
@@ -71,9 +72,8 @@ export class UserIncomeService {
                 },
                 include: {
                     category: {
-                        select: {
-                            id: true,
-                            name: true,
+                        include: {
+                            category: true,
                         },
                     },
                 },
@@ -97,9 +97,8 @@ export class UserIncomeService {
                 },
                 include: {
                     category: {
-                        select: {
-                            id: true,
-                            name: true,
+                        include: {
+                            category: true,
                         },
                     },
                 },
@@ -136,16 +135,18 @@ export class UserIncomeService {
 
             // If category_id is provided, verify it belongs to user
             if (category_id) {
-                const category = await this.prisma.userCategory.findFirst({
+                const user_category = await this.prisma.userCategory.findFirst({
                     where: {
                         id: category_id,
                         user_id,
-                        type: CategoryType.INCOME,
+                    },
+                    include: {
+                        category: true,
                     },
                 });
 
-                if (!category) {
-                    throw new BadRequestException('Category not found or does not belong to user');
+                if (!user_category || !user_category.category || user_category.category.type !== CategoryType.INCOME) {
+                    throw new BadRequestException('Category not found, does not belong to user, or is not an income category');
                 }
             }
 
@@ -162,9 +163,8 @@ export class UserIncomeService {
                 data: update_data,
                 include: {
                     category: {
-                        select: {
-                            id: true,
-                            name: true,
+                        include: {
+                            category: true,
                         },
                     },
                 },
@@ -247,21 +247,19 @@ export class UserIncomeService {
 
             // Get category names
             const category_ids = income_by_category.map(item => item.category_id);
-            const categories = await this.prisma.userCategory.findMany({
+            const user_categories = await this.prisma.userCategory.findMany({
                 where: {
                     id: {
                         in: category_ids,
                     },
                     user_id,
-                    type: CategoryType.INCOME, 
                 },
-                select: {
-                    id: true,
-                    name: true,
+                include: {
+                    category: true,
                 },
             });
 
-            const categories_map = new Map(categories.map(cat => [cat.id, cat.name]));
+            const categories_map = new Map(user_categories.map(cat => [cat.id, cat.category?.name || 'Unknown']));
 
             const total_amount = income_by_category.reduce((sum, item) => {
                 return sum.plus(item._sum.amount || new Decimal(0));

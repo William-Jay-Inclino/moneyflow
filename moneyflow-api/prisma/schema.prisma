@@ -1,6 +1,5 @@
 generator client {
 	provider = "prisma-client-js"
-	output   = "../generated/prisma"
 }
 
 datasource db {
@@ -28,15 +27,21 @@ model User {
 	@@map("users")
 }
 
-model CategoryDefault {
-	id    Int          @id @default(autoincrement())
-	name  String
-	type  CategoryType
-	color String
+model Category {
+	id         Int          @id @default(autoincrement())
+	name       String
+	type       CategoryType
+	color      String
+	icon       String
+	is_default Boolean      @default(false)
+
+	// Relations
+	user_categories UserCategory[]
 
 	@@index([type])
 	@@index([name])
-	@@map("category_defaults")
+	@@index([is_default])
+	@@map("categories")
 }
 
 enum CategoryType {
@@ -45,19 +50,18 @@ enum CategoryType {
 }
 
 model UserCategory {
-	id      Int          @id @default(autoincrement())
-	user_id String       @db.Uuid
-	name    String
-	type    CategoryType
+	id          Int          @id @default(autoincrement())
+	user_id     String       @db.Uuid
+	category_id Int?
 
 	// Relations
 	user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+	category      Category?     @relation(fields: [category_id], references: [id], onDelete: SetNull)
 	user_expenses UserExpense[]
 	user_income   UserIncome[]
 
 	@@index([user_id])
-	@@index([user_id, type])
-	@@unique([user_id, name, type])
+	@@index([category_id])
 	@@map("user_categories")
 }
 

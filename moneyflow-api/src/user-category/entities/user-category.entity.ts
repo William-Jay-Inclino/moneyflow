@@ -15,17 +15,24 @@ export class UserCategoryEntity {
     user_id: string;
 
     @ApiProperty({
-        description: 'Category name',
-        example: 'Food & Dining',
+        description: 'Category ID reference',
+        example: 1,
+        nullable: true,
     })
-    name: string;
+    category_id: number | null;
 
     @ApiProperty({
-        description: 'Category type',
-        enum: CategoryType,
-        example: CategoryType.EXPENSE,
+        description: 'Category details (populated from relation)',
+        required: false,
     })
-    type: CategoryType;
+    category?: {
+        id: number;
+        name: string;
+        type: CategoryType;
+        color: string;
+        icon: string;
+        is_default: boolean;
+    };
 
     constructor(partial: Partial<UserCategoryEntity>) {
         Object.assign(this, partial);

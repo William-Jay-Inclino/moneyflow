@@ -1,24 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEnum, MaxLength } from 'class-validator';
-import { CategoryType } from '@prisma/client';
+import { IsNotEmpty, IsNumber, IsPositive } from 'class-validator';
 
 export class CreateUserCategoryDto {
     @ApiProperty({
-        description: 'Category name',
-        example: 'Food & Dining',
-        maxLength: 100,
+        description: 'Category ID to reference from the categories table',
+        example: 1,
     })
     @IsNotEmpty()
-    @IsString()
-    @MaxLength(100)
-    name: string;
-
-    @ApiProperty({
-        description: 'Category type',
-        enum: CategoryType,
-        example: CategoryType.EXPENSE,
-    })
-    @IsNotEmpty()
-    @IsEnum(CategoryType)
-    type: CategoryType;
+    @IsNumber()
+    @IsPositive()
+    category_id: number;
 }
