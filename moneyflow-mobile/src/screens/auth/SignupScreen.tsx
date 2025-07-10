@@ -9,7 +9,6 @@ import {
     ActivityIndicator,
     ScrollView 
 } from 'react-native';
-import { API_URL } from '@env';
 import { useAuthStore } from '@store/authStore';
 import { authApi } from '@services/api';
 import { validateEmail, validatePassword, formatValidationErrors } from '@utils/validation';
@@ -21,64 +20,7 @@ export const SignupScreen = ({ navigation }: any) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const testConnection = async () => {
-        console.log('Testing API connection...');
-        console.log('API_URL from env:', API_URL);
-        
-        const healthCheckUrl = `${API_URL}/health-check`;
-        
-        try {
-            setIsLoading(true);
-            console.log('Testing URL:', healthCheckUrl);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-            
-            const response = await fetch(healthCheckUrl, { 
-                signal: controller.signal,
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const text = await response.text();
-            console.log('✅ SUCCESS with URL:', healthCheckUrl);
-            console.log('Response:', text);
-            
-            Alert.alert(
-                'Connection Test - SUCCESS ✅', 
-                `URL: ${healthCheckUrl}\n\nResponse: ${text}\n\nStatus: ${response.status}`,
-                [{ text: 'OK' }]
-            );
-            
-        } catch (error: any) {
-            console.log('❌ FAILED with URL:', healthCheckUrl, 'Error:', error?.message || error?.name);
-            
-            let errorMessage = '';
-            if (error.name === 'AbortError') {
-                errorMessage = 'Request timed out (10s). Check if the server is running.';
-            } else if (error.message.includes('Network request failed')) {
-                errorMessage = 'Network error. Check your internet connection and server availability.';
-            } else {
-                errorMessage = error?.message || 'Unknown error occurred';
-            }
-            
-            Alert.alert(
-                'Connection Test - FAILED ❌',
-                `URL: ${healthCheckUrl}\n\nError: ${errorMessage}\n\nTroubleshooting:\n• Check if the API server is running\n• Verify the API_URL in your .env file\n• Check your internet connection`,
-                [{ text: 'OK' }]
-            );
-        } finally {
-            setIsLoading(false);
-        }
-    };
+
 
     const handleSignup = async () => {
         // Basic validation
@@ -110,21 +52,32 @@ export const SignupScreen = ({ navigation }: any) => {
         setLoading(true);
 
         try {
-            const user = await authApi.register({ 
+            console.log('📝 Attempting JWT registration...');
+            const { user, accessToken } = await authApi.register({ 
                 email: email.trim().toLowerCase(), 
                 password 
             });
             
-            // Store pending verification info
+            console.log('✅ JWT registration successful:', { userId: user.id, email: user.email });
+            
+            // Store pending verification info (user is registered but may need email verification)
             setPendingVerification(user.email, user.id);
             
             Alert.alert(
                 'Registration Successful',
-                'A verification email has been sent to your email address. Please check your email and verify your account.',
+                'A verification email has been sent to your email address. You can start using the app, but please verify your email for full access.',
                 [
                     {
-                        text: 'OK',
+                        text: 'Verify Email',
                         onPress: () => navigation.navigate('EmailVerification')
+                    },
+                    {
+                        text: 'Continue',
+                        onPress: () => {
+                            // Log the user in even if email is not verified
+                            const { login } = useAuthStore.getState();
+                            login(user, accessToken);
+                        }
                     }
                 ]
             );
@@ -200,18 +153,6 @@ export const SignupScreen = ({ navigation }: any) => {
                     )}
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                    style={[styles.testButton, isLoading && styles.buttonDisabled]} 
-                    onPress={testConnection}
-                    disabled={isLoading}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator color="white" size="small" />
-                    ) : (
-                        <Text style={styles.testButtonText}>Test API Connection</Text>
-                    )}
-                </TouchableOpacity>
-
                 <View style={styles.loginContainer}>
                     <Text style={styles.loginText}>Already have an account? </Text>
                     <TouchableOpacity onPress={navigateToLogin} disabled={isLoading}>
@@ -272,19 +213,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-    },
-    testButton: {
-        backgroundColor: '#6b7280',
-        paddingHorizontal: 40,
-        paddingVertical: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    testButtonText: {
-        color: 'white',
-        fontSize: 14,
-        fontWeight: 'normal',
     },
     loginContainer: {
         flexDirection: 'row',

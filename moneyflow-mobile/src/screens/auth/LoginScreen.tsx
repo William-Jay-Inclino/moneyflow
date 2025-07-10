@@ -13,7 +13,7 @@ import { authApi } from '@services/api';
 import { validateEmail } from '@utils/validation';
 
 export const LoginScreen = ({ navigation }: any) => {
-    const { login, setLoading } = useAuthStore();
+    const { login, setLoading, setPendingVerification } = useAuthStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -34,21 +34,77 @@ export const LoginScreen = ({ navigation }: any) => {
         setLoading(true);
 
         try {
-            const user = await authApi.login({ 
+            console.log('🔐 Attempting JWT login...');
+            const { user, accessToken } = await authApi.login({ 
                 email: email.trim().toLowerCase(), 
                 password 
             });
             
-            // For now, we'll use a temporary token since JWT isn't implemented yet
-            login(user, 'temp-token');
+            console.log('✅ JWT login successful:', { userId: user.id, email: user.email });
+            
+            // Login with real JWT token
+            login(user, accessToken);
             
         } catch (error: any) {
-            console.error('Login error:', error);
+            console.error('❌ Login error:', error);
             
             let errorMessage = 'An error occurred during login';
             
             if (error.response?.status === 401) {
-                errorMessage = error.response.data?.message || 'Invalid email or password';
+                const message = error.response.data?.message || '';
+                
+                if (message.includes('verify your email')) {
+                    // Email not verified case
+                    Alert.alert(
+                        'Email Not Verified',
+                        'Please verify your email address before logging in. Would you like to resend the verification code?',
+                        [
+                            {
+                                text: 'Resend Code',
+                                onPress: async () => {
+                                    try {
+                                        await authApi.resendVerification({
+                                            email: email.trim().toLowerCase()
+                                        });
+                                        
+                                        // Set pending verification with email only (we don't have user_id from failed login)
+                                        // The EmailVerification screen will handle this case
+                                        setPendingVerification(email.trim().toLowerCase(), '');
+                                        
+                                        Alert.alert(
+                                            'Code Sent',
+                                            'A verification code has been sent to your email address.',
+                                            [
+                                                {
+                                                    text: 'OK',
+                                                    onPress: () => {
+                                                        navigation.navigate('EmailVerification');
+                                                    }
+                                                }
+                                            ]
+                                        );
+                                    } catch (resendError: any) {
+                                        console.error('Resend verification error:', resendError);
+                                        let resendErrorMessage = 'Failed to resend verification code. Please try again.';
+                                        
+                                        if (resendError.response?.status === 400) {
+                                            resendErrorMessage = resendError.response.data?.message || 'Email is already verified or user not found';
+                                        }
+                                        
+                                        Alert.alert('Resend Failed', resendErrorMessage);
+                                    }
+                                }
+                            },
+                            {
+                                text: 'Cancel',
+                                style: 'cancel'
+                            }
+                        ]
+                    );
+                    return;
+                } else {
+                    errorMessage = 'Invalid email or password';
+                }
             } else if (error.response?.status === 400) {
                 errorMessage = 'Please check your input and try again';
             } else if (!error.response) {

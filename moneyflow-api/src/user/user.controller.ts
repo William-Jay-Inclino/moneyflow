@@ -3,12 +3,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/s
 import { UserService } from './user.service';
 import { UserEntity } from './entities/user.entity';
 import { RegisterUserDto, LoginUserDto, VerifyEmailDto, ResendVerificationDto } from './dto';
+import { Public } from '../auth/decorators';
 
 @ApiTags('users')
 @Controller('users')
 export class UserController {
     constructor(private readonly user_service: UserService) {}
 
+    @Public()
     @Post('register')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ 
@@ -33,6 +35,7 @@ export class UserController {
         return this.user_service.register_user(register_user_dto);
     }
 
+    @Public()
     @Post('login')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
@@ -53,6 +56,7 @@ export class UserController {
         return this.user_service.login_user(login_user_dto);
     }
 
+    @Public()
     @Post('verify-email')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
@@ -73,6 +77,7 @@ export class UserController {
         return this.user_service.verify_email(verify_email_dto);
     }
 
+    @Public()
     @Post('resend-verification')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
@@ -98,6 +103,7 @@ export class UserController {
         return this.user_service.resend_verification(resend_verification_dto);
     }
 
+    @Public()
     @Post('debug/verify-by-email')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
@@ -126,6 +132,7 @@ export class UserController {
         return this.user_service.debug_verify_by_email(body.email, body.token);
     }
 
+    @Public()
     @Post('debug/test-email')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
@@ -144,6 +151,8 @@ export class UserController {
         return this.user_service.test_email_configuration(body.email);
     }
 
+    // Protected endpoints below (require JWT authentication)
+    
     @Get(':id')
     @ApiOperation({ summary: 'Get user profile by ID' })
     @ApiParam({ name: 'id', description: 'User ID' })

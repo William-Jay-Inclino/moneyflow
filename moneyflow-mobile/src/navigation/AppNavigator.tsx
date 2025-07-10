@@ -28,7 +28,10 @@ const TabIcon = ({ emoji, size }: { emoji: string; size: number }) => (
 
 const AuthNavigator = () => {
     return (
-        <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+        <AuthStack.Navigator 
+            screenOptions={{ headerShown: false }}
+            initialRouteName="Login"
+        >
             <AuthStack.Screen name="Login" component={LoginScreen} />
             <AuthStack.Screen name="Signup" component={SignupScreen} />
             <AuthStack.Screen name="EmailVerification" component={EmailVerificationScreen} />
@@ -127,6 +130,8 @@ const MainNavigator = () => {
 
 export const AppNavigator = () => {
     const { isAuthenticated } = useAuthStore();
+
+    console.log('AppNavigator - isAuthenticated:', isAuthenticated);
 
     return isAuthenticated ? <MainNavigator /> : <AuthNavigator />;
 };

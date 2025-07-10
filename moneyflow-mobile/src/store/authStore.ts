@@ -10,8 +10,9 @@ interface AuthStore extends AuthState {
     setToken: (token: string | null) => void;
     setLoading: (loading: boolean) => void;
     setPendingVerification: (email: string | null, userId: string | null) => void;
-    login: (user: User, token?: string) => void;
+    login: (user: User, token: string) => void;
     logout: () => void;
+    clearAll: () => void;
     clearPendingVerification: () => void;
 }
 
@@ -32,7 +33,7 @@ export const useAuthStore = create<AuthStore>()(
             setPendingVerification: (email: string | null, userId: string | null) =>
                 set({ pendingVerificationEmail: email, pendingVerificationUserId: userId }),
 
-            login: (user: User, token: string = 'temp-token') =>
+            login: (user: User, token: string) =>
                 set({
                     user,
                     token,
@@ -51,6 +52,20 @@ export const useAuthStore = create<AuthStore>()(
                     pendingVerificationEmail: null,
                     pendingVerificationUserId: null,
                 }),
+
+            clearAll: () => {
+                // Force clear all auth data and ensure we start fresh
+                AsyncStorage.removeItem('auth-storage');
+                AsyncStorage.removeItem('auth-token'); // Also clear the JWT token
+                set({
+                    user: null,
+                    token: null,
+                    isAuthenticated: false,
+                    isLoading: false,
+                    pendingVerificationEmail: null,
+                    pendingVerificationUserId: null,
+                });
+            },
 
             clearPendingVerification: () =>
                 set({

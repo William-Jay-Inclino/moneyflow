@@ -23,13 +23,15 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
     const [verificationCode, setVerificationCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isResending, setIsResending] = useState(false);
+    const [resendCounter, setResendCounter] = useState(0);
+    const [canResend, setCanResend] = useState(true);
 
     useEffect(() => {
-        // If no pending verification, redirect to login
-        if (!pendingVerificationEmail || !pendingVerificationUserId) {
+        // If no pending verification email, redirect to login
+        if (!pendingVerificationEmail) {
             navigation.navigate('Login');
         }
-    }, [pendingVerificationEmail, pendingVerificationUserId, navigation]);
+    }, [pendingVerificationEmail, navigation]);
 
     const handleVerifyEmail = async () => {
         if (!verificationCode.trim()) {
@@ -37,9 +39,9 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
             return;
         }
 
-        if (!pendingVerificationUserId) {
-            Alert.alert('Error', 'Verification session expired. Please sign up again.');
-            navigation.navigate('Signup');
+        if (!pendingVerificationEmail) {
+            Alert.alert('Error', 'Verification session expired. Please try again.');
+            navigation.navigate('Login');
             return;
         }
 
@@ -47,22 +49,35 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
         setLoading(true);
 
         try {
-            const user = await authApi.verifyEmail({
-                user_id: pendingVerificationUserId,
-                token: verificationCode.trim()
-            });
+            console.log('✉️ Attempting email verification...');
+            let user;
             
+            if (pendingVerificationUserId) {
+                // Use new auth API for verification
+                user = await authApi.verifyEmail({
+                    email: pendingVerificationEmail,
+                    code: verificationCode.trim()
+                });
+            } else {
+                // Verification from login flow (use debug method with email)
+                user = await authApi.debugVerifyByEmail({
+                    email: pendingVerificationEmail,
+                    token: verificationCode.trim()
+                });
+            }
+            
+            console.log('✅ Email verification successful');
             clearPendingVerification();
-            login(user, 'temp-token');
             
+            // Get a fresh JWT token by logging in again (since verification changes user state)
             Alert.alert(
                 'Email Verified!',
-                'Your email has been successfully verified. Welcome to MoneyFlow!',
+                'Your email has been successfully verified. Please log in again to continue.',
                 [
                     {
                         text: 'OK',
                         onPress: () => {
-                            // Navigation will be handled by auth state change
+                            navigation.navigate('Login');
                         }
                     }
                 ]
@@ -93,6 +108,11 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
             return;
         }
 
+        if (!canResend) {
+            Alert.alert('Please Wait', `You can resend the code in ${resendCounter} seconds.`);
+            return;
+        }
+
         setIsResending(true);
 
         try {
@@ -104,6 +124,21 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                 'Code Sent',
                 'A new verification code has been sent to your email address.'
             );
+
+            // Start countdown timer (60 seconds)
+            setCanResend(false);
+            setResendCounter(60);
+            
+            const countdown = setInterval(() => {
+                setResendCounter((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(countdown);
+                        setCanResend(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
             
         } catch (error: any) {
             console.error('Resend verification error:', error);
@@ -124,7 +159,13 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
 
     const handleBackToSignup = () => {
         clearPendingVerification();
-        navigation.navigate('Signup');
+        // If we came from login (no user_id), go back to login
+        // If we came from signup (with user_id), go back to signup
+        if (pendingVerificationUserId) {
+            navigation.navigate('Signup');
+        } else {
+            navigation.navigate('Login');
+        }
     };
 
     if (!pendingVerificationEmail) {
@@ -163,14 +204,19 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                    style={[styles.secondaryButton, isResending && styles.buttonDisabled]} 
+                    style={[
+                        styles.secondaryButton, 
+                        (isResending || isLoading || !canResend) && styles.buttonDisabled
+                    ]} 
                     onPress={handleResendCode}
-                    disabled={isResending || isLoading}
+                    disabled={isResending || isLoading || !canResend}
                 >
                     {isResending ? (
                         <ActivityIndicator color="#3b82f6" />
                     ) : (
-                        <Text style={styles.secondaryButtonText}>Resend Code</Text>
+                        <Text style={styles.secondaryButtonText}>
+                            {canResend ? 'Resend Code' : `Resend in ${resendCounter}s`}
+                        </Text>
                     )}
                 </TouchableOpacity>
 
@@ -179,7 +225,9 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                     onPress={handleBackToSignup}
                     disabled={isLoading}
                 >
-                    <Text style={styles.backButtonText}>Back to Sign Up</Text>
+                    <Text style={styles.backButtonText}>
+                        {pendingVerificationUserId ? 'Back to Sign Up' : 'Back to Login'}
+                    </Text>
                 </TouchableOpacity>
             </View>
         </View>

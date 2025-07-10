@@ -1,9 +1,21 @@
 export interface User {
     id: string;
     email: string;
-    is_active: boolean;
-    email_verified: boolean;
-    registered_at: string;
+    name?: string;
+    isEmailVerified: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// JWT Auth Response Types
+export interface AuthResponse {
+    accessToken: string;
+    user: User;
+}
+
+export interface VerificationResponse {
+    message: string;
+    user: User;
 }
 
 export interface Category {
@@ -61,8 +73,8 @@ export interface RegisterRequest {
 }
 
 export interface VerifyEmailRequest {
-    user_id: string;
-    token: string;
+    email: string;
+    code: string;
 }
 
 export interface ResendVerificationRequest {
