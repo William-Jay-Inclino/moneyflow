@@ -42,6 +42,12 @@ export const LoginScreen = ({ navigation }: any) => {
             
             console.log('✅ JWT login successful:', { userId: user.id, email: user.email });
             
+            // Debug: Test JWT token decoding
+            console.log('🔍 Testing JWT token decoding...');
+            import('@utils/tokenUtils').then(({ tokenUtils }) => {
+                tokenUtils.debugToken(accessToken);
+            });
+            
             // Login with real JWT token
             login(user, accessToken);
             

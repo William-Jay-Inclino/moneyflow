@@ -33,7 +33,9 @@ export const useAuthStore = create<AuthStore>()(
             setPendingVerification: (email: string | null, userId: string | null) =>
                 set({ pendingVerificationEmail: email, pendingVerificationUserId: userId }),
 
-            login: (user: User, token: string) =>
+            login: (user: User, token: string) => {
+                // Store token separately for JWT validation
+                AsyncStorage.setItem('auth-token', token);
                 set({
                     user,
                     token,
@@ -41,9 +43,12 @@ export const useAuthStore = create<AuthStore>()(
                     isLoading: false,
                     pendingVerificationEmail: null,
                     pendingVerificationUserId: null,
-                }),
+                });
+            },
 
-            logout: () =>
+            logout: () => {
+                // Clear token from AsyncStorage
+                AsyncStorage.removeItem('auth-token');
                 set({
                     user: null,
                     token: null,
@@ -51,7 +56,8 @@ export const useAuthStore = create<AuthStore>()(
                     isLoading: false,
                     pendingVerificationEmail: null,
                     pendingVerificationUserId: null,
-                }),
+                });
+            },
 
             clearAll: () => {
                 // Force clear all auth data and ensure we start fresh
