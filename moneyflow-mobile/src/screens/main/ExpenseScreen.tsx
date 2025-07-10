@@ -1,24 +1,40 @@
-import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore } from '../../store/authStore';
 import { transactionApi, categoryApi } from '../../services/api';
 import { Category } from '../../types';
 
+interface Expense {
+    id: string;
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    time: string;
+}
+
 export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const { user } = useAuthStore();
     
+    // Form state
     const [notes, setNotes] = useState('');
     const [cost, setCost] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
+    
+    // Modal state
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '' });
+    
+    // UI state
     const [showExpenseDetails, setShowExpenseDetails] = useState(false);
-    const [expenseList, setExpenseList] = useState<any[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
+    
+    // Data state
+    const [expenseList, setExpenseList] = useState<Expense[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
 
     // Load user data on component mount
     useEffect(() => {
@@ -42,22 +58,43 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         }
     };
 
+    // Helper function to transform category data
+    const transformCategoryData = useCallback((data: any[]): Category[] => {
+        return data.map((item: any) => {
+            const category = item.category || item;
+            return {
+                id: (item.id || item.category_id || category.id)?.toString() || '',
+                name: category.name || item.name || 'Unknown Category',
+                type: 'expense' as const,
+                color: category.color || item.color || '#3b82f6',
+                icon: category.icon || item.icon || '💳',
+                userId: user?.id || ''
+            };
+        });
+    }, [user?.id]);
+
     const loadCategories = async () => {
         if (!user?.id) return;
         
         try {
-            const expenseCategories = await categoryApi.getUserCategories(user.id, 'EXPENSE');
-            setCategories(expenseCategories);
+            const response: any = await categoryApi.getUserCategories(user.id, 'EXPENSE');
+            const categoryData = Array.isArray(response) ? response : response?.data || [];
+            setCategories(transformCategoryData(categoryData));
         } catch (error) {
             console.error('Error loading categories:', error);
-            // Fallback to get all categories and filter
+            
+            // Fallback: try to get all categories and filter for expenses
             try {
-                const response = await categoryApi.getCategories(user.id);
-                const allCategories = response.data || [];
-                const filtered = allCategories.filter(cat => cat.type === 'expense');
-                setCategories(filtered);
+                const response: any = await categoryApi.getCategories(user.id);
+                const allCategories = Array.isArray(response) ? response : response?.data || [];
+                const expenseCategories = allCategories.filter((item: any) => {
+                    const category = item.category || item;
+                    return (category.type || item.type)?.toLowerCase() === 'expense';
+                });
+                setCategories(transformCategoryData(expenseCategories));
             } catch (fallbackError) {
-                console.error('Fallback category loading also failed:', fallbackError);
+                console.error('Fallback category loading failed:', fallbackError);
+                Alert.alert('Error', 'Failed to load categories. Please check your connection.');
             }
         }
     };
@@ -73,7 +110,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             const data = await transactionApi.getExpenses(user.id, year, month);
             const formattedExpenses = data.map((expense: any) => ({
                 id: expense.id,
-                amount: parseFloat(expense.cost),
+                amount: parseCostToNumber(expense.cost),
                 description: expense.notes || 'No description',
                 category: expense.category?.category?.name || 'Other',
                 date: new Date(expense.created_at).toISOString().split('T')[0],
@@ -85,43 +122,70 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         }
     };
 
+    // Helper function to safely convert cost string to number
+    const parseCostToNumber = (cost: any): number => {
+        if (cost === null || cost === undefined) return 0;
+        
+        // If it's already a number, return it
+        if (typeof cost === 'number') return cost;
+        
+        // Handle Prisma Decimal objects (they have a toString method)
+        if (cost && typeof cost === 'object' && typeof cost.toString === 'function') {
+            const stringValue = cost.toString();
+            const parsed = parseFloat(stringValue);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        
+        // If it's a string, clean and parse it
+        if (typeof cost === 'string') {
+            // Remove any whitespace and handle empty strings
+            const cleanCost = cost.trim();
+            if (cleanCost === '') return 0;
+            
+            // Parse the string to float
+            const parsed = parseFloat(cleanCost);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        
+        console.warn('Unexpected cost type:', typeof cost, cost);
+        return 0;
+    };
+
+    // Validation helper
+    const validateExpenseForm = (cost: string, notes: string, categoryId: string) => {
+        if (!cost.trim()) return 'Please enter the expense amount';
+        if (isNaN(parseFloat(cost.trim())) || parseFloat(cost.trim()) <= 0) return 'Please enter a valid positive amount';
+        if (!notes.trim()) return 'Please enter a description';
+        if (!categoryId) return 'Please select a category';
+        if (!user?.id) return 'User not found. Please login again.';
+        return null;
+    };
+
     const handleAddExpense = useCallback(async () => {
-        if (!cost.trim()) {
-            Alert.alert('Missing Cost', 'Please enter the expense amount');
-            return;
-        }
-        if (!notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!selectedCategory) {
-            Alert.alert('Missing Category', 'Please select a category');
-            return;
-        }
-        if (!user?.id) {
-            Alert.alert('Error', 'User not found. Please login again.');
+        const validationError = validateExpenseForm(cost, notes, selectedCategory);
+        if (validationError) {
+            Alert.alert('Missing Information', validationError);
             return;
         }
 
         setIsLoading(true);
         
         try {
-            // Find the selected category object
             const categoryObj = categories.find(cat => cat.id === selectedCategory);
             if (!categoryObj) {
                 Alert.alert('Error', 'Selected category not found');
                 return;
             }
 
-            const newExpense = await transactionApi.createExpense(user.id, {
+            const newExpense = await transactionApi.createExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
                 cost: cost.trim(),
                 notes: notes.trim()
             });
 
-            const formattedExpense = {
+            const formattedExpense: Expense = {
                 id: newExpense.id,
-                amount: parseFloat(newExpense.cost),
+                amount: parseCostToNumber(newExpense.cost),
                 description: newExpense.notes || 'No description',
                 category: categoryObj.name,
                 date: new Date(newExpense.created_at).toISOString().split('T')[0],
@@ -129,12 +193,13 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             };
             
             setExpenseList(prev => [formattedExpense, ...prev]);
-            Alert.alert('Success', 'Expense added successfully');
             
             // Reset form
             setNotes('');
             setCost('');
             setSelectedCategory('');
+            
+            Alert.alert('Success', 'Expense added successfully');
         } catch (error) {
             console.error('Error adding expense:', error);
             Alert.alert('Error', 'Failed to add expense. Please try again.');
@@ -143,8 +208,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         }
     }, [cost, notes, selectedCategory, user, categories]);
 
-    const handleEditExpense = useCallback((expense: any) => {
-        // Find the category ID by name for the edit form
+    const handleEditExpense = useCallback((expense: Expense) => {
         const categoryObj = categories.find(cat => cat.name === expense.category);
         setEditFormData({
             cost: expense.amount.toString(),
@@ -155,6 +219,47 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         setEditModalVisible(true);
     }, [categories]);
 
+    const handleUpdateExpense = useCallback(async () => {
+        const validationError = validateExpenseForm(editFormData.cost, editFormData.notes, editFormData.category);
+        if (validationError || !editingId) {
+            Alert.alert('Error', validationError || 'Unable to update expense');
+            return;
+        }
+
+        try {
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', 'Selected category not found');
+                return;
+            }
+
+            const updatedExpense = await transactionApi.updateExpense(user!.id, editingId, {
+                category_id: parseInt(categoryObj.id),
+                cost: editFormData.cost.trim(),
+                notes: editFormData.notes.trim()
+            });
+
+            setExpenseList(prev => prev.map(item => 
+                item.id === editingId 
+                    ? { 
+                        ...item, 
+                        amount: parseCostToNumber(updatedExpense.cost), 
+                        description: updatedExpense.notes || editFormData.notes,
+                        category: categoryObj.name
+                    }
+                    : item
+            ));
+            
+            Alert.alert('Success', 'Expense updated successfully');
+            setEditingId(null);
+            setEditModalVisible(false);
+            setEditFormData({ cost: '', notes: '', category: '' });
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            Alert.alert('Error', 'Failed to update expense. Please try again.');
+        }
+    }, [editFormData, editingId, user, categories]);
+    
     const handleDeleteExpense = useCallback(async (id: string) => {
         if (!user?.id) {
             Alert.alert('Error', 'User not found. Please login again.');
@@ -184,106 +289,53 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         );
     }, [user]);
 
-    const cancelEdit = useCallback(() => {
+    const cancelEdit = () => {
         setEditingId(null);
         setEditModalVisible(false);
         setEditFormData({ cost: '', notes: '', category: '' });
-    }, []);
-
-    const handleUpdateExpense = useCallback(async () => {
-        if (!editFormData.cost.trim()) {
-            Alert.alert('Missing Cost', 'Please enter the expense amount');
-            return;
-        }
-        if (!editFormData.notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!editFormData.category) {
-            Alert.alert('Missing Category', 'Please select a category');
-            return;
-        }
-        if (!user?.id || !editingId) {
-            Alert.alert('Error', 'Unable to update expense');
-            return;
-        }
-
-        try {
-            // Find the selected category object
-            const categoryObj = categories.find(cat => cat.id === editFormData.category);
-            if (!categoryObj) {
-                Alert.alert('Error', 'Selected category not found');
-                return;
-            }
-
-            const updatedExpense = await transactionApi.updateExpense(user.id, editingId, {
-                category_id: parseInt(categoryObj.id),
-                cost: editFormData.cost.trim(),
-                notes: editFormData.notes.trim()
-            });
-
-            setExpenseList(prev => prev.map(item => 
-                item.id === editingId 
-                    ? { 
-                        ...item, 
-                        amount: parseFloat(updatedExpense.cost), 
-                        description: updatedExpense.notes,
-                        category: categoryObj.name
-                    }
-                    : item
-            ));
-            Alert.alert('Success', 'Expense updated successfully');
-            cancelEdit();
-        } catch (error) {
-            console.error('Error updating expense:', error);
-            Alert.alert('Error', 'Failed to update expense. Please try again.');
-        }
-    }, [editFormData, editingId, user, categories, cancelEdit]);
-    
+    };    
     const totalExpenses = useMemo(() => 
         expenseList.reduce((sum, item) => sum + item.amount, 0), 
         [expenseList]
     );
 
-    const getCategoryIcon = useCallback((category: string) => {
-        switch (category) {
-            case 'Food & Dining': return '🍽️';
-            case 'Transportation': return '🚗';
-            case 'Utilities': return '⚡';
-            case 'Entertainment': return '🎬';
-            case 'Shopping': return '🛍️';
-            default: return '💳';
-        }
-    }, []);
+    const getCategoryIcon = useCallback((categoryName: string) => {
+        const category = categories.find(cat => cat.name === categoryName);
+        return category?.icon || '💳';
+    }, [categories]);
 
-    const formatDate = useCallback((dateString: string) => {
+    const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${month}/${day}`;
-    }, []);
+    };
 
-    const handleScrollBeginDrag = useCallback(() => {
-        // Dropdowns are now handled by individual ExpenseItem components
-    }, []);
+    const updateEditFormField = (field: string, value: string) => {
+        // For cost field, ensure only valid number format
+        if (field === 'cost') {
+            // Remove any non-numeric characters except decimal point
+            const numericValue = value.replace(/[^0-9.]/g, '');
+            // Ensure only one decimal point
+            const parts = numericValue.split('.');
+            const formattedValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+            setEditFormData(prev => ({ ...prev, [field]: formattedValue }));
+        } else {
+            setEditFormData(prev => ({ ...prev, [field]: value }));
+        }
+    };
 
-    const handleCategorySelect = useCallback((category: string) => {
-        setSelectedCategory(category);
-    }, []);
-
-    const handleEditFormCategorySelect = useCallback((category: string) => {
-        setEditFormData(prev => ({ ...prev, category }));
-    }, []);
-
-    const updateEditFormField = useCallback((field: string, value: string) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
-    }, []);
+    const handleCostChange = (value: string) => {
+        // Remove any non-numeric characters except decimal point
+        const numericValue = value.replace(/[^0-9.]/g, '');
+        // Ensure only one decimal point
+        const parts = numericValue.split('.');
+        const formattedValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+        setCost(formattedValue);
+    };
 
     return (
-        <ScrollView 
-            style={styles.container}
-            onScrollBeginDrag={handleScrollBeginDrag}
-        >
+        <ScrollView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Add Expense</Text>
                 <Text style={styles.subtitle}>Quick and easy expense tracking</Text>
@@ -298,7 +350,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                             style={styles.costInput}
                             placeholder="0.00"
                             value={cost}
-                            onChangeText={setCost}
+                            onChangeText={handleCostChange}
                             keyboardType="numeric"
                             placeholderTextColor="#94a3b8"
                             autoFocus={true}
@@ -324,7 +376,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 key={category.id}
                                 category={category.name}
                                 isSelected={selectedCategory === category.id}
-                                onPress={() => handleCategorySelect(category.id)}
+                                onPress={() => setSelectedCategory(category.id)}
                                 getCategoryIcon={getCategoryIcon}
                                 color="#3b82f6"
                             />
@@ -467,7 +519,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                         key={category.id}
                                         category={category.name}
                                         isSelected={editFormData.category === category.id}
-                                        onPress={() => handleEditFormCategorySelect(category.id)}
+                                        onPress={() => setEditFormData(prev => ({ ...prev, category: category.id }))}
                                         getCategoryIcon={getCategoryIcon}
                                         color="#3b82f6"
                                     />
@@ -554,7 +606,6 @@ const styles = StyleSheet.create({
         color: '#3b82f6',
         fontWeight: '500',
     },
-    // Quick Add Form Styles
     quickAddForm: {
         backgroundColor: 'white',
         margin: 16,
@@ -565,12 +616,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
-    },
-    formTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1e293b',
-        marginBottom: 16,
     },
     formRow: {
         flexDirection: 'row',
@@ -625,11 +670,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'transparent',
-    },
-    // Edit Modal Styles
     editModalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -709,7 +749,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-    // Toggle Section Styles
     toggleSection: {
         marginHorizontal: 16,
         marginTop: 16,
@@ -737,7 +776,6 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontWeight: 'normal',
     },
-    // Hide Section Styles
     hideSection: {
         marginHorizontal: 16,
         marginTop: 16,
@@ -765,7 +803,6 @@ const styles = StyleSheet.create({
         color: '#64748b',
         fontWeight: 'bold',
     },
-    // Loading and Empty States
     loadingContainer: {
         alignItems: 'center',
         justifyContent: 'center',

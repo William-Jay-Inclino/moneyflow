@@ -31,7 +31,7 @@ export class UserExpenseEntity {
         example: '25.50',
         type: 'string',
     })
-    cost: Decimal;
+    cost: string; // Decimal is serialized as string
 
     @ApiProperty({
         description: 'Optional notes about the expense',
@@ -40,10 +40,6 @@ export class UserExpenseEntity {
     })
     notes?: string;
 
-    @ApiProperty({
-        description: 'Category information',
-        required: false,
-    })
     @ApiProperty({
         description: 'Category information',
         required: false,
@@ -61,7 +57,19 @@ export class UserExpenseEntity {
         };
     };
 
-    constructor(partial: Partial<UserExpenseEntity>) {
+    constructor(partial: any) {
         Object.assign(this, partial);
+        
+        // Convert Decimal to string for cost field
+        if (partial.cost) {
+            // Check if it's a Decimal object (has toString method and is not a string)
+            if (typeof partial.cost === 'object' && typeof partial.cost.toString === 'function') {
+                this.cost = partial.cost.toString();
+            } else if (typeof partial.cost === 'string') {
+                this.cost = partial.cost;
+            } else {
+                this.cost = String(partial.cost);
+            }
+        }
     }
 }

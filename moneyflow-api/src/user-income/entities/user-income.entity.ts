@@ -31,7 +31,7 @@ export class UserIncomeEntity {
         example: '3500.00',
         type: 'string',
     })
-    amount: Decimal;
+    amount: string; // Decimal is serialized as string
 
     @ApiProperty({
         description: 'Optional notes about the income',
@@ -61,7 +61,19 @@ export class UserIncomeEntity {
         };
     };
 
-    constructor(partial: Partial<UserIncomeEntity>) {
+    constructor(partial: any) {
         Object.assign(this, partial);
+        
+        // Convert Decimal to string for amount field
+        if (partial.amount) {
+            // Check if it's a Decimal object (has toString method and is not a string)
+            if (typeof partial.amount === 'object' && typeof partial.amount.toString === 'function') {
+                this.amount = partial.amount.toString();
+            } else if (typeof partial.amount === 'string') {
+                this.amount = partial.amount;
+            } else {
+                this.amount = String(partial.amount);
+            }
+        }
     }
 }
