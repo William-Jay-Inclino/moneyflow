@@ -337,6 +337,8 @@ export class UserService {
     }
 
     private async create_default_user_categories(user_id: string): Promise<void> {
+        console.log(`🔍 Starting default category creation for user: ${user_id}`);
+        
         try {
             // Get all default categories
             const default_categories = await this.prisma.category.findMany({
@@ -345,21 +347,59 @@ export class UserService {
                 }
             });
 
-            // Create user categories from default categories
-            for (const default_category of default_categories) {
-                await this.prisma.userCategory.create({
-                    data: {
-                        user_id,
-                        category_id: default_category.id,
-                    },
-                });
+            console.log(`📊 Found ${default_categories.length} default categories in database`);
+
+            if (default_categories.length === 0) {
+                console.warn('⚠️ No default categories found in database! Categories may not be seeded.');
+                return;
             }
 
-            console.log(`✅ Created ${default_categories.length} default categories for user ${user_id}`);
+            // Create user categories from default categories
+            let created_count = 0;
+            for (const default_category of default_categories) {
+                try {
+                    await this.prisma.userCategory.create({
+                        data: {
+                            user_id,
+                            category_id: default_category.id,
+                        },
+                    });
+                    created_count++;
+                    console.log(`✅ Created user category: ${default_category.name} (${default_category.type})`);
+                } catch (categoryError) {
+                    console.error(`❌ Failed to create user category for ${default_category.name}:`, categoryError);
+                }
+            }
+
+            console.log(`✅ Successfully created ${created_count}/${default_categories.length} default categories for user ${user_id}`);
         } catch (error) {
-            console.error('Error creating default user categories:', error);
+            console.error('❌ Error in create_default_user_categories:', error);
+            console.error('❌ Error stack:', error.stack);
             // We don't throw here because user creation should not fail if default categories fail
             // This can be handled separately or retried later
+        }
+    }
+
+    async debug_categories_status(): Promise<{ total_categories: number; default_categories: number; sample_defaults: any[] }> {
+        try {
+            const totalCategories = await this.prisma.category.count();
+            const defaultCategories = await this.prisma.category.findMany({
+                where: { is_default: true },
+                take: 5 // Just get a sample
+            });
+
+            return {
+                total_categories: totalCategories,
+                default_categories: defaultCategories.length,
+                sample_defaults: defaultCategories.map(cat => ({
+                    id: cat.id,
+                    name: cat.name,
+                    type: cat.type,
+                    is_default: cat.is_default
+                }))
+            };
+        } catch (error) {
+            throw new BadRequestException('Failed to check categories status');
         }
     }
 }

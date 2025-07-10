@@ -196,4 +196,15 @@ export class UserController {
     async debug_get_user_categories(@Param('userId') userId: string): Promise<{ user_id: string; category_count: number; categories: any[] }> {
         return this.user_service.debug_get_user_categories(userId);
     }
+
+    @Public()
+    @Get('debug/categories-status')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ 
+        summary: 'Debug: Check categories status',
+        description: 'Check if default categories are seeded in database (Development only)'
+    })
+    async debug_categories_status(): Promise<{ total_categories: number; default_categories: number; sample_defaults: any[] }> {
+        return this.user_service.debug_categories_status();
+    }
 }
