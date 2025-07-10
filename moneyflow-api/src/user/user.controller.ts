@@ -184,4 +184,16 @@ export class UserController {
     async find_by_email(@Param('email') email: string): Promise<UserEntity | null> {
         return this.user_service.find_by_email(email);
     }
+
+    @Public()
+    @Get('debug/user-categories/:userId')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ 
+        summary: 'Debug: Get user categories count',
+        description: 'Get count of user categories for debugging (Development only)'
+    })
+    @ApiParam({ name: 'userId', description: 'User ID' })
+    async debug_get_user_categories(@Param('userId') userId: string): Promise<{ user_id: string; category_count: number; categories: any[] }> {
+        return this.user_service.debug_get_user_categories(userId);
+    }
 }

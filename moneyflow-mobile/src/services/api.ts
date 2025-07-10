@@ -132,8 +132,47 @@ export const authApi = {
     },
 };
 
-// Transaction API
+// Transaction API - Updated to match backend user-specific endpoints
 export const transactionApi = {
+    getExpenses: async (userId: string, year: number, month: number): Promise<any[]> => {
+        const response = await api.get(`/users/${userId}/expenses?year=${year}&month=${month}`);
+        return response.data;
+    },
+
+    createExpense: async (userId: string, data: {
+        category_id: number;
+        cost: string;
+        notes?: string;
+    }): Promise<any> => {
+        const response = await api.post(`/users/${userId}/expenses`, data);
+        return response.data;
+    },
+
+    updateExpense: async (userId: string, expenseId: string, data: {
+        category_id?: number;
+        cost?: string;
+        notes?: string;
+    }): Promise<any> => {
+        const response = await api.patch(`/users/${userId}/expenses/${expenseId}`, data);
+        return response.data;
+    },
+
+    deleteExpense: async (userId: string, expenseId: string): Promise<void> => {
+        await api.delete(`/users/${userId}/expenses/${expenseId}`);
+    },
+
+    getExpenseSummary: async (userId: string, startDate?: string, endDate?: string): Promise<any> => {
+        let url = `/users/${userId}/expenses/summary`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await api.get(url);
+        return response.data;
+    },
+
+    // Legacy methods for backwards compatibility
     getTransactions: async (): Promise<ApiResponse<Transaction[]>> => {
         const response = await api.get('/user-expense');
         return response.data;
@@ -162,10 +201,24 @@ export const transactionApi = {
     },
 };
 
-// Category API
+// Category API - Updated to match backend user-specific endpoints  
 export const categoryApi = {
-    getCategories: async (): Promise<ApiResponse<Category[]>> => {
+    getCategories: async (userId?: string): Promise<ApiResponse<Category[]>> => {
+        // If userId is provided, use user-specific endpoint
+        if (userId) {
+            const response = await api.get(`/users/${userId}/categories`);
+            return { success: true, data: response.data };
+        }
+        // Fallback to old endpoint for backwards compatibility
         const response = await api.get('/user-category');
+        return response.data;
+    },
+
+    getUserCategories: async (userId: string, type?: 'EXPENSE' | 'INCOME'): Promise<Category[]> => {
+        let url = `/users/${userId}/categories`;
+        if (type) url += `?type=${type}`;
+        
+        const response = await api.get(url);
         return response.data;
     },
 

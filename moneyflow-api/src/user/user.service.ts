@@ -311,6 +311,31 @@ export class UserService {
         }
     }
 
+    async debug_get_user_categories(user_id: string): Promise<{ user_id: string; category_count: number; categories: any[] }> {
+        try {
+            const userCategories = await this.prisma.userCategory.findMany({
+                where: { user_id },
+                include: {
+                    category: true
+                }
+            });
+
+            return {
+                user_id,
+                category_count: userCategories.length,
+                categories: userCategories.map(uc => ({
+                    id: uc.id,
+                    category_id: uc.category_id,
+                    category_name: uc.category?.name,
+                    category_type: uc.category?.type,
+                    is_default: uc.category?.is_default
+                }))
+            };
+        } catch (error) {
+            throw new BadRequestException('Failed to get user categories');
+        }
+    }
+
     private async create_default_user_categories(user_id: string): Promise<void> {
         try {
             // Get all default categories

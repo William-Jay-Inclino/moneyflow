@@ -1,8 +1,13 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Dimensions } from 'react-native';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Dimensions, ActivityIndicator } from 'react-native';
 import { ExpenseItem, CategoryChip } from '../../components';
+import { useAuthStore } from '../../store/authStore';
+import { transactionApi, categoryApi } from '../../services/api';
+import { Category } from '../../types';
 
 export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
+    const { user } = useAuthStore();
+    
     const [notes, setNotes] = useState('');
     const [cost, setCost] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -10,68 +15,77 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '' });
     const [showExpenseDetails, setShowExpenseDetails] = useState(false);
-    const [expenseList, setExpenseList] = useState([
-        {
-            id: '1',
-            amount: 85.50,
-            description: 'Grocery Shopping',
-            category: 'Food & Dining',
-            date: '2025-07-08',
-            time: '06:30 PM'
-        },
-        {
-            id: '2',
-            amount: 45.00,
-            description: 'Gas Station',
-            category: 'Transportation',
-            date: '2025-07-07',
-            time: '08:15 AM'
-        },
-        {
-            id: '3',
-            amount: 120.00,
-            description: 'Electric Bill',
-            category: 'Utilities',
-            date: '2025-07-06',
-            time: '12:00 PM'
-        },
-        {
-            id: '4',
-            amount: 25.99,
-            description: 'Netflix Subscription',
-            category: 'Entertainment',
-            date: '2025-07-05',
-            time: '09:30 AM'
-        },
-        {
-            id: '5',
-            amount: 67.80,
-            description: 'Restaurant Dinner',
-            category: 'Food & Dining',
-            date: '2025-07-04',
-            time: '07:45 PM'
-        },
-        {
-            id: '6',
-            amount: 15.00,
-            description: 'Coffee Shop',
-            category: 'Food & Dining',
-            date: '2025-07-03',
-            time: '09:00 AM'
-        },
-        {
-            id: '7',
-            amount: 299.99,
-            description: 'Online Shopping',
-            category: 'Shopping',
-            date: '2025-07-02',
-            time: '03:20 PM'
+    const [expenseList, setExpenseList] = useState<any[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
+
+    // Load user data on component mount
+    useEffect(() => {
+        loadInitialData();
+    }, [user]);
+
+    const loadInitialData = async () => {
+        if (!user?.id) return;
+        
+        try {
+            setIsLoadingExpenses(true);
+            await Promise.all([
+                loadCategories(),
+                loadExpenses()
+            ]);
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            Alert.alert('Error', 'Failed to load data. Please try again.');
+        } finally {
+            setIsLoadingExpenses(false);
         }
-    ]);
+    };
 
-    const categories = useMemo(() => ['Food & Dining', 'Transportation', 'Utilities', 'Entertainment', 'Shopping', 'Healthcare', 'Other'], []);
+    const loadCategories = async () => {
+        if (!user?.id) return;
+        
+        try {
+            const expenseCategories = await categoryApi.getUserCategories(user.id, 'EXPENSE');
+            setCategories(expenseCategories);
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            // Fallback to get all categories and filter
+            try {
+                const response = await categoryApi.getCategories(user.id);
+                const allCategories = response.data || [];
+                const filtered = allCategories.filter(cat => cat.type === 'expense');
+                setCategories(filtered);
+            } catch (fallbackError) {
+                console.error('Fallback category loading also failed:', fallbackError);
+            }
+        }
+    };
 
-    const handleAddExpense = useCallback(() => {
+    const loadExpenses = async () => {
+        if (!user?.id) return;
+        
+        try {
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            const data = await transactionApi.getExpenses(user.id, year, month);
+            const formattedExpenses = data.map((expense: any) => ({
+                id: expense.id,
+                amount: parseFloat(expense.cost),
+                description: expense.notes || 'No description',
+                category: expense.category?.category?.name || 'Other',
+                date: new Date(expense.created_at).toISOString().split('T')[0],
+                time: new Date(expense.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            }));
+            setExpenseList(formattedExpenses);
+        } catch (error) {
+            console.error('Error loading expenses:', error);
+        }
+    };
+
+    const handleAddExpense = useCallback(async () => {
         if (!cost.trim()) {
             Alert.alert('Missing Cost', 'Please enter the expense amount');
             return;
@@ -84,36 +98,69 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             Alert.alert('Missing Category', 'Please select a category');
             return;
         }
+        if (!user?.id) {
+            Alert.alert('Error', 'User not found. Please login again.');
+            return;
+        }
 
-        // Add new expense
-        const newExpense = {
-            id: Date.now().toString(),
-            amount: parseFloat(cost),
-            description: notes,
-            category: selectedCategory,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        };
-        setExpenseList(prev => [newExpense, ...prev]);
-        Alert.alert('Success', 'Expense added successfully');
+        setIsLoading(true);
         
-        // Reset form
-        setNotes('');
-        setCost('');
-        setSelectedCategory('');
-    }, [cost, notes, selectedCategory]);
+        try {
+            // Find the selected category object
+            const categoryObj = categories.find(cat => cat.id === selectedCategory);
+            if (!categoryObj) {
+                Alert.alert('Error', 'Selected category not found');
+                return;
+            }
+
+            const newExpense = await transactionApi.createExpense(user.id, {
+                category_id: parseInt(categoryObj.id),
+                cost: cost.trim(),
+                notes: notes.trim()
+            });
+
+            const formattedExpense = {
+                id: newExpense.id,
+                amount: parseFloat(newExpense.cost),
+                description: newExpense.notes || 'No description',
+                category: categoryObj.name,
+                date: new Date(newExpense.created_at).toISOString().split('T')[0],
+                time: new Date(newExpense.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            };
+            
+            setExpenseList(prev => [formattedExpense, ...prev]);
+            Alert.alert('Success', 'Expense added successfully');
+            
+            // Reset form
+            setNotes('');
+            setCost('');
+            setSelectedCategory('');
+        } catch (error) {
+            console.error('Error adding expense:', error);
+            Alert.alert('Error', 'Failed to add expense. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [cost, notes, selectedCategory, user, categories]);
 
     const handleEditExpense = useCallback((expense: any) => {
+        // Find the category ID by name for the edit form
+        const categoryObj = categories.find(cat => cat.name === expense.category);
         setEditFormData({
             cost: expense.amount.toString(),
             notes: expense.description,
-            category: expense.category
+            category: categoryObj?.id || ''
         });
         setEditingId(expense.id);
         setEditModalVisible(true);
-    }, []);
+    }, [categories]);
 
-    const handleDeleteExpense = useCallback((id: string) => {
+    const handleDeleteExpense = useCallback(async (id: string) => {
+        if (!user?.id) {
+            Alert.alert('Error', 'User not found. Please login again.');
+            return;
+        }
+
         Alert.alert(
             'Delete Expense',
             'Are you sure you want to delete this expense?',
@@ -122,14 +169,20 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 { 
                     text: 'Delete', 
                     style: 'destructive',
-                    onPress: () => {
-                        setExpenseList(prev => prev.filter(item => item.id !== id));
-                        Alert.alert('Success', 'Expense deleted successfully');
+                    onPress: async () => {
+                        try {
+                            await transactionApi.deleteExpense(user.id, id);
+                            setExpenseList(prev => prev.filter(item => item.id !== id));
+                            Alert.alert('Success', 'Expense deleted successfully');
+                        } catch (error) {
+                            console.error('Error deleting expense:', error);
+                            Alert.alert('Error', 'Failed to delete expense. Please try again.');
+                        }
                     }
                 }
             ]
         );
-    }, []);
+    }, [user]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);
@@ -137,7 +190,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         setEditFormData({ cost: '', notes: '', category: '' });
     }, []);
 
-    const handleUpdateExpense = useCallback(() => {
+    const handleUpdateExpense = useCallback(async () => {
         if (!editFormData.cost.trim()) {
             Alert.alert('Missing Cost', 'Please enter the expense amount');
             return;
@@ -150,16 +203,42 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             Alert.alert('Missing Category', 'Please select a category');
             return;
         }
+        if (!user?.id || !editingId) {
+            Alert.alert('Error', 'Unable to update expense');
+            return;
+        }
 
-        // Update existing expense
-        setExpenseList(prev => prev.map(item => 
-            item.id === editingId 
-                ? { ...item, amount: parseFloat(editFormData.cost), description: editFormData.notes, category: editFormData.category }
-                : item
-        ));
-        Alert.alert('Success', 'Expense updated successfully');
-        cancelEdit();
-    }, [editFormData, editingId, cancelEdit]);
+        try {
+            // Find the selected category object
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', 'Selected category not found');
+                return;
+            }
+
+            const updatedExpense = await transactionApi.updateExpense(user.id, editingId, {
+                category_id: parseInt(categoryObj.id),
+                cost: editFormData.cost.trim(),
+                notes: editFormData.notes.trim()
+            });
+
+            setExpenseList(prev => prev.map(item => 
+                item.id === editingId 
+                    ? { 
+                        ...item, 
+                        amount: parseFloat(updatedExpense.cost), 
+                        description: updatedExpense.notes,
+                        category: categoryObj.name
+                    }
+                    : item
+            ));
+            Alert.alert('Success', 'Expense updated successfully');
+            cancelEdit();
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            Alert.alert('Error', 'Failed to update expense. Please try again.');
+        }
+    }, [editFormData, editingId, user, categories, cancelEdit]);
     
     const totalExpenses = useMemo(() => 
         expenseList.reduce((sum, item) => sum + item.amount, 0), 
@@ -242,10 +321,10 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                         {categories.map((category) => (
                             <CategoryChip
-                                key={category}
-                                category={category}
-                                isSelected={selectedCategory === category}
-                                onPress={handleCategorySelect}
+                                key={category.id}
+                                category={category.name}
+                                isSelected={selectedCategory === category.id}
+                                onPress={() => handleCategorySelect(category.id)}
                                 getCategoryIcon={getCategoryIcon}
                                 color="#3b82f6"
                             />
@@ -253,8 +332,16 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                     </ScrollView>
                 </View>
 
-                <TouchableOpacity style={styles.quickAddButton} onPress={handleAddExpense}>
-                    <Text style={styles.quickAddButtonText}>+ Add Expense</Text>
+                <TouchableOpacity 
+                    style={[styles.quickAddButton, isLoading && { opacity: 0.6 }]} 
+                    onPress={handleAddExpense}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator color="white" size="small" />
+                    ) : (
+                        <Text style={styles.quickAddButtonText}>+ Add Expense</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -290,17 +377,29 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {expenseList.map((item) => (
-                        <ExpenseItem
-                            key={item.id}
-                            item={item}
-                            getCategoryIcon={getCategoryIcon}
-                            formatDate={formatDate}
-                            onEdit={handleEditExpense}
-                            onDelete={handleDeleteExpense}
-                            editable={true}
-                        />
-                    ))}
+                    {isLoadingExpenses ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#3b82f6" />
+                            <Text style={styles.loadingText}>Loading expenses...</Text>
+                        </View>
+                    ) : expenseList.length > 0 ? (
+                        expenseList.map((item) => (
+                            <ExpenseItem
+                                key={item.id}
+                                item={item}
+                                getCategoryIcon={getCategoryIcon}
+                                formatDate={formatDate}
+                                onEdit={handleEditExpense}
+                                onDelete={handleDeleteExpense}
+                                editable={true}
+                            />
+                        ))
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No expenses found</Text>
+                            <Text style={styles.emptySubtext}>Add your first expense above</Text>
+                        </View>
+                    )}
 
                     {/* Hide Button at the bottom when details are shown */}
                     <View style={styles.hideSection}>
@@ -365,10 +464,10 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={editFormData.category === category}
-                                        onPress={handleEditFormCategorySelect}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={editFormData.category === category.id}
+                                        onPress={() => handleEditFormCategorySelect(category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                         color="#3b82f6"
                                     />
@@ -665,5 +764,33 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#64748b',
         fontWeight: 'bold',
+    },
+    // Loading and Empty States
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 20,
+    },
+    emptyText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#64748b',
+        marginBottom: 8,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#94a3b8',
+        textAlign: 'center',
     },
 });
