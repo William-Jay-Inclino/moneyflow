@@ -47,6 +47,9 @@ export class AuthService {
     // Send verification email
     await this.emailService.sendEmailVerification(email, verificationCode);
 
+    // Create default user categories
+    await this.createDefaultUserCategories(user.id);
+
     // Generate JWT token
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
@@ -209,5 +212,48 @@ export class AuthService {
       createdAt: user.registered_at,
       updatedAt: user.registered_at,
     } as Partial<User>;
+  }
+
+  private async createDefaultUserCategories(user_id: string): Promise<void> {
+    console.log(`🔍 Starting default category creation for user: ${user_id}`);
+    
+    try {
+      // Get all default categories
+      const default_categories = await this.prisma.category.findMany({
+        where: {
+          is_default: true
+        }
+      });
+
+      console.log(`📊 Found ${default_categories.length} default categories in database`);
+
+      if (default_categories.length === 0) {
+        console.warn('⚠️ No default categories found in database! Categories may not be seeded.');
+        return;
+      }
+
+      // Create user categories from default categories
+      let created_count = 0;
+      for (const default_category of default_categories) {
+        try {
+          await this.prisma.userCategory.create({
+            data: {
+              user_id,
+              category_id: default_category.id,
+            },
+          });
+          created_count++;
+          console.log(`✅ Created user category: ${default_category.name} (${default_category.type})`);
+        } catch (categoryError) {
+          console.error(`❌ Failed to create user category for ${default_category.name}:`, categoryError);
+        }
+      }
+
+      console.log(`✅ Successfully created ${created_count}/${default_categories.length} default categories for user ${user_id}`);
+    } catch (error) {
+      console.error('❌ Error in createDefaultUserCategories:', error);
+      console.error('❌ Error stack:', error.stack);
+      // We don't throw here because user creation should not fail if default categories fail
+    }
   }
 }
