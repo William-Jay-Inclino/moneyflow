@@ -53,10 +53,15 @@ api.interceptors.response.use(
     response => response,
     async (error: any) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid - clear auth data
+            // Token expired or invalid - clear auth data and logout
             await AsyncStorage.removeItem('auth-token');
-            // Note: You should also clear the auth store here
-            console.log('Token expired, clearing auth data');
+            
+            // Import auth store and logout user
+            const { useAuthStore } = await import('@/store/authStore');
+            const { logout } = useAuthStore.getState();
+            logout();
+            
+            console.log('🔄 401 Unauthorized - Token expired, user logged out');
         }
         return Promise.reject(error);
     }

@@ -50,21 +50,14 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
 
         try {
             console.log('✉️ Attempting email verification...');
-            let user;
+            console.log('Email:', pendingVerificationEmail);
+            console.log('Code:', verificationCode.trim());
             
-            if (pendingVerificationUserId) {
-                // Use new auth API for verification
-                user = await authApi.verifyEmail({
-                    email: pendingVerificationEmail,
-                    code: verificationCode.trim()
-                });
-            } else {
-                // Verification from login flow (use debug method with email)
-                user = await authApi.debugVerifyByEmail({
-                    email: pendingVerificationEmail,
-                    token: verificationCode.trim()
-                });
-            }
+            // Always use the new JWT auth API for verification
+            const user = await authApi.verifyEmail({
+                email: pendingVerificationEmail,
+                code: verificationCode.trim()
+            });
             
             console.log('✅ Email verification successful');
             clearPendingVerification();
@@ -84,12 +77,15 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
             );
             
         } catch (error: any) {
-            console.error('Email verification error:', error);
+            console.error('❌ Email verification error:', error);
+            console.error('❌ Error response:', error.response?.data);
+            console.error('❌ Error status:', error.response?.status);
             
             let errorMessage = 'An error occurred during verification';
             
             if (error.response?.status === 400) {
                 errorMessage = error.response.data?.message || 'Invalid verification code';
+                console.error('❌ Backend error message:', error.response.data?.message);
             } else if (!error.response) {
                 errorMessage = 'Network error. Please check your connection';
             }

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto, VerificationResponseDto } from './dto';
+import { LoginDto, RegisterDto, AuthResponseDto, VerificationResponseDto, VerifyEmailDto } from './dto';
 import { JwtAuthGuard } from './guards';
 import { Public } from './decorators';
 
@@ -67,7 +67,7 @@ export class AuthController {
     description: 'Invalid verification code or user not found',
   })
   async verifyEmail(
-    @Body() verifyEmailDto: { email: string; code: string },
+    @Body() verifyEmailDto: VerifyEmailDto,
   ): Promise<VerificationResponseDto> {
     return this.authService.verifyEmail(verifyEmailDto.email, verifyEmailDto.code);
   }

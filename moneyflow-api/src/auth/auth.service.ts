@@ -32,6 +32,7 @@ export class AuthService {
 
     // Generate verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`🔑 Generated verification code for ${email}: ${verificationCode}`);
 
     // Create user
     const user = await this.prisma.user.create({
@@ -99,21 +100,30 @@ export class AuthService {
   }
 
   async verifyEmail(email: string, code: string): Promise<VerificationResponseDto> {
+    console.log(`🔍 Verifying email for: ${email} with code: ${code}`);
+    
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      console.log(`❌ User not found for email: ${email}`);
       throw new BadRequestException('User not found');
     }
 
+    console.log(`🔍 User found: ${user.email}, stored token: ${user.email_verify_token}, verified: ${user.email_verified}`);
+
     if (user.email_verified) {
+      console.log(`❌ Email already verified for: ${email}`);
       throw new BadRequestException('Email is already verified');
     }
 
     if (user.email_verify_token !== code) {
+      console.log(`❌ Invalid verification code for ${email}. Expected: ${user.email_verify_token}, Received: ${code}`);
       throw new BadRequestException('Invalid verification code');
     }
+
+    console.log(`✅ Verification code matches for: ${email}`);
 
     // Update user to mark email as verified
     const updatedUser = await this.prisma.user.update({
@@ -123,6 +133,8 @@ export class AuthService {
         email_verify_token: null,
       },
     });
+
+    console.log(`✅ Email verified successfully for: ${email}`);
 
     return {
       message: 'Email verified successfully',

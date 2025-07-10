@@ -31,7 +31,7 @@ export class EmailService {
                         <p style="font-size: 36px; font-family: monospace; background-color: white; padding: 20px; border-radius: 8px; letter-spacing: 8px; margin: 0; color: #3b82f6; font-weight: bold;">
                             ${token}
                         </p>
-                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this 5-digit code in the app</p>
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this 6-digit code in the app</p>
                     </div>
                     
                     <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">

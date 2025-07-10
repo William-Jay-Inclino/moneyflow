@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import { useAuthStore } from '../store';
+import { tokenUtils } from '../utils/tokenUtils';
 
 // Auth Screens
 import { LoginScreen, SignupScreen, EmailVerificationScreen } from '../screens/auth';
@@ -119,6 +120,28 @@ const MainTabNavigator = () => {
 };
 
 const MainNavigator = () => {
+    const { token, logout } = useAuthStore();
+
+    // Check token validity ONLY when in main screens (authenticated state)
+    useEffect(() => {
+        const checkTokenValidity = async () => {
+            if (token) {
+                const validToken = await tokenUtils.getValidToken();
+                if (!validToken) {
+                    console.log('🔄 Token expired, logging out user');
+                    logout();
+                }
+            }
+        };
+
+        checkTokenValidity();
+        
+        // Check token validity every minute when app is active
+        const interval = setInterval(checkTokenValidity, 60000);
+        
+        return () => clearInterval(interval);
+    }, [token, logout]);
+
     return (
         <MainStack.Navigator screenOptions={{ headerShown: false }}>
             <MainStack.Screen name="MainTabs" component={MainTabNavigator} />

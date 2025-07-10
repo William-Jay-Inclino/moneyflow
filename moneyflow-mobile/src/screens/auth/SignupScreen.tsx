@@ -60,24 +60,16 @@ export const SignupScreen = ({ navigation }: any) => {
             
             console.log('✅ JWT registration successful:', { userId: user.id, email: user.email });
             
-            // Store pending verification info (user is registered but may need email verification)
+            // Store pending verification info (user is registered but needs email verification)
             setPendingVerification(user.email, user.id);
             
             Alert.alert(
                 'Registration Successful',
-                'A verification email has been sent to your email address. You can start using the app, but please verify your email for full access.',
+                'A verification email has been sent to your email address. Please check your email and enter the verification code.',
                 [
                     {
-                        text: 'Verify Email',
+                        text: 'OK',
                         onPress: () => navigation.navigate('EmailVerification')
-                    },
-                    {
-                        text: 'Continue',
-                        onPress: () => {
-                            // Log the user in even if email is not verified
-                            const { login } = useAuthStore.getState();
-                            login(user, accessToken);
-                        }
                     }
                 ]
             );
