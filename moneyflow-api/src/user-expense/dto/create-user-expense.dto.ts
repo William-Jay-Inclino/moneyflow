@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsPositive, IsDecimal } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsPositive, IsDecimal, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateUserExpenseDto {
@@ -22,6 +22,16 @@ export class CreateUserExpenseDto {
     @IsString()
     @IsDecimal({ decimal_digits: '1,2' })
     cost: string;
+
+    @ApiProperty({
+        description: 'Date when the expense occurred',
+        example: '2025-07-11',
+        type: 'string',
+        format: 'date',
+    })
+    @IsNotEmpty()
+    @IsDateString()
+    expense_date: string;
 
     @ApiProperty({
         description: 'Optional notes about the expense',

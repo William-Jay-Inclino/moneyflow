@@ -10,7 +10,7 @@ export class UserExpenseService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create_user_expense(user_id: string, create_user_expense_dto: CreateUserExpenseDto): Promise<UserExpenseEntity> {
-        const { category_id, cost, notes } = create_user_expense_dto;
+        const { category_id, cost, notes, expense_date } = create_user_expense_dto;
 
         try {
             // Verify category exists and belongs to user
@@ -34,6 +34,7 @@ export class UserExpenseService {
                     user_id,
                     category_id,
                     cost: new Decimal(cost),
+                    expense_date: new Date(expense_date),
                     notes,
                 },
                 include: {
@@ -65,7 +66,7 @@ export class UserExpenseService {
             const expenses = await this.prisma.userExpense.findMany({
                 where: {
                     user_id,
-                    created_at: {
+                    expense_date: {
                         gte: start_date,
                         lte: end_date,
                     },
@@ -118,7 +119,7 @@ export class UserExpenseService {
     }
 
     async update_user_expense(user_id: string, expense_id: string, update_user_expense_dto: UpdateUserExpenseDto): Promise<UserExpenseEntity> {
-        const { category_id, cost, notes } = update_user_expense_dto;
+        const { category_id, cost, notes, expense_date } = update_user_expense_dto;
 
         try {
             // Check if expense exists and belongs to user
@@ -155,6 +156,7 @@ export class UserExpenseService {
             if (category_id !== undefined) update_data.category_id = category_id;
             if (cost !== undefined) update_data.cost = new Decimal(cost);
             if (notes !== undefined) update_data.notes = notes;
+            if (expense_date !== undefined) update_data.expense_date = new Date(expense_date);
 
             const updated_expense = await this.prisma.userExpense.update({
                 where: {

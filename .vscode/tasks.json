@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build MoneyFlow Mobile",
+			"type": "shell",
+			"command": "cd /home/jay/apps/moneyflow/moneyflow-mobile && npm run android",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [
+				"$tsc"
+			]
+		}
+	]
+}

@@ -1,6 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { CreateUserExpenseDto } from './create-user-expense.dto';
-import { IsOptional, IsNumber, IsPositive, IsString, IsDecimal } from 'class-validator';
+import { IsOptional, IsNumber, IsPositive, IsString, IsDecimal, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateUserExpenseDto extends PartialType(CreateUserExpenseDto) {
@@ -25,6 +25,17 @@ export class UpdateUserExpenseDto extends PartialType(CreateUserExpenseDto) {
     @IsString()
     @IsDecimal({ decimal_digits: '1,2' })
     cost?: string;
+
+    @ApiProperty({
+        description: 'Date when the expense occurred',
+        example: '2025-07-11',
+        type: 'string',
+        format: 'date',
+        required: false,
+    })
+    @IsOptional()
+    @IsDateString()
+    expense_date?: string;
 
     @ApiProperty({
         description: 'Optional notes about the expense',

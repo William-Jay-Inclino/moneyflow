@@ -21,6 +21,12 @@ export class UserExpenseEntity {
     created_at: Date;
 
     @ApiProperty({
+        description: 'Date when the expense occurred',
+        example: '2025-07-11',
+    })
+    expense_date: Date;
+
+    @ApiProperty({
         description: 'Category ID for the expense',
         example: 1,
     })

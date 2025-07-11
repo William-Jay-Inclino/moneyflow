@@ -1,40 +1,66 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
 import { ExpenseItem, CategoryChip } from '../../components';
-import { useAuthStore } from '../../store/authStore';
-import { transactionApi, categoryApi } from '../../services/api';
-import { Category } from '../../types';
+import { useAuthStore, useExpenseStore } from '../../store';
+import { formatCostInput } from '../../utils/costUtils';
+import { validateExpenseForm } from '../../utils/formValidation';
 
-interface Expense {
-    id: string;
-    amount: number;
-    description: string;
-    category: string;
-    date: string;
-    time: string;
-}
+// Constants
+const RECENT_EXPENSES_LIMIT = 10;
+const SUCCESS_MESSAGES = {
+    EXPENSE_ADDED: 'Expense added successfully',
+    EXPENSE_UPDATED: 'Expense updated successfully',
+    EXPENSE_DELETED: 'Expense deleted successfully'
+} as const;
+
+const ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found. Please login again.',
+    CATEGORY_NOT_FOUND: 'Selected category not found',
+    UNABLE_TO_UPDATE: 'Unable to update expense',
+    FAILED_TO_ADD: 'Failed to add expense. Please try again.',
+    FAILED_TO_UPDATE: 'Failed to update expense. Please try again.',
+    FAILED_TO_DELETE: 'Failed to delete expense. Please try again.',
+    FAILED_TO_LOAD: 'Failed to load data. Please try again.'
+} as const;
 
 export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const { user } = useAuthStore();
+    const {
+        categories,
+        getCurrentMonthExpenses,
+        getRecentExpenses,
+        getCurrentMonthTotal,
+        isLoadingMonth,
+        currentMonth,
+        currentYear,
+        loadExpensesForMonth,
+        loadCategories,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        getCategoryIcon,
+        updateCurrentDate,
+    } = useExpenseStore();
     
     // Form state
     const [notes, setNotes] = useState('');
     const [cost, setCost] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedDay, setSelectedDay] = useState(new Date().getDate().toString());
     
     // Modal state
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
-    const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '' });
+    const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '', day: '' });
     
     // UI state
     const [showExpenseDetails, setShowExpenseDetails] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingExpenses, setIsLoadingExpenses] = useState(true);
-    
-    // Data state
-    const [expenseList, setExpenseList] = useState<Expense[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
+
+    // Always use current month/year - these values update automatically when date changes
+    const isLoadingExpenses = isLoadingMonth(currentYear, currentMonth);
+    const recentExpenses = getRecentExpenses(RECENT_EXPENSES_LIMIT);
+    const totalExpenses = getCurrentMonthTotal();
 
     // Load user data on component mount
     useEffect(() => {
@@ -45,126 +71,42 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         if (!user?.id) return;
         
         try {
-            setIsLoadingExpenses(true);
+            // Ensure we're using the current month/year
+            updateCurrentDate();
+            
             await Promise.all([
-                loadCategories(),
-                loadExpenses()
+                loadCategories(user.id),
+                loadExpensesForMonth(user.id, currentYear, currentMonth)
             ]);
         } catch (error) {
             console.error('Error loading initial data:', error);
-            Alert.alert('Error', 'Failed to load data. Please try again.');
-        } finally {
-            setIsLoadingExpenses(false);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_LOAD);
         }
     };
 
-    // Helper function to transform category data
-    const transformCategoryData = useCallback((data: any[]): Category[] => {
-        return data.map((item: any) => {
-            const category = item.category || item;
-            return {
-                id: (item.id || item.category_id || category.id)?.toString() || '',
-                name: category.name || item.name || 'Unknown Category',
-                type: 'expense' as const,
-                color: category.color || item.color || '#3b82f6',
-                icon: category.icon || item.icon || '💳',
-                userId: user?.id || ''
-            };
-        });
-    }, [user?.id]);
+    const resetForm = useCallback(() => {
+        setNotes('');
+        setCost('');
+        setSelectedCategory('');
+        setSelectedDay(new Date().getDate().toString());
+    }, []);
 
-    const loadCategories = async () => {
-        if (!user?.id) return;
-        
-        try {
-            const response: any = await categoryApi.getUserCategories(user.id, 'EXPENSE');
-            const categoryData = Array.isArray(response) ? response : response?.data || [];
-            setCategories(transformCategoryData(categoryData));
-        } catch (error) {
-            console.error('Error loading categories:', error);
-            
-            // Fallback: try to get all categories and filter for expenses
-            try {
-                const response: any = await categoryApi.getCategories(user.id);
-                const allCategories = Array.isArray(response) ? response : response?.data || [];
-                const expenseCategories = allCategories.filter((item: any) => {
-                    const category = item.category || item;
-                    return (category.type || item.type)?.toLowerCase() === 'expense';
-                });
-                setCategories(transformCategoryData(expenseCategories));
-            } catch (fallbackError) {
-                console.error('Fallback category loading failed:', fallbackError);
-                Alert.alert('Error', 'Failed to load categories. Please check your connection.');
-            }
-        }
-    };
-
-    const loadExpenses = async () => {
-        if (!user?.id) return;
-        
-        try {
-            const currentDate = new Date();
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth() + 1;
-            
-            const data = await transactionApi.getExpenses(user.id, year, month);
-            const formattedExpenses = data.map((expense: any) => ({
-                id: expense.id,
-                amount: parseCostToNumber(expense.cost),
-                description: expense.notes || 'No description',
-                category: expense.category?.category?.name || 'Other',
-                date: new Date(expense.created_at).toISOString().split('T')[0],
-                time: new Date(expense.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            }));
-            setExpenseList(formattedExpenses);
-        } catch (error) {
-            console.error('Error loading expenses:', error);
-        }
-    };
-
-    // Helper function to safely convert cost string to number
-    const parseCostToNumber = (cost: any): number => {
-        if (cost === null || cost === undefined) return 0;
-        
-        // If it's already a number, return it
-        if (typeof cost === 'number') return cost;
-        
-        // Handle Prisma Decimal objects (they have a toString method)
-        if (cost && typeof cost === 'object' && typeof cost.toString === 'function') {
-            const stringValue = cost.toString();
-            const parsed = parseFloat(stringValue);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-        
-        // If it's a string, clean and parse it
-        if (typeof cost === 'string') {
-            // Remove any whitespace and handle empty strings
-            const cleanCost = cost.trim();
-            if (cleanCost === '') return 0;
-            
-            // Parse the string to float
-            const parsed = parseFloat(cleanCost);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-        
-        console.warn('Unexpected cost type:', typeof cost, cost);
-        return 0;
-    };
-
-    // Validation helper
-    const validateExpenseForm = (cost: string, notes: string, categoryId: string) => {
-        if (!cost.trim()) return 'Please enter the expense amount';
-        if (isNaN(parseFloat(cost.trim())) || parseFloat(cost.trim()) <= 0) return 'Please enter a valid positive amount';
-        if (!notes.trim()) return 'Please enter notes';
-        if (!categoryId) return 'Please select a category';
-        if (!user?.id) return 'User not found. Please login again.';
-        return null;
-    };
+    const resetEditForm = useCallback(() => {
+        setEditingId(null);
+        setEditModalVisible(false);
+        setEditFormData({ cost: '', notes: '', category: '', day: '' });
+    }, []);
 
     const handleAddExpense = useCallback(async () => {
-        const validationError = validateExpenseForm(cost, notes, selectedCategory);
+        const validationError = validateExpenseForm(cost, notes, selectedCategory, user?.id);
         if (validationError) {
             Alert.alert('Missing Information', validationError);
+            return;
+        }
+
+        // Validate day selection
+        if (!selectedDay || isNaN(parseInt(selectedDay)) || parseInt(selectedDay) < 1 || parseInt(selectedDay) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the expense');
             return;
         }
 
@@ -173,96 +115,93 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         try {
             const categoryObj = categories.find(cat => cat.id === selectedCategory);
             if (!categoryObj) {
-                Alert.alert('Error', 'Selected category not found');
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
                 return;
             }
 
-            const newExpense = await transactionApi.createExpense(user!.id, {
+            // Create expense date using current month/year and selected day
+            const today = new Date();
+            const expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(selectedDay));
+
+            await addExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
                 cost: cost.trim(),
-                notes: notes.trim()
+                notes: notes.trim(),
+                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
             });
-
-            const formattedExpense: Expense = {
-                id: newExpense.id,
-                amount: parseCostToNumber(newExpense.cost),
-                description: newExpense.notes || 'No description',
-                category: categoryObj.name,
-                date: new Date(newExpense.created_at).toISOString().split('T')[0],
-                time: new Date(newExpense.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            };
-            
-            setExpenseList(prev => [formattedExpense, ...prev]);
             
             // Reset form
-            setNotes('');
-            setCost('');
-            setSelectedCategory('');
+            resetForm();
             
-            Alert.alert('Success', 'Expense added successfully');
+            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
         } catch (error) {
             console.error('Error adding expense:', error);
-            Alert.alert('Error', 'Failed to add expense. Please try again.');
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_ADD);
         } finally {
             setIsLoading(false);
         }
-    }, [cost, notes, selectedCategory, user, categories]);
+    }, [cost, notes, selectedCategory, selectedDay, user, categories, addExpense]);
 
-    const handleEditExpense = useCallback((expense: Expense) => {
-        const categoryObj = categories.find(cat => cat.name === expense.category);
-        setEditFormData({
-            cost: expense.amount.toString(),
-            notes: expense.description,
-            category: categoryObj?.id || ''
-        });
-        setEditingId(expense.id);
-        setEditModalVisible(true);
+    const handleEditExpense = useCallback((expense: any) => {
+        try {
+            const categoryObj = categories.find(cat => cat.name === expense.category);
+            const expenseDate = new Date(expense.date);
+            setEditFormData({
+                cost: expense.amount.toString(),
+                notes: expense.description || '',
+                category: categoryObj?.id || '',
+                day: expenseDate.getDate().toString()
+            });
+            setEditingId(expense.id);
+            setEditModalVisible(true);
+        } catch (error) {
+            console.error('Error preparing expense for editing:', error);
+            Alert.alert('Error', 'Unable to edit this expense. Please try again.');
+        }
     }, [categories]);
 
     const handleUpdateExpense = useCallback(async () => {
-        const validationError = validateExpenseForm(editFormData.cost, editFormData.notes, editFormData.category);
+        const validationError = validateExpenseForm(editFormData.cost, editFormData.notes, editFormData.category, user?.id);
         if (validationError || !editingId) {
-            Alert.alert('Error', validationError || 'Unable to update expense');
+            Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
+            return;
+        }
+
+        // Validate day selection
+        if (!editFormData.day || isNaN(parseInt(editFormData.day)) || parseInt(editFormData.day) < 1 || parseInt(editFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the expense');
             return;
         }
 
         try {
             const categoryObj = categories.find(cat => cat.id === editFormData.category);
             if (!categoryObj) {
-                Alert.alert('Error', 'Selected category not found');
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
                 return;
             }
 
-            const updatedExpense = await transactionApi.updateExpense(user!.id, editingId, {
+            // Create expense date using current month/year and selected day
+            const today = new Date();
+            const expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(editFormData.day));
+
+            await updateExpense(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
                 cost: editFormData.cost.trim(),
-                notes: editFormData.notes.trim()
+                notes: editFormData.notes.trim(),
+                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
             });
-
-            setExpenseList(prev => prev.map(item => 
-                item.id === editingId 
-                    ? { 
-                        ...item, 
-                        amount: parseCostToNumber(updatedExpense.cost), 
-                        description: updatedExpense.notes || editFormData.notes,
-                        category: categoryObj.name
-                    }
-                    : item
-            ));
             
-            Alert.alert('Success', 'Expense updated successfully');
-            setEditingId(null);
-            setEditModalVisible(false);
-            setEditFormData({ cost: '', notes: '', category: '' });
+            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_UPDATED);
+            resetEditForm();
         } catch (error) {
             console.error('Error updating expense:', error);
-            Alert.alert('Error', 'Failed to update expense. Please try again.');
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_UPDATE);
         }
-    }, [editFormData, editingId, user, categories]);
+    }, [editFormData, editingId, user, categories, updateExpense]);
     
     const handleDeleteExpense = useCallback(async (id: string) => {
         if (!user?.id) {
-            Alert.alert('Error', 'User not found. Please login again.');
+            Alert.alert('Error', ERROR_MESSAGES.USER_NOT_FOUND);
             return;
         }
 
@@ -276,69 +215,48 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await transactionApi.deleteExpense(user.id, id);
-                            setExpenseList(prev => prev.filter(item => item.id !== id));
-                            Alert.alert('Success', 'Expense deleted successfully');
+                            await deleteExpense(user.id, id);
+                            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_DELETED);
                         } catch (error) {
                             console.error('Error deleting expense:', error);
-                            Alert.alert('Error', 'Failed to delete expense. Please try again.');
+                            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_DELETE);
                         }
                     }
                 }
             ]
         );
-    }, [user]);
+    }, [user, deleteExpense]);
 
     const cancelEdit = () => {
-        setEditingId(null);
-        setEditModalVisible(false);
-        setEditFormData({ cost: '', notes: '', category: '' });
+        resetEditForm();
     };    
-    const totalExpenses = useMemo(() => 
-        expenseList.reduce((sum, item) => sum + item.amount, 0), 
-        [expenseList]
-    );
 
-    const getCategoryIcon = useCallback((categoryName: string) => {
-        const category = categories.find(cat => cat.name === categoryName);
-        return category?.icon || '💳';
-    }, [categories]);
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${month}/${day}`;
-    };
-
-    const updateEditFormField = (field: string, value: string) => {
-        // For cost field, ensure only valid number format
+    const updateEditFormField = useCallback((field: string, value: string) => {
         if (field === 'cost') {
-            // Remove any non-numeric characters except decimal point
-            const numericValue = value.replace(/[^0-9.]/g, '');
-            // Ensure only one decimal point
-            const parts = numericValue.split('.');
-            const formattedValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
-            setEditFormData(prev => ({ ...prev, [field]: formattedValue }));
+            setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
         } else {
             setEditFormData(prev => ({ ...prev, [field]: value }));
         }
-    };
+    }, []);
 
-    const handleCostChange = (value: string) => {
-        // Remove any non-numeric characters except decimal point
-        const numericValue = value.replace(/[^0-9.]/g, '');
-        // Ensure only one decimal point
-        const parts = numericValue.split('.');
-        const formattedValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
-        setCost(formattedValue);
-    };
+    const handleCostChange = useCallback((value: string) => {
+        setCost(formatCostInput(value));
+    }, []);
+
+    const formatCurrentMonthYear = useCallback(() => {
+        const date = new Date(currentYear, currentMonth - 1);
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }, [currentYear, currentMonth]);
+
+    const formatDateForDisplay = useCallback((dateString: string) => {
+        return dateString.split('T')[0];
+    }, []);
 
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Add Expense</Text>
-                <Text style={styles.subtitle}>Quick and easy expense tracking</Text>
+                <Text style={styles.subtitle}>Quick and easy expense tracking for {formatCurrentMonthYear()}</Text>
             </View>
 
             {/* Quick Add Form */}
@@ -380,6 +298,30 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 getCategoryIcon={getCategoryIcon}
                                 color="#3b82f6"
                             />
+                        ))}
+                    </ScrollView>
+                </View>
+
+                <View style={styles.daySection}>
+                    <Text style={styles.inputLabel}>Day</Text>
+                    <Text style={styles.helperText}>Select the day of the month for this expense</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                            <TouchableOpacity
+                                key={day}
+                                style={[
+                                    styles.dayChip,
+                                    selectedDay === day.toString() && styles.dayChipSelected
+                                ]}
+                                onPress={() => setSelectedDay(day.toString())}
+                            >
+                                <Text style={[
+                                    styles.dayChipText,
+                                    selectedDay === day.toString() && styles.dayChipTextSelected
+                                ]}>
+                                    {day}
+                                </Text>
+                            </TouchableOpacity>
                         ))}
                     </ScrollView>
                 </View>
@@ -434,13 +376,13 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                             <ActivityIndicator size="large" color="#3b82f6" />
                             <Text style={styles.loadingText}>Loading expenses...</Text>
                         </View>
-                    ) : expenseList.length > 0 ? (
-                        expenseList.map((item) => (
+                    ) : recentExpenses.length > 0 ? (
+                        recentExpenses.map((item) => (
                             <ExpenseItem
                                 key={item.id}
                                 item={item}
                                 getCategoryIcon={getCategoryIcon}
-                                formatDate={formatDate}
+                                formatDate={formatDateForDisplay}
                                 onEdit={handleEditExpense}
                                 onDelete={handleDeleteExpense}
                                 editable={true}
@@ -523,6 +465,30 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                         getCategoryIcon={getCategoryIcon}
                                         color="#3b82f6"
                                     />
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this expense</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            editFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => setEditFormData(prev => ({ ...prev, day: day.toString() }))}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            editFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
                                 ))}
                             </ScrollView>
                         </View>
@@ -650,6 +616,9 @@ const styles = StyleSheet.create({
     categorySection: {
         marginBottom: 16,
     },
+    daySection: {
+        marginBottom: 20,
+    },
     helperText: {
         fontSize: 12,
         color: '#94a3b8',
@@ -658,6 +627,9 @@ const styles = StyleSheet.create({
     },
     categoryScroll: {
         marginTop: 8,
+    },
+    dayScroll: {
+        marginBottom: 12,
     },
     quickAddButton: {
         backgroundColor: '#3b82f6',
@@ -829,5 +801,27 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#94a3b8',
         textAlign: 'center',
+    },
+    dayChip: {
+        backgroundColor: '#e0f2fe',
+        borderRadius: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#3b82f6',
+    },
+    dayChipSelected: {
+        backgroundColor: '#3b82f6',
+        borderColor: '#2563eb',
+    },
+    dayChipText: {
+        fontSize: 14,
+        color: '#1e293b',
+        fontWeight: '500',
+    },
+    dayChipTextSelected: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });

@@ -143,6 +143,7 @@ export const transactionApi = {
         category_id: number;
         cost: string;
         notes?: string;
+        expense_date?: string;
     }): Promise<any> => {
         const response = await api.post(`/users/${userId}/expenses`, data);
         return response.data;
@@ -152,6 +153,7 @@ export const transactionApi = {
         category_id?: number;
         cost?: string;
         notes?: string;
+        expense_date?: string;
     }): Promise<any> => {
         const response = await api.patch(`/users/${userId}/expenses/${expenseId}`, data);
         return response.data;

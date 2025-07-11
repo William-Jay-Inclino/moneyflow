@@ -1,0 +1,335 @@
+import { create } from 'zustand';
+import { transactionApi, categoryApi } from '../services/api';
+import { parseCostToNumber } from '../utils/costUtils';
+import { formatDate, formatTime, formatISODate } from '../utils/dateUtils';
+
+export interface Expense {
+    id: string;
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    time: string;
+}
+
+export interface Category {
+    id: string;
+    name: string;
+    type: 'expense' | 'income';
+    color: string;
+    icon: string;
+    userId: string;
+}
+
+interface MonthlyExpenseCache {
+    [key: string]: {
+        expenses: Expense[];
+        isLoading: boolean;
+        lastLoaded: number;
+    };
+}
+
+interface ExpenseStore {
+    // Cached expenses by month (key: "YYYY-MM")
+    monthlyCache: MonthlyExpenseCache;
+    
+    // Shared categories
+    categories: Category[];
+    isLoadingCategories: boolean;
+    
+    // Current month for ExpenseScreen (always current date)
+    currentMonth: number;
+    currentYear: number;
+    
+    // Actions
+    loadExpensesForMonth: (userId: string, year: number, month: number) => Promise<void>;
+    loadCategories: (userId: string) => Promise<void>;
+    addExpense: (userId: string, expense: { category_id: number; cost: string; notes?: string; expense_date?: string }) => Promise<Expense>;
+    updateExpense: (userId: string, expenseId: string, updates: { category_id?: number; cost?: string; notes?: string; expense_date?: string }) => Promise<void>;
+    deleteExpense: (userId: string, expenseId: string) => Promise<void>;
+    updateCurrentDate: () => void;
+    
+    // Getters for specific months
+    getExpensesForMonth: (year: number, month: number) => Expense[];
+    getCurrentMonthExpenses: () => Expense[];
+    getRecentExpenses: (limit?: number) => Expense[];
+    getTotalForMonth: (year: number, month: number) => number;
+    getCurrentMonthTotal: () => number;
+    getCategoryIcon: (categoryName: string) => string;
+    isLoadingMonth: (year: number, month: number) => boolean;
+    
+    // Helper functions
+    transformCategoryData: (data: any[], userId: string) => Category[];
+    getMonthKey: (year: number, month: number) => string;
+}
+
+export const useExpenseStore = create<ExpenseStore>((set, get) => {
+    // Initialize with current month/year
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    return {
+        // Initial state
+        monthlyCache: {},
+        categories: [],
+        isLoadingCategories: false,
+        currentMonth,
+        currentYear,
+
+        // Helper functions
+        getMonthKey: (year: number, month: number) => `${year}-${month.toString().padStart(2, '0')}`,
+
+        transformCategoryData: (data: any[], userId: string): Category[] => {
+            return data.map((item: any) => {
+                const category = item.category || item;
+                return {
+                    id: (item.id || item.category_id || category.id)?.toString() || '',
+                    name: category.name || item.name || 'Unknown Category',
+                    type: 'expense' as const,
+                    color: category.color || item.color || '#3b82f6',
+                    icon: category.icon || item.icon || '💳',
+                    userId: userId || ''
+                };
+            });
+        },
+
+        // Categories
+        loadCategories: async (userId: string) => {
+            if (!userId) return;
+            
+            try {
+                set({ isLoadingCategories: true });
+                const response: any = await categoryApi.getUserCategories(userId, 'EXPENSE');
+                const categoryData = Array.isArray(response) ? response : response?.data || [];
+                const transformedCategories = get().transformCategoryData(categoryData, userId);
+                set({ categories: transformedCategories });
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                // Fallback: try to get all categories and filter for expenses
+                try {
+                    const response: any = await categoryApi.getCategories(userId);
+                    const allCategories = Array.isArray(response) ? response : response?.data || [];
+                    const expenseCategories = allCategories.filter((item: any) => {
+                        const category = item.category || item;
+                        return (category.type || item.type)?.toLowerCase() === 'expense';
+                    });
+                    const transformedCategories = get().transformCategoryData(expenseCategories, userId);
+                    set({ categories: transformedCategories });
+                } catch (fallbackError) {
+                    console.error('Fallback category loading failed:', fallbackError);
+                }
+            } finally {
+                set({ isLoadingCategories: false });
+            }
+        },
+
+        // Load expenses for specific month
+        loadExpensesForMonth: async (userId: string, year: number, month: number) => {
+            if (!userId) return;
+            
+            const monthKey = get().getMonthKey(year, month);
+            
+            try {
+                // Set loading state for this month
+                set(state => ({
+                    monthlyCache: {
+                        ...state.monthlyCache,
+                        [monthKey]: {
+                            expenses: state.monthlyCache[monthKey]?.expenses || [],
+                            isLoading: true,
+                            lastLoaded: Date.now()
+                        }
+                    }
+                }));
+
+                const data = await transactionApi.getExpenses(userId, year, month);
+                const formattedExpenses = data.map((expense: any) => ({
+                    id: expense.id,
+                    amount: parseCostToNumber(expense.cost),
+                    description: expense.notes || 'No description',
+                    category: expense.category?.category?.name || 'Other',
+                    date: formatISODate(new Date(expense.created_at)),
+                    time: formatTime(expense.created_at)
+                }));
+                
+                // Sort by creation date (newest first)
+                const sortedExpenses = formattedExpenses.sort((a, b) => 
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+
+                // Update cache for this month
+                set(state => ({
+                    monthlyCache: {
+                        ...state.monthlyCache,
+                        [monthKey]: {
+                            expenses: sortedExpenses,
+                            isLoading: false,
+                            lastLoaded: Date.now()
+                        }
+                    }
+                }));
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                // Set error state
+                set(state => ({
+                    monthlyCache: {
+                        ...state.monthlyCache,
+                        [monthKey]: {
+                            expenses: [],
+                            isLoading: false,
+                            lastLoaded: Date.now()
+                        }
+                    }
+                }));
+            }
+        },
+
+        // Add expense
+        addExpense: async (userId: string, expense: { category_id: number; cost: string; notes?: string; expense_date?: string }) => {
+            const newExpense = await transactionApi.createExpense(userId, expense);
+            
+            const formattedExpense: Expense = {
+                id: newExpense.id,
+                amount: parseCostToNumber(newExpense.cost),
+                description: newExpense.notes || 'No description',
+                category: 'Unknown', // Will be updated by categories lookup
+                date: formatISODate(new Date(newExpense.expense_date || newExpense.created_at)),
+                time: formatTime(newExpense.created_at)
+            };
+
+            // Find category name
+            const categoryObj = get().categories.find(cat => cat.id === expense.category_id.toString());
+            if (categoryObj) {
+                formattedExpense.category = categoryObj.name;
+            }
+
+            // Add to relevant month cache - use expense_date for proper month allocation
+            const expenseDate = new Date(newExpense.expense_date || newExpense.created_at);
+            const expenseYear = expenseDate.getFullYear();
+            const expenseMonth = expenseDate.getMonth() + 1;
+            const monthKey = get().getMonthKey(expenseYear, expenseMonth);
+
+            set(state => ({
+                monthlyCache: {
+                    ...state.monthlyCache,
+                    [monthKey]: {
+                        expenses: [formattedExpense, ...(state.monthlyCache[monthKey]?.expenses || [])],
+                        isLoading: false,
+                        lastLoaded: Date.now()
+                    }
+                }
+            }));
+
+            return formattedExpense;
+        },
+
+        // Update expense
+        updateExpense: async (userId: string, expenseId: string, updates: { category_id?: number; cost?: string; notes?: string; expense_date?: string }) => {
+            const updatedExpense = await transactionApi.updateExpense(userId, expenseId, updates);
+            
+            // Find category name if category_id is provided
+            let categoryName = 'Unknown';
+            if (updates.category_id) {
+                const categoryObj = get().categories.find(cat => cat.id === updates.category_id!.toString());
+                if (categoryObj) {
+                    categoryName = categoryObj.name;
+                }
+            }
+
+            // Update in all relevant month caches
+            set(state => {
+                const newCache = { ...state.monthlyCache };
+                
+                Object.keys(newCache).forEach(monthKey => {
+                    const monthData = newCache[monthKey];
+                    const expenseIndex = monthData.expenses.findIndex(exp => exp.id === expenseId);
+                    
+                    if (expenseIndex !== -1) {
+                        const updatedExpenses = [...monthData.expenses];
+                        updatedExpenses[expenseIndex] = {
+                            ...updatedExpenses[expenseIndex],
+                            amount: updates.cost ? parseCostToNumber(updates.cost) : updatedExpenses[expenseIndex].amount,
+                            description: updates.notes || updatedExpenses[expenseIndex].description,
+                            category: updates.category_id ? categoryName : updatedExpenses[expenseIndex].category
+                        };
+                        
+                        newCache[monthKey] = {
+                            ...monthData,
+                            expenses: updatedExpenses
+                        };
+                    }
+                });
+
+                return { monthlyCache: newCache };
+            });
+        },
+
+        // Delete expense
+        deleteExpense: async (userId: string, expenseId: string) => {
+            await transactionApi.deleteExpense(userId, expenseId);
+            
+            // Remove from all month caches
+            set(state => {
+                const newCache = { ...state.monthlyCache };
+                
+                Object.keys(newCache).forEach(monthKey => {
+                    const monthData = newCache[monthKey];
+                    newCache[monthKey] = {
+                        ...monthData,
+                        expenses: monthData.expenses.filter(expense => expense.id !== expenseId)
+                    };
+                });
+
+                return { monthlyCache: newCache };
+            });
+        },
+
+        // Getters
+        getExpensesForMonth: (year: number, month: number) => {
+            const monthKey = get().getMonthKey(year, month);
+            return get().monthlyCache[monthKey]?.expenses || [];
+        },
+
+        getCurrentMonthExpenses: () => {
+            const { currentYear, currentMonth } = get();
+            return get().getExpensesForMonth(currentYear, currentMonth);
+        },
+
+        getRecentExpenses: (limit: number = 10) => {
+            const currentExpenses = get().getCurrentMonthExpenses();
+            return currentExpenses.slice(0, limit);
+        },
+
+        getTotalForMonth: (year: number, month: number) => {
+            const expenses = get().getExpensesForMonth(year, month);
+            return expenses.reduce((sum: number, expense: Expense) => sum + expense.amount, 0);
+        },
+
+        getCurrentMonthTotal: () => {
+            const { currentYear, currentMonth } = get();
+            return get().getTotalForMonth(currentYear, currentMonth);
+        },
+
+        isLoadingMonth: (year: number, month: number) => {
+            const monthKey = get().getMonthKey(year, month);
+            return get().monthlyCache[monthKey]?.isLoading || false;
+        },
+
+        getCategoryIcon: (categoryName: string) => {
+            const category = get().categories.find(cat => cat.name === categoryName);
+            return category?.icon || '💳';
+        },
+
+        updateCurrentDate: () => {
+            const now = new Date();
+            const newMonth = now.getMonth() + 1;
+            const newYear = now.getFullYear();
+            
+            const { currentMonth, currentYear } = get();
+            if (newMonth !== currentMonth || newYear !== currentYear) {
+                set({ currentMonth: newMonth, currentYear: newYear });
+            }
+        }
+    };
+});

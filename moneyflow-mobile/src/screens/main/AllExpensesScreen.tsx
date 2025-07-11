@@ -1,7 +1,31 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput } from 'react-native';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { ExpenseItem, CategoryChip } from '../../components';
+import { useAuthStore, useExpenseStore } from '../../store';
+import { formatCostInput } from '../../utils/costUtils';
+import { formatDate } from '../../utils/dateUtils';
+import { validateExpenseForm } from '../../utils/formValidation';
+
+// Constants
+const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+const YEAR_RANGE = 10;
+
+const SUCCESS_MESSAGES = {
+    EXPENSE_ADDED: 'Expense added successfully',
+    EXPENSE_UPDATED: 'Expense updated successfully',
+    EXPENSE_DELETED: 'Expense deleted successfully'
+} as const;
+
+const ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found. Please login again.',
+    CATEGORY_NOT_FOUND: 'Selected category not found',
+    UNABLE_TO_UPDATE: 'Unable to update expense',
+    FAILED_TO_ADD: 'Failed to add expense. Please try again.',
+    FAILED_TO_UPDATE: 'Failed to update expense. Please try again.',
+    FAILED_TO_DELETE: 'Failed to delete expense. Please try again.',
+    FAILED_TO_LOAD: 'Failed to load data. Please try again.'
+} as const;
 
 // Month/Year Picker Component
 const MonthYearPicker = memo(({ 
@@ -19,7 +43,7 @@ const MonthYearPicker = memo(({
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
 
     const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+    const years = Array.from({ length: YEAR_RANGE }, (_, i) => currentYear - 5 + i);
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -133,110 +157,97 @@ interface AllExpensesScreenProps {
     navigation: any;
 }
 
+interface Expense {
+    id: string;
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    time: string;
+}
+
+interface Category {
+    id: string;
+    name: string;
+    type: 'expense' | 'income';
+    color: string;
+    icon: string;
+    userId: string;
+}
+
 export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const { user } = useAuthStore();
+    const {
+        categories,
+        getExpensesForMonth,
+        getTotalForMonth,
+        isLoadingMonth,
+        loadExpensesForMonth,
+        loadCategories,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        getCategoryIcon,
+    } = useExpenseStore();
+    
+    const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
     const [showMonthPicker, setShowMonthPicker] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '' });
-    const [addFormData, setAddFormData] = useState({ cost: '', notes: '', category: '' });
-    const [expenseList, setExpenseList] = useState([
-        {
-            id: '1',
-            amount: 85.50,
-            description: 'Grocery Shopping',
-            category: 'Food & Dining',
-            date: '2025-07-08',
-            time: '06:30 PM'
-        },
-        {
-            id: '2',
-            amount: 45.00,
-            description: 'Gas Station',
-            category: 'Transportation',
-            date: '2025-07-07',
-            time: '08:15 AM'
-        },
-        {
-            id: '3',
-            amount: 120.00,
-            description: 'Electric Bill',
-            category: 'Utilities',
-            date: '2025-07-06',
-            time: '12:00 PM'
-        },
-        {
-            id: '4',
-            amount: 25.99,
-            description: 'Netflix Subscription',
-            category: 'Entertainment',
-            date: '2025-07-05',
-            time: '09:30 AM'
-        },
-        {
-            id: '5',
-            amount: 67.80,
-            description: 'Restaurant Dinner',
-            category: 'Food & Dining',
-            date: '2025-07-04',
-            time: '07:45 PM'
-        },
-        {
-            id: '6',
-            amount: 15.00,
-            description: 'Coffee Shop',
-            category: 'Food & Dining',
-            date: '2025-07-03',
-            time: '09:00 AM'
-        },
-        {
-            id: '7',
-            amount: 299.99,
-            description: 'Online Shopping',
-            category: 'Shopping',
-            date: '2025-07-02',
-            time: '03:20 PM'
-        },
-        {
-            id: '8',
-            amount: 32.50,
-            description: 'Lunch',
-            category: 'Food & Dining',
-            date: '2025-06-28',
-            time: '12:30 PM'
-        },
-        {
-            id: '9',
-            amount: 89.99,
-            description: 'Monthly Internet',
-            category: 'Utilities',
-            date: '2025-06-25',
-            time: '10:00 AM'
-        },
-        {
-            id: '10',
-            amount: 156.75,
-            description: 'Clothing Store',
-            category: 'Shopping',
-            date: '2025-06-20',
-            time: '03:45 PM'
+    const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '', day: '' });
+    const [addFormData, setAddFormData] = useState({ cost: '', notes: '', category: '', day: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Current month data
+    const currentYear = localCurrentDate.getFullYear();
+    const currentMonth = localCurrentDate.getMonth() + 1;
+    const filteredExpenses = getExpensesForMonth(currentYear, currentMonth);
+    const totalExpenses = getTotalForMonth(currentYear, currentMonth);
+    const isLoadingExpenses = isLoadingMonth(currentYear, currentMonth);
+
+    // Load data on component mount and when date changes
+    useEffect(() => {
+        loadInitialData();
+    }, [user, localCurrentDate]);
+
+    // Load expenses when date changes
+    useEffect(() => {
+        if (user?.id) {
+            loadExpensesForMonth(user.id, currentYear, currentMonth);
         }
-    ]);
+    }, [localCurrentDate, user, loadExpensesForMonth]);
 
-    const categories = useMemo(() => ['Food & Dining', 'Transportation', 'Utilities', 'Entertainment', 'Shopping', 'Healthcare', 'Other'], []);
+    const loadInitialData = async () => {
+        if (!user?.id) return;
+        
+        try {
+            await loadCategories(user.id);
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_LOAD);
+        }
+    };
 
-    const handleEditExpense = useCallback((expense: any) => {
+    const handleEditExpense = useCallback((expense: Expense) => {
+        const categoryObj = categories.find(cat => cat.name === expense.category);
+        const expenseDate = new Date(expense.date);
         setEditFormData({
             cost: expense.amount.toString(),
             notes: expense.description,
-            category: expense.category
+            category: categoryObj?.id || '',
+            day: expenseDate.getDate().toString()
         });
         setEditingId(expense.id);
         setEditModalVisible(true);
-    }, []);
+    }, [categories]);
 
-    const handleDeleteExpense = useCallback((id: string) => {
+    const handleDeleteExpense = useCallback(async (id: string) => {
+        if (!user?.id) {
+            Alert.alert('Error', ERROR_MESSAGES.USER_NOT_FOUND);
+            return;
+        }
+
         Alert.alert(
             'Delete Expense',
             'Are you sure you want to delete this expense?',
@@ -245,113 +256,146 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 { 
                     text: 'Delete', 
                     style: 'destructive',
-                    onPress: () => {
-                        setExpenseList(prev => prev.filter(item => item.id !== id));
-                        Alert.alert('Success', 'Expense deleted successfully');
+                    onPress: async () => {
+                        try {
+                            await deleteExpense(user.id, id);
+                            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_DELETED);
+                        } catch (error) {
+                            console.error('Error deleting expense:', error);
+                            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_DELETE);
+                        }
                     }
                 }
             ]
         );
-    }, []);
+    }, [user, deleteExpense]);
 
-    const handleAddExpense = useCallback(() => {
-        if (!addFormData.cost.trim()) {
-            Alert.alert('Missing Cost', 'Please enter the expense amount');
-            return;
-        }
-        if (!addFormData.notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!addFormData.category) {
-            Alert.alert('Missing Category', 'Please select a category');
+    const handleAddExpense = useCallback(async () => {
+        const validationError = validateExpenseForm(addFormData.cost, addFormData.notes, addFormData.category, user?.id);
+        if (validationError) {
+            Alert.alert('Missing Information', validationError);
             return;
         }
 
-        // Create new expense with the selected month/year
-        const newExpense = {
-            id: Date.now().toString(),
-            amount: parseFloat(addFormData.cost),
-            description: addFormData.notes,
-            category: addFormData.category,
-            date: new Date(currentDate.getFullYear(), currentDate.getMonth(), new Date().getDate()).toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        };
+        // Validate day selection
+        if (!addFormData.day || isNaN(parseInt(addFormData.day)) || parseInt(addFormData.day) < 1 || parseInt(addFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the expense');
+            return;
+        }
+
+        setIsSubmitting(true);
         
-        setExpenseList(prev => [newExpense, ...prev]);
-        Alert.alert('Success', 'Expense added successfully');
-        
-        // Reset form and close modal
-        setAddFormData({ cost: '', notes: '', category: '' });
-        setAddModalVisible(false);
-    }, [addFormData, currentDate]);
+        try {
+            const categoryObj = categories.find(cat => cat.id === addFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Create expense date using the selected month/year and day
+            const expenseDate = new Date(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
+            
+            await addExpense(user!.id, {
+                category_id: parseInt(categoryObj.id),
+                cost: addFormData.cost.trim(),
+                notes: addFormData.notes.trim(),
+                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+            });
+            
+            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
+            
+            // Reset form and close modal
+            setAddFormData({ cost: '', notes: '', category: '', day: '' });
+            setAddModalVisible(false);
+        } catch (error) {
+            console.error('Error adding expense:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_ADD);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [addFormData, user, categories, addExpense]);
 
     const cancelAdd = useCallback(() => {
         setAddModalVisible(false);
-        setAddFormData({ cost: '', notes: '', category: '' });
+        setAddFormData({ cost: '', notes: '', category: '', day: '' });
     }, []);
 
-    const handleUpdateExpense = useCallback(() => {
-        if (!editFormData.cost.trim()) {
-            Alert.alert('Missing Cost', 'Please enter the expense amount');
-            return;
-        }
-        if (!editFormData.notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!editFormData.category) {
-            Alert.alert('Missing Category', 'Please select a category');
+    const handleUpdateExpense = useCallback(async () => {
+        const validationError = validateExpenseForm(editFormData.cost, editFormData.notes, editFormData.category, user?.id);
+        if (validationError || !editingId) {
+            Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
             return;
         }
 
-        setExpenseList(prev => prev.map(item => 
-            item.id === editingId 
-                ? { ...item, amount: parseFloat(editFormData.cost), description: editFormData.notes, category: editFormData.category }
-                : item
-        ));
-        Alert.alert('Success', 'Expense updated successfully');
-        cancelEdit();
-    }, [editFormData, editingId]);
+        // Validate day selection
+        if (!editFormData.day || isNaN(parseInt(editFormData.day)) || parseInt(editFormData.day) < 1 || parseInt(editFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the expense');
+            return;
+        }
+
+        setIsSubmitting(true);
+        
+        try {
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Create expense date using the selected month/year and day
+            const expenseDate = new Date(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
+
+            await updateExpense(user!.id, editingId, {
+                category_id: parseInt(categoryObj.id),
+                cost: editFormData.cost.trim(),
+                notes: editFormData.notes.trim(),
+                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+            });
+            
+            Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_UPDATED);
+            cancelEdit();
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_UPDATE);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [editFormData, editingId, user, categories, updateExpense]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);
         setEditModalVisible(false);
-        setEditFormData({ cost: '', notes: '', category: '' });
+        setEditFormData({ cost: '', notes: '', category: '', day: '' });
     }, []);
 
     const updateEditFormField = useCallback((field: string, value: string) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
-    }, []);
-
-    const updateAddFormField = useCallback((field: string, value: string) => {
-        setAddFormData(prev => ({ ...prev, [field]: value }));
-    }, []);
-
-    const handleEditFormCategorySelect = useCallback((category: string) => {
-        setEditFormData(prev => ({ ...prev, category }));
-    }, []);
-
-    const handleAddFormCategorySelect = useCallback((category: string) => {
-        setAddFormData(prev => ({ ...prev, category }));
-    }, []);
-
-    const getCategoryIcon = useCallback((category: string) => {
-        switch (category) {
-            case 'Food & Dining': return '🍽️';
-            case 'Transportation': return '🚗';
-            case 'Utilities': return '⚡';
-            case 'Entertainment': return '🎬';
-            case 'Shopping': return '🛍️';
-            default: return '💳';
+        // For cost field, ensure only valid number format
+        if (field === 'cost') {
+            setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
+        } else {
+            setEditFormData(prev => ({ ...prev, [field]: value }));
         }
     }, []);
 
-    const formatDate = useCallback((dateString: string) => {
-        const date = new Date(dateString);
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${month}/${day}`;
+    const updateAddFormField = useCallback((field: string, value: string) => {
+        // For cost field, ensure only valid number format
+        if (field === 'cost') {
+            setAddFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
+        } else {
+            setAddFormData(prev => ({ ...prev, [field]: value }));
+        }
+    }, []);
+
+    const handleEditFormCategorySelect = useCallback((categoryId: string) => {
+        setEditFormData(prev => ({ ...prev, category: categoryId }));
+    }, []);
+
+    const handleAddFormCategorySelect = useCallback((categoryId: string) => {
+        setAddFormData(prev => ({ ...prev, category: categoryId }));
+    }, []);
+
+    const formatDateDisplay = useCallback((dateString: string) => {
+        return formatDate(dateString);
     }, []);
 
     const formatMonthYear = useCallback((date: Date) => {
@@ -362,53 +406,33 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         return date.toLocaleDateString('en-US', options);
     }, []);
 
-    const goToPreviousMonth = useCallback(() => {
-        setCurrentDate(prev => {
+    const navigateMonth = useCallback((direction: 'prev' | 'next') => {
+        setLocalCurrentDate(prev => {
             const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() - 1);
+            newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
             return newDate;
         });
     }, []);
 
-    const goToNextMonth = useCallback(() => {
-        setCurrentDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() + 1);
-            return newDate;
-        });
-    }, []);
+    const goToPreviousMonth = useCallback(() => navigateMonth('prev'), [navigateMonth]);
+    const goToNextMonth = useCallback(() => navigateMonth('next'), [navigateMonth]);
 
-    const filteredExpenses = useMemo(() => {
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-        
-        return expenseList.filter(expense => {
-            const expenseDate = new Date(expense.date);
-            return expenseDate.getMonth() === currentMonth && 
-                   expenseDate.getFullYear() === currentYear;
-        });
-    }, [currentDate, expenseList]);
-
-    const totalExpenses = useMemo(() => 
-        filteredExpenses.reduce((sum, item) => sum + item.amount, 0), 
-        [filteredExpenses]
-    );
-
+    // Use expenses from the store directly
     const categoryData = useMemo(() => {
         const categoryTotals: Record<string, number> = {};
         
-        filteredExpenses.forEach(expense => {
+        filteredExpenses.forEach((expense: any) => {
             categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
         });
 
-        const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+        const colors = CHART_COLORS;
         
         return Object.entries(categoryTotals).map(([name, amount], index) => ({
             name,
             amount,
             color: colors[index % colors.length],
             legendLabel: `-${amount.toFixed(2)}`,
-            percentage: ((amount / totalExpenses) * 100).toFixed(0)
+            percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : '0'
         }));
     }, [filteredExpenses, totalExpenses]);
 
@@ -422,6 +446,29 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         })),
         [categoryData]
     );
+
+    // Check if user is authenticated
+    if (!user?.id) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Text style={styles.backButtonText}>←</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.title}>All Expenses</Text>
+                    <View style={styles.placeholder} />
+                </View>
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>🔒</Text>
+                    <Text style={styles.emptyStateText}>Please log in to view your expenses</Text>
+                    <Text style={styles.emptyStateSubtext}>You need to be authenticated to access this feature</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -450,7 +497,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                         style={styles.monthYearContainer}
                         onPress={() => setShowMonthPicker(true)}
                     >
-                        <Text style={styles.monthYearText}>{formatMonthYear(currentDate)}</Text>
+                        <Text style={styles.monthYearText}>{formatMonthYear(localCurrentDate)}</Text>
                         <Text style={styles.calendarIcon}>📅</Text>
                     </TouchableOpacity>
                     
@@ -464,22 +511,32 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
                 <MonthYearPicker
                     isVisible={showMonthPicker}
-                    currentDate={currentDate}
+                    currentDate={localCurrentDate}
                     onClose={() => setShowMonthPicker(false)}
-                    onSelect={setCurrentDate}
+                    onSelect={setLocalCurrentDate}
                 />
 
                 {/* Add Expense Button */}
                 <View style={styles.addExpenseSection}>
                     <TouchableOpacity 
                         style={styles.addExpenseButton}
-                        onPress={() => setAddModalVisible(true)}
+                        onPress={() => {
+                            // Set today's day as default when opening add modal
+                            const today = new Date();
+                            setAddFormData(prev => ({ ...prev, day: today.getDate().toString() }));
+                            setAddModalVisible(true);
+                        }}
                     >
-                        <Text style={styles.addExpenseButtonText}>+ Add Expense for {formatMonthYear(currentDate)}</Text>
+                        <Text style={styles.addExpenseButtonText}>+ Add Expense for {formatMonthYear(localCurrentDate)}</Text>
                     </TouchableOpacity>
                 </View>
 
-                {filteredExpenses.length > 0 ? (
+                {isLoadingExpenses ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#3b82f6" />
+                        <Text style={styles.loadingText}>Loading expenses...</Text>
+                    </View>
+                ) : filteredExpenses.length > 0 ? (
                     <>
                         {/* Total Spent */}
                         <TotalSpent 
@@ -519,12 +576,12 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                         {/* Expenses List */}
                         <View style={styles.transactionsSection}>
                             <Text style={styles.sectionTitle}>All Expenses This Month</Text>
-                            {filteredExpenses.map((item) => (
+                            {filteredExpenses.map((item: any) => (
                                 <ExpenseItem
                                     key={item.id}
                                     item={item}
                                     getCategoryIcon={getCategoryIcon}
-                                    formatDate={formatDate}
+                                    formatDate={formatDateDisplay}
                                     onEdit={handleEditExpense}
                                     onDelete={handleDeleteExpense}
                                     editable={true}
@@ -581,16 +638,40 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             </View>
                         </View>
 
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this expense</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            editFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => updateEditFormField('day', day.toString())}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            editFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Select Category</Text>
                             <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={editFormData.category === category}
-                                        onPress={handleEditFormCategorySelect}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={editFormData.category === category.id}
+                                        onPress={() => handleEditFormCategorySelect(category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                     />
                                 ))}
@@ -601,8 +682,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             <TouchableOpacity style={styles.editCancelButton} onPress={cancelEdit}>
                                 <Text style={styles.editCancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleUpdateExpense}>
-                                <Text style={styles.editUpdateButtonText}>Update Expense</Text>
+                            <TouchableOpacity 
+                                style={[styles.editUpdateButton, isSubmitting && { opacity: 0.6 }]} 
+                                onPress={handleUpdateExpense}
+                                disabled={isSubmitting}
+                            >
+                                <Text style={styles.editUpdateButtonText}>
+                                    {isSubmitting ? 'Updating...' : 'Update Expense'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -619,7 +706,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 <View style={styles.editModalOverlay}>
                     <View style={styles.editModalContainer}>
                         <View style={styles.editModalHeader}>
-                            <Text style={styles.editModalTitle}>Add Expense for {formatMonthYear(currentDate)}</Text>
+                            <Text style={styles.editModalTitle}>Add Expense for {formatMonthYear(localCurrentDate)}</Text>
                             <TouchableOpacity onPress={cancelAdd} style={styles.editModalCloseButton}>
                                 <Text style={styles.editModalCloseText}>✕</Text>
                             </TouchableOpacity>
@@ -649,16 +736,40 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             </View>
                         </View>
 
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this expense</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            addFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => updateAddFormField('day', day.toString())}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            addFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Select Category</Text>
                             <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={addFormData.category === category}
-                                        onPress={handleAddFormCategorySelect}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={addFormData.category === category.id}
+                                        onPress={() => handleAddFormCategorySelect(category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                     />
                                 ))}
@@ -669,8 +780,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             <TouchableOpacity style={styles.editCancelButton} onPress={cancelAdd}>
                                 <Text style={styles.editCancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleAddExpense}>
-                                <Text style={styles.editUpdateButtonText}>Add Expense</Text>
+                            <TouchableOpacity 
+                                style={[styles.editUpdateButton, isSubmitting && { opacity: 0.6 }]} 
+                                onPress={handleAddExpense}
+                                disabled={isSubmitting}
+                            >
+                                <Text style={styles.editUpdateButtonText}>
+                                    {isSubmitting ? 'Adding...' : 'Add Expense'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -1064,6 +1181,38 @@ const styles = StyleSheet.create({
         backgroundColor: '#fafafa',
         color: '#1e293b',
     },
+    daySection: {
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
+    dayScroll: {
+        marginBottom: 12,
+    },
+    dayChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        minWidth: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    dayChipSelected: {
+        backgroundColor: '#3b82f6',
+        borderColor: '#3b82f6',
+    },
+    dayChipText: {
+        fontSize: 14,
+        color: '#64748b',
+        fontWeight: '500',
+    },
+    dayChipTextSelected: {
+        color: 'white',
+        fontWeight: '600',
+    },
     categorySection: {
         paddingHorizontal: 20,
         paddingTop: 20,
@@ -1127,5 +1276,15 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#64748b',
         fontWeight: '500',
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
     },
 });
