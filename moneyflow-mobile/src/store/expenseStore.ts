@@ -149,11 +149,11 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                     amount: parseCostToNumber(expense.cost),
                     description: expense.notes || 'No description',
                     category: expense.category?.category?.name || 'Other',
-                    date: formatISODate(new Date(expense.created_at)),
+                    date: formatISODate(new Date(expense.expense_date || expense.created_at)),
                     time: formatTime(expense.created_at)
                 }));
                 
-                // Sort by creation date (newest first)
+                // Sort by expense date (newest first)
                 const sortedExpenses = formattedExpenses.sort((a, b) => 
                     new Date(b.date).getTime() - new Date(a.date).getTime()
                 );
@@ -237,29 +237,75 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                 }
             }
 
+            // Create the updated expense object with all changes
+            const updatedDate = updates.expense_date ? formatISODate(new Date(updates.expense_date)) : null;
+            const updatedTime = updatedExpense.created_at ? formatTime(updatedExpense.created_at) : null;
+
             // Update in all relevant month caches
             set(state => {
                 const newCache = { ...state.monthlyCache };
                 
-                Object.keys(newCache).forEach(monthKey => {
+                // Find the expense across all months
+                for (const monthKey of Object.keys(newCache)) {
                     const monthData = newCache[monthKey];
                     const expenseIndex = monthData.expenses.findIndex(exp => exp.id === expenseId);
                     
                     if (expenseIndex !== -1) {
-                        const updatedExpenses = [...monthData.expenses];
-                        updatedExpenses[expenseIndex] = {
-                            ...updatedExpenses[expenseIndex],
-                            amount: updates.cost ? parseCostToNumber(updates.cost) : updatedExpenses[expenseIndex].amount,
-                            description: updates.notes || updatedExpenses[expenseIndex].description,
-                            category: updates.category_id ? categoryName : updatedExpenses[expenseIndex].category
+                        const currentExpense = monthData.expenses[expenseIndex];
+                        
+                        // Create updated expense object
+                        const updatedExpenseObj: Expense = {
+                            id: currentExpense.id,
+                            amount: updates.cost ? parseCostToNumber(updates.cost) : currentExpense.amount,
+                            description: updates.notes !== undefined ? updates.notes : currentExpense.description,
+                            category: updates.category_id ? categoryName : currentExpense.category,
+                            date: updatedDate || currentExpense.date,
+                            time: updatedTime || currentExpense.time
                         };
+
+                        // Remove from current location
+                        const updatedExpenses = [...monthData.expenses];
+                        updatedExpenses.splice(expenseIndex, 1);
                         
                         newCache[monthKey] = {
                             ...monthData,
                             expenses: updatedExpenses
                         };
+
+                        // Determine the correct month for the updated expense
+                        let targetMonthKey: string;
+                        if (updates.expense_date) {
+                            const expenseDate = new Date(updates.expense_date);
+                            const expenseYear = expenseDate.getFullYear();
+                            const expenseMonth = expenseDate.getMonth() + 1;
+                            targetMonthKey = get().getMonthKey(expenseYear, expenseMonth);
+                        } else {
+                            // Keep in the same month if date wasn't changed
+                            targetMonthKey = monthKey;
+                        }
+
+                        // Add to the target month (create cache entry if it doesn't exist)
+                        if (!newCache[targetMonthKey]) {
+                            newCache[targetMonthKey] = {
+                                expenses: [],
+                                isLoading: false,
+                                lastLoaded: Date.now()
+                            };
+                        }
+
+                        newCache[targetMonthKey] = {
+                            ...newCache[targetMonthKey],
+                            expenses: [updatedExpenseObj, ...newCache[targetMonthKey].expenses]
+                        };
+
+                        // Sort the expenses by date (newest first) in the target month
+                        newCache[targetMonthKey].expenses.sort((a, b) => 
+                            new Date(b.date).getTime() - new Date(a.date).getTime()
+                        );
+                        
+                        break; // Exit the loop once we've found and updated the expense
                     }
-                });
+                }
 
                 return { monthlyCache: newCache };
             });

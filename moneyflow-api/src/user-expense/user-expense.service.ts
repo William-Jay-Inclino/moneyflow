@@ -79,7 +79,7 @@ export class UserExpenseService {
                     },
                 },
                 orderBy: {
-                    created_at: 'desc',
+                    expense_date: 'desc',
                 },
             });
 

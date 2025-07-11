@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
+import { formatDate } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -46,7 +47,6 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const [notes, setNotes] = useState('');
     const [cost, setCost] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [selectedDay, setSelectedDay] = useState(new Date().getDate().toString());
     
     // Modal state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -88,7 +88,6 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         setNotes('');
         setCost('');
         setSelectedCategory('');
-        setSelectedDay(new Date().getDate().toString());
     }, []);
 
     const resetEditForm = useCallback(() => {
@@ -104,11 +103,8 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             return;
         }
 
-        // Validate day selection
-        if (!selectedDay || isNaN(parseInt(selectedDay)) || parseInt(selectedDay) < 1 || parseInt(selectedDay) > 31) {
-            Alert.alert('Missing Information', 'Please select a valid day for the expense');
-            return;
-        }
+        // Validate day selection - always use current day
+        const currentDay = new Date().getDate();
 
         setIsLoading(true);
         
@@ -119,9 +115,9 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 return;
             }
 
-            // Create expense date using current month/year and selected day
+            // Create expense date using current month/year and current day
             const today = new Date();
-            const expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(selectedDay));
+            const expenseDate = new Date(today.getFullYear(), today.getMonth(), currentDay);
 
             await addExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
@@ -140,7 +136,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [cost, notes, selectedCategory, selectedDay, user, categories, addExpense]);
+    }, [cost, notes, selectedCategory, user, categories, addExpense]);
 
     const handleEditExpense = useCallback((expense: any) => {
         try {
@@ -180,9 +176,20 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 return;
             }
 
-            // Create expense date using current month/year and selected day
-            const today = new Date();
-            const expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(editFormData.day));
+            // Get original expense to preserve month/year
+            const currentExpenses = getCurrentMonthExpenses();
+            const originalExpense = currentExpenses.find(exp => exp.id === editingId);
+            
+            // Create expense date using original month/year and selected day
+            let expenseDate: Date;
+            if (originalExpense) {
+                const originalDate = new Date(originalExpense.date);
+                expenseDate = new Date(originalDate.getFullYear(), originalDate.getMonth(), parseInt(editFormData.day));
+            } else {
+                // Fallback to current month/year if original expense not found
+                const today = new Date();
+                expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(editFormData.day));
+            }
 
             await updateExpense(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
@@ -249,7 +256,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     }, [currentYear, currentMonth]);
 
     const formatDateForDisplay = useCallback((dateString: string) => {
-        return dateString.split('T')[0];
+        return formatDate(dateString);
     }, []);
 
     return (
@@ -302,29 +309,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                     </ScrollView>
                 </View>
 
-                <View style={styles.daySection}>
-                    <Text style={styles.inputLabel}>Day</Text>
-                    <Text style={styles.helperText}>Select the day of the month for this expense</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                            <TouchableOpacity
-                                key={day}
-                                style={[
-                                    styles.dayChip,
-                                    selectedDay === day.toString() && styles.dayChipSelected
-                                ]}
-                                onPress={() => setSelectedDay(day.toString())}
-                            >
-                                <Text style={[
-                                    styles.dayChipText,
-                                    selectedDay === day.toString() && styles.dayChipTextSelected
-                                ]}>
-                                    {day}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
+
 
                 <TouchableOpacity 
                     style={[styles.quickAddButton, isLoading && { opacity: 0.6 }]} 
