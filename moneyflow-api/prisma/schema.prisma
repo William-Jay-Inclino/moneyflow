@@ -38,9 +38,6 @@ model Category {
 	// Relations
 	user_categories UserCategory[]
 
-	@@index([type])
-	@@index([name])
-	@@index([is_default])
 	@@map("categories")
 }
 
@@ -61,7 +58,6 @@ model UserCategory {
 	user_income   UserIncome[]
 
 	@@index([user_id])
-	@@index([category_id])
 	@@map("user_categories")
 }
 
@@ -79,12 +75,7 @@ model UserExpense {
 	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
-	@@index([user_id, created_at])
 	@@index([user_id, expense_date])
-	@@index([category_id])
-	@@index([created_at])
-	@@index([expense_date])
-	@@index([cost])
 	@@map("user_expenses")
 }
 
@@ -102,12 +93,7 @@ model UserIncome {
 	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
-	@@index([user_id, created_at])
 	@@index([user_id, income_date])
-	@@index([category_id])
-	@@index([created_at])
-	@@index([income_date])
-	@@index([amount])
 	@@map("user_income")
 }
 
