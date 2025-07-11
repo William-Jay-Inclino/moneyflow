@@ -31,4 +31,13 @@ export class CreateUserIncomeDto {
     @IsOptional()
     @IsString()
     notes?: string;
+
+    @ApiProperty({
+        description: 'Date when the income was received (YYYY-MM-DD format)',
+        example: '2025-07-11',
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    income_date?: string;
 }

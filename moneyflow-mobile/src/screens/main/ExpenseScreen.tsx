@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -115,15 +115,15 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 return;
             }
 
-            // Create expense date using current month/year and current day
-            const today = new Date();
-            const expenseDate = new Date(today.getFullYear(), today.getMonth(), currentDay);
+            // Create expense date using current day in Asia/Manila timezone
+            const currentDay = new Date().getDate();
+            const expenseDate = createTodayWithDay(currentDay);
 
             await addExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
                 cost: cost.trim(),
                 notes: notes.trim(),
-                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+                expense_date: expenseDate // Already in YYYY-MM-DD format
             });
             
             // Reset form
@@ -141,12 +141,12 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const handleEditExpense = useCallback((expense: any) => {
         try {
             const categoryObj = categories.find(cat => cat.name === expense.category);
-            const expenseDate = new Date(expense.date);
+            const { day } = parseDateComponents(expense.date);
             setEditFormData({
                 cost: expense.amount.toString(),
                 notes: expense.description || '',
                 category: categoryObj?.id || '',
-                day: expenseDate.getDate().toString()
+                day: day.toString()
             });
             setEditingId(expense.id);
             setEditModalVisible(true);
@@ -180,22 +180,21 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             const currentExpenses = getCurrentMonthExpenses();
             const originalExpense = currentExpenses.find(exp => exp.id === editingId);
             
-            // Create expense date using original month/year and selected day
-            let expenseDate: Date;
+            // Create expense date using original month/year and selected day in Asia/Manila timezone
+            let expenseDate: string;
             if (originalExpense) {
-                const originalDate = new Date(originalExpense.date);
-                expenseDate = new Date(originalDate.getFullYear(), originalDate.getMonth(), parseInt(editFormData.day));
+                const { month, year } = parseDateComponents(originalExpense.date);
+                expenseDate = createDateInTimezone(year, month, parseInt(editFormData.day));
             } else {
                 // Fallback to current month/year if original expense not found
-                const today = new Date();
-                expenseDate = new Date(today.getFullYear(), today.getMonth(), parseInt(editFormData.day));
+                expenseDate = createTodayWithDay(parseInt(editFormData.day));
             }
 
             await updateExpense(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
                 cost: editFormData.cost.trim(),
                 notes: editFormData.notes.trim(),
-                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+                expense_date: expenseDate // Already in YYYY-MM-DD format
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_UPDATED);
@@ -250,11 +249,6 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         setCost(formatCostInput(value));
     }, []);
 
-    const formatCurrentMonthYear = useCallback(() => {
-        const date = new Date(currentYear, currentMonth - 1);
-        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    }, [currentYear, currentMonth]);
-
     const formatDateForDisplay = useCallback((dateString: string) => {
         return formatDate(dateString);
     }, []);
@@ -263,7 +257,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         <ScrollView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Add Expense</Text>
-                <Text style={styles.subtitle}>Quick and easy expense tracking for {formatCurrentMonthYear()}</Text>
+                <Text style={styles.subtitle}>Quick and easy expense tracking</Text>
             </View>
 
             {/* Quick Add Form */}

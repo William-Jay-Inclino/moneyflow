@@ -4,7 +4,7 @@ import { PieChart } from 'react-native-chart-kit';
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -231,12 +231,12 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
     const handleEditExpense = useCallback((expense: Expense) => {
         const categoryObj = categories.find(cat => cat.name === expense.category);
-        const expenseDate = new Date(expense.date);
+        const { day } = parseDateComponents(expense.date);
         setEditFormData({
             cost: expense.amount.toString(),
             notes: expense.description,
             category: categoryObj?.id || '',
-            day: expenseDate.getDate().toString()
+            day: day.toString()
         });
         setEditingId(expense.id);
         setEditModalVisible(true);
@@ -292,14 +292,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 return;
             }
 
-            // Create expense date using the selected month/year and day
-            const expenseDate = new Date(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
+            // Create expense date using the selected month/year and day in Asia/Manila timezone
+            const expenseDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
             
             await addExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
                 cost: addFormData.cost.trim(),
                 notes: addFormData.notes.trim(),
-                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+                expense_date: expenseDate // Already in YYYY-MM-DD format
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
@@ -342,14 +342,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 return;
             }
 
-            // Create expense date using the selected month/year and day
-            const expenseDate = new Date(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
+            // Create expense date using the selected month/year and day in Asia/Manila timezone
+            const expenseDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
 
             await updateExpense(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
                 cost: editFormData.cost.trim(),
                 notes: editFormData.notes.trim(),
-                expense_date: expenseDate.toISOString().split('T')[0] // Send as YYYY-MM-DD format
+                expense_date: expenseDate // Already in YYYY-MM-DD format
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_UPDATED);

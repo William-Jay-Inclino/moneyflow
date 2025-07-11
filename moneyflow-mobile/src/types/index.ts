@@ -31,7 +31,9 @@ export interface Transaction {
     id: string;
     amount: number;
     description: string;
-    date: string;
+    date?: string; // Keep for backwards compatibility
+    expense_date?: string; // For expenses
+    income_date?: string; // For income
     categoryId: string;
     category: Category;
     userId: string;
@@ -85,7 +87,9 @@ export interface CreateTransactionRequest {
     amount: number;
     description: string;
     categoryId: string;
-    date: string;
+    expense_date?: string; // For expenses
+    income_date?: string; // For income
+    date?: string; // Keep for backwards compatibility
     type: 'income' | 'expense';
 }
 

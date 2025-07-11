@@ -102,3 +102,61 @@ export const getCurrentDate = (): Date => {
 export const getCurrentISODate = (): string => {
     return formatISODate(new Date());
 };
+
+/**
+ * Creates a date in the configured timezone with specific year, month, and day
+ * Returns the date as ISO string format that the backend expects
+ */
+export const createDateInTimezone = (year: number, month: number, day: number): string => {
+    try {
+        // Create date string in ISO format with Asia/Manila timezone
+        const monthStr = String(month + 1).padStart(2, '0'); // month is 0-indexed
+        const dayStr = String(day).padStart(2, '0');
+        
+        // Return YYYY-MM-DD format - backend will handle timezone conversion
+        return `${year}-${monthStr}-${dayStr}`;
+    } catch (error) {
+        console.warn('Error creating date in timezone:', error);
+        // Fallback
+        const monthStr = String(month + 1).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        return `${year}-${monthStr}-${dayStr}`;
+    }
+};
+
+/**
+ * Creates a date in the configured timezone using just the day (current month/year)
+ */
+export const createTodayWithDay = (day: number): string => {
+    const now = new Date();
+    return createDateInTimezone(now.getFullYear(), now.getMonth(), day);
+};
+
+/**
+ * Parses a date string and extracts day, month, year in the configured timezone
+ */
+export const parseDateComponents = (dateString: string): { day: number; month: number; year: number } => {
+    try {
+        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
+        
+        // Get components in the configured timezone
+        const dayStr = formatInTimeZone(date, getTimezone(), 'dd');
+        const monthStr = formatInTimeZone(date, getTimezone(), 'MM');
+        const yearStr = formatInTimeZone(date, getTimezone(), 'yyyy');
+        
+        return {
+            day: parseInt(dayStr, 10),
+            month: parseInt(monthStr, 10) - 1, // Convert to 0-indexed
+            year: parseInt(yearStr, 10)
+        };
+    } catch (error) {
+        console.warn('Error parsing date components:', error);
+        // Fallback to simple parsing
+        const date = new Date(dateString);
+        return {
+            day: date.getDate(),
+            month: date.getMonth(),
+            year: date.getFullYear()
+        };
+    }
+};

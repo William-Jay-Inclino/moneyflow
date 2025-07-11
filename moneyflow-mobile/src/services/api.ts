@@ -245,4 +245,47 @@ export const categoryApi = {
     },
 };
 
+// Income API - Following the same pattern as expense API
+export const incomeApi = {
+    getIncome: async (userId: string, year: number, month: number): Promise<any[]> => {
+        const response = await api.get(`/users/${userId}/income?year=${year}&month=${month}`);
+        return response.data;
+    },
+
+    addIncome: async (userId: string, data: {
+        category_id: number;
+        amount: string;
+        notes?: string;
+        income_date?: string;
+    }): Promise<any> => {
+        const response = await api.post(`/users/${userId}/income`, data);
+        return response.data;
+    },
+
+    updateIncome: async (userId: string, incomeId: string, data: {
+        category_id?: number;
+        amount?: string;
+        notes?: string;
+        income_date?: string;
+    }): Promise<any> => {
+        const response = await api.patch(`/users/${userId}/income/${incomeId}`, data);
+        return response.data;
+    },
+
+    deleteIncome: async (userId: string, incomeId: string): Promise<void> => {
+        await api.delete(`/users/${userId}/income/${incomeId}`);
+    },
+
+    getIncomeSummary: async (userId: string, startDate?: string, endDate?: string): Promise<any> => {
+        let url = `/users/${userId}/income/summary`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await api.get(url);
+        return response.data;
+    },
+};
+
 export default api;

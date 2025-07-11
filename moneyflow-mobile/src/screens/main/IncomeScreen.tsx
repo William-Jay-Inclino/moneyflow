@@ -1,102 +1,164 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Dimensions } from 'react-native';
+import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator, Dimensions } from 'react-native';
 import { IncomeItem, CategoryChip } from '../../components';
+import { useAuthStore, useIncomeStore } from '../../store';
+import { formatDate as formatDateUtil, formatTime, getCurrentISODate, formatFullDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
+import { formatCostInput } from '../../utils/costUtils';
+import { validateExpenseForm } from '../../utils/formValidation';
+
+// Constants
+const RECENT_INCOME_LIMIT = 10;
+const SUCCESS_MESSAGES = {
+    INCOME_ADDED: 'Income added successfully',
+    INCOME_UPDATED: 'Income updated successfully',
+    INCOME_DELETED: 'Income deleted successfully'
+} as const;
+
+const ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found. Please login again.',
+    CATEGORY_NOT_FOUND: 'Selected category not found',
+    UNABLE_TO_UPDATE: 'Unable to update income',
+    FAILED_TO_ADD: 'Failed to add income. Please try again.',
+    FAILED_TO_UPDATE: 'Failed to update income. Please try again.',
+    FAILED_TO_DELETE: 'Failed to delete income. Please try again.',
+    FAILED_TO_LOAD: 'Failed to load data. Please try again.'
+} as const;
 
 export const IncomeScreen = ({ navigation }: { navigation: any }) => {
+    const { user } = useAuthStore();
+    const {
+        categories,
+        getCurrentMonthIncomes,
+        getRecentIncomes,
+        getCurrentMonthTotal,
+        isLoadingMonth,
+        currentMonth,
+        currentYear,
+        loadIncomesForMonth,
+        loadCategories,
+        addIncome,
+        updateIncome,
+        deleteIncome,
+        getCategoryIcon,
+        updateCurrentDate,
+    } = useIncomeStore();
+    
+    // Form state
     const [notes, setNotes] = useState('');
     const [amount, setAmount] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
+    
+    // Modal state
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
-    const [editFormData, setEditFormData] = useState({ id: '', amount: '', notes: '', category: '' });
+    const [editFormData, setEditFormData] = useState({ amount: '', notes: '', category: '', day: '' });
+    
+    // UI state
     const [showIncomeDetails, setShowIncomeDetails] = useState(false);
-    const [incomeList, setIncomeList] = useState([
-        {
-            id: '1',
-            amount: 3500.00,
-            description: 'Monthly Salary',
-            category: 'Salary',
-            date: '2025-07-08',
-            time: '09:00 AM'
-        },
-        {
-            id: '2',
-            amount: 850.00,
-            description: 'Freelance Project',
-            category: 'Freelance',
-            date: '2025-07-06',
-            time: '02:30 PM'
-        },
-        {
-            id: '3',
-            amount: 125.50,
-            description: 'Investment Returns',
-            category: 'Investments',
-            date: '2025-07-05',
-            time: '11:15 AM'
-        },
-        {
-            id: '4',
-            amount: 200.00,
-            description: 'Bonus Payment',
-            category: 'Bonus',
-            date: '2025-07-03',
-            time: '10:45 AM'
-        },
-        {
-            id: '5',
-            amount: 75.00,
-            description: 'Cashback Reward',
-            category: 'Rewards',
-            date: '2025-07-02',
-            time: '04:20 PM'
-        }
-    ]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const categories = useMemo(() => ['Salary', 'Freelance', 'Investments', 'Business', 'Bonus', 'Rewards', 'Other'], []);
+    // Always use current month/year - these values update automatically when date changes
+    const isLoadingIncomes = isLoadingMonth(currentYear, currentMonth);
+    const recentIncome = getRecentIncomes(RECENT_INCOME_LIMIT);
+    const totalIncome = getCurrentMonthTotal();
 
-    const handleAddIncome = useCallback(() => {
-        if (!amount.trim()) {
-            Alert.alert('Missing Amount', 'Please enter the income amount');
-            return;
-        }
-        if (!notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!selectedCategory) {
-            Alert.alert('Missing Category', 'Please select a category');
-            return;
-        }
+    // Load user data on component mount
+    useEffect(() => {
+        loadInitialData();
+    }, [user]);
 
-        // Add new income
-        const newIncome = {
-            id: Date.now().toString(),
-            amount: parseFloat(amount),
-            description: notes,
-            category: selectedCategory,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        };
-        setIncomeList(prev => [newIncome, ...prev]);
-        Alert.alert('Success', 'Income added successfully');
+    const loadInitialData = async () => {
+        if (!user?.id) return;
         
-        // Reset form
+        try {
+            // Ensure we're using the current month/year
+            updateCurrentDate();
+            
+            await Promise.all([
+                loadCategories(user.id),
+                loadIncomesForMonth(user.id, currentYear, currentMonth)
+            ]);
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_LOAD);
+        }
+    };
+
+    const resetForm = useCallback(() => {
         setNotes('');
         setAmount('');
         setSelectedCategory('');
-    }, [amount, notes, selectedCategory]);
-
-    const handleEditIncome = useCallback((income: any) => {
-        setEditFormData({
-            id: income.id,
-            amount: income.amount.toString(),
-            notes: income.description,
-            category: income.category
-        });
-        setEditModalVisible(true);
     }, []);
 
-    const handleDeleteIncome = useCallback((id: string) => {
+    const resetEditForm = useCallback(() => {
+        setEditingId(null);
+        setEditModalVisible(false);
+        setEditFormData({ amount: '', notes: '', category: '', day: '' });
+    }, []);
+
+    const handleAddIncome = useCallback(async () => {
+        const validationError = validateExpenseForm(amount, notes, selectedCategory, user?.id);
+        if (validationError) {
+            Alert.alert('Missing Information', validationError);
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const categoryObj = categories.find(cat => cat.id === selectedCategory);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Create income date using current day in Asia/Manila timezone
+            const currentDay = new Date().getDate();
+            const incomeDate = createTodayWithDay(currentDay);
+
+            await addIncome(user!.id, {
+                category_id: parseInt(categoryObj.id),
+                amount: amount.trim(),
+                notes: notes.trim(),
+                income_date: incomeDate // Already in YYYY-MM-DD format
+            });
+            
+            // Reset form
+            resetForm();
+            
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_ADDED);
+        } catch (error) {
+            console.error('Error adding income:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_ADD);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [amount, notes, selectedCategory, user, categories, addIncome]);
+
+    const handleEditIncome = useCallback((income: any) => {
+        try {
+            const categoryObj = categories.find(cat => cat.name === income.category);
+            const { day } = parseDateComponents(income.date);
+            setEditFormData({
+                amount: income.amount.toString(),
+                notes: income.description || '',
+                category: categoryObj?.id || '',
+                day: day.toString()
+            });
+            setEditingId(income.id);
+            setEditModalVisible(true);
+        } catch (error) {
+            console.error('Error preparing income for editing:', error);
+            Alert.alert('Error', 'Unable to edit this income. Please try again.');
+        }
+    }, [categories]);
+
+    const handleDeleteIncome = useCallback(async (id: string) => {
+        if (!user?.id) {
+            Alert.alert('Error', ERROR_MESSAGES.USER_NOT_FOUND);
+            return;
+        }
+
         Alert.alert(
             'Delete Income',
             'Are you sure you want to delete this income?',
@@ -105,31 +167,68 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                 { 
                     text: 'Delete', 
                     style: 'destructive',
-                    onPress: () => {
-                        setIncomeList(prev => prev.filter(item => item.id !== id));
-                        Alert.alert('Success', 'Income deleted successfully');
+                    onPress: async () => {
+                        try {
+                            await deleteIncome(user.id, id);
+                            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_DELETED);
+                        } catch (error) {
+                            console.error('Error deleting income:', error);
+                            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_DELETE);
+                        }
                     }
                 }
             ]
         );
-    }, []);
+    }, [user, deleteIncome]);
 
-    const handleSaveEdit = useCallback(() => {
-        if (!editFormData.amount.trim() || !editFormData.notes.trim() || !editFormData.category) {
-            Alert.alert('Error', 'Please fill in all fields');
+    const handleUpdateIncome = useCallback(async () => {
+        const validationError = validateExpenseForm(editFormData.amount, editFormData.notes, editFormData.category, user?.id);
+        if (validationError || !editingId) {
+            Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
             return;
         }
 
-        setIncomeList(prev => prev.map(item => 
-            item.id === editFormData.id
-                ? { ...item, amount: parseFloat(editFormData.amount), description: editFormData.notes, category: editFormData.category }
-                : item
-        ));
-        
-        setEditModalVisible(false);
-        setEditFormData({ id: '', amount: '', notes: '', category: '' });
-        Alert.alert('Success', 'Income updated successfully');
-    }, [editFormData]);
+        // Validate day selection
+        if (!editFormData.day || isNaN(parseInt(editFormData.day)) || parseInt(editFormData.day) < 1 || parseInt(editFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the income');
+            return;
+        }
+
+        try {
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Get original income to preserve month/year
+            const currentIncomes = getCurrentMonthIncomes();
+            const originalIncome = currentIncomes.find(inc => inc.id === editingId);
+            
+            // Create income date using original month/year and selected day in Asia/Manila timezone
+            let incomeDate: string;
+            if (originalIncome) {
+                const { month, year } = parseDateComponents(originalIncome.date);
+                incomeDate = createDateInTimezone(year, month, parseInt(editFormData.day));
+            } else {
+                // Fallback to current month/year if original income not found
+                incomeDate = createTodayWithDay(parseInt(editFormData.day));
+            }
+
+            await updateIncome(user!.id, editingId, {
+                category_id: parseInt(categoryObj.id),
+                amount: editFormData.amount.trim(),
+                notes: editFormData.notes.trim(),
+                income_date: incomeDate // Already in YYYY-MM-DD format
+            });
+            
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_UPDATED);
+            resetEditForm();
+        } catch (error) {
+            console.error('Error updating income:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_UPDATE);
+        }
+    }, [editFormData, editingId, user, categories, updateIncome]);
 
     const handleCategorySelect = useCallback((category: string) => {
         setSelectedCategory(category);
@@ -140,33 +239,28 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
     }, []);
 
     const updateEditFormData = useCallback((field: string, value: string) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'amount') {
+            setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
+        } else {
+            setEditFormData(prev => ({ ...prev, [field]: value }));
+        }
     }, []);
 
-    const getCategoryIcon = (category: string) => {
-        switch (category) {
-            case 'Salary': return '💼';
-            case 'Freelance': return '💻';
-            case 'Investments': return '📈';
-            case 'Business': return '🏢';
-            case 'Bonus': return '🎁';
-            case 'Rewards': return '🏆';
-            default: return '💰';
-        }
+    const handleAmountChange = useCallback((value: string) => {
+        setAmount(formatCostInput(value));
+    }, []);
+
+    const cancelEdit = () => {
+        resetEditForm();
     };
+
+    const formatDateForDisplay = useCallback((dateString: string) => {
+        return formatFullDate(dateString);
+    }, []);
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const options: Intl.DateTimeFormatOptions = { 
-            month: 'long', 
-            day: '2-digit' 
-        };
-        return date.toLocaleDateString('en-US', options);
+        return formatFullDate(dateString);
     };
-
-    const totalIncome = useMemo(() => {
-        return incomeList.reduce((sum, item) => sum + item.amount, 0);
-    }, [incomeList]);
 
     return (
         <ScrollView 
@@ -187,7 +281,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                             style={styles.amountInput}
                             placeholder="0.00"
                             value={amount}
-                            onChangeText={setAmount}
+                            onChangeText={handleAmountChange}
                             keyboardType="numeric"
                             placeholderTextColor="#94a3b8"
                             autoFocus={true}
@@ -210,10 +304,10 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                         {categories.map((category) => (
                             <CategoryChip
-                                key={category}
-                                category={category}
-                                isSelected={selectedCategory === category}
-                                onPress={handleCategorySelect}
+                                key={category.id}
+                                category={category.name}
+                                isSelected={selectedCategory === category.id}
+                                onPress={() => handleCategorySelect(category.id)}
                                 getCategoryIcon={getCategoryIcon}
                                 color="#10b981"
                             />
@@ -221,8 +315,16 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                     </ScrollView>
                 </View>
 
-                <TouchableOpacity style={styles.quickAddButton} onPress={handleAddIncome}>
-                    <Text style={styles.quickAddButtonText}>+ Add Income</Text>
+                <TouchableOpacity 
+                    style={[styles.quickAddButton, isLoading && { opacity: 0.6 }]} 
+                    onPress={handleAddIncome}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator color="white" size="small" />
+                    ) : (
+                        <Text style={styles.quickAddButtonText}>+ Add Income</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -258,17 +360,29 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         </TouchableOpacity>
                     </View>
 
-                    {incomeList.map((item) => (
-                        <IncomeItem
-                            key={item.id}
-                            item={item}
-                            getCategoryIcon={getCategoryIcon}
-                            formatDate={formatDate}
-                            onEdit={handleEditIncome}
-                            onDelete={handleDeleteIncome}
-                            editable={true}
-                        />
-                    ))}
+                    {isLoadingIncomes ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#10b981" />
+                            <Text style={styles.loadingText}>Loading income...</Text>
+                        </View>
+                    ) : recentIncome.length > 0 ? (
+                        recentIncome.map((item) => (
+                            <IncomeItem
+                                key={item.id}
+                                item={item}
+                                getCategoryIcon={getCategoryIcon}
+                                formatDate={formatDateForDisplay}
+                                onEdit={handleEditIncome}
+                                onDelete={handleDeleteIncome}
+                                editable={true}
+                            />
+                        ))
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>No income found</Text>
+                            <Text style={styles.emptySubtext}>Add your first income above</Text>
+                        </View>
+                    )}
 
                     {/* Hide Button at the bottom when details are shown */}
                     <View style={styles.hideSection}>
@@ -304,7 +418,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         </TouchableOpacity>
                         <Text style={styles.modalTitle}>Edit Income</Text>
                         <TouchableOpacity 
-                            onPress={handleSaveEdit}
+                            onPress={handleUpdateIncome}
                             style={styles.modalSaveButton}
                         >
                             <Text style={styles.modalSaveText}>Save</Text>
@@ -342,10 +456,10 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modalCategoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={editFormData.category === category}
-                                        onPress={(cat) => updateEditFormData('category', cat)}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={editFormData.category === category.id}
+                                        onPress={() => updateEditFormData('category', category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                         color="#10b981"
                                     />
@@ -624,5 +738,32 @@ const styles = StyleSheet.create({
     },
     modalCategoryScroll: {
         marginTop: 8,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 20,
+    },
+    emptyText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#64748b',
+        marginBottom: 8,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#94a3b8',
+        textAlign: 'center',
     },
 });

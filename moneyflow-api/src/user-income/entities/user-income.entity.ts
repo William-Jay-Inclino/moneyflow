@@ -21,6 +21,12 @@ export class UserIncomeEntity {
     created_at: Date;
 
     @ApiProperty({
+        description: 'Date when the income was received',
+        example: '2025-07-11',
+    })
+    income_date: Date;
+
+    @ApiProperty({
         description: 'Category ID for the income',
         example: 1,
     })
@@ -40,10 +46,6 @@ export class UserIncomeEntity {
     })
     notes?: string;
 
-    @ApiProperty({
-        description: 'Category information',
-        required: false,
-    })
     @ApiProperty({
         description: 'Category information',
         required: false,

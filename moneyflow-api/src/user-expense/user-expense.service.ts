@@ -28,13 +28,16 @@ export class UserExpenseService {
                 throw new BadRequestException('Category not found, does not belong to user, or is not an expense category');
             }
 
-            // Create the expense
+            // Create the expense with timezone-aware date
+            // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
+            const expenseDateTime = new Date(expense_date + 'T12:00:00+08:00');
+            
             const expense = await this.prisma.userExpense.create({
                 data: {
                     user_id,
                     category_id,
                     cost: new Decimal(cost),
-                    expense_date: new Date(expense_date),
+                    expense_date: expenseDateTime,
                     notes,
                 },
                 include: {
@@ -59,9 +62,13 @@ export class UserExpenseService {
         const { year, month } = find_dto;
 
         try {
-            // Create start and end dates for the given month and year
-            const start_date = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
-            const end_date = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+            // Create start and end dates for the given month and year in Asia/Manila timezone
+            // Start of month: 00:00:00 Asia/Manila
+            const start_date = new Date(`${year}-${month.toString().padStart(2, '0')}-01T00:00:00+08:00`);
+            
+            // End of month: Last day at 23:59:59.999 Asia/Manila
+            const lastDay = new Date(year, month, 0).getDate(); // Get last day of month
+            const end_date = new Date(`${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}T23:59:59.999+08:00`);
 
             const expenses = await this.prisma.userExpense.findMany({
                 where: {
@@ -156,7 +163,10 @@ export class UserExpenseService {
             if (category_id !== undefined) update_data.category_id = category_id;
             if (cost !== undefined) update_data.cost = new Decimal(cost);
             if (notes !== undefined) update_data.notes = notes;
-            if (expense_date !== undefined) update_data.expense_date = new Date(expense_date);
+            if (expense_date !== undefined) {
+                // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
+                update_data.expense_date = new Date(expense_date + 'T12:00:00+08:00');
+            }
 
             const updated_expense = await this.prisma.userExpense.update({
                 where: {

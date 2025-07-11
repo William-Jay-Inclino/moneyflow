@@ -10,7 +10,7 @@ export class UserIncomeService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create_user_income(user_id: string, create_user_income_dto: CreateUserIncomeDto): Promise<UserIncomeEntity> {
-        const { category_id, amount, notes } = create_user_income_dto;
+        const { category_id, amount, notes, income_date } = create_user_income_dto;
 
         try {
             // Verify category exists and belongs to user
@@ -28,12 +28,19 @@ export class UserIncomeService {
                 throw new BadRequestException('Category not found, does not belong to user, or is not an income category');
             }
 
-            // Create the income
+            // Create the income with timezone-aware date
+            // If income_date is provided, convert YYYY-MM-DD to Asia/Manila timezone at noon
+            // Otherwise, use current date and time
+            const incomeDateTime = income_date 
+                ? new Date(income_date + 'T12:00:00+08:00')
+                : new Date();
+
             const income = await this.prisma.userIncome.create({
                 data: {
                     user_id,
                     category_id,
                     amount: new Decimal(amount),
+                    income_date: incomeDateTime,
                     notes,
                 },
                 include: {
@@ -58,14 +65,18 @@ export class UserIncomeService {
         const { year, month } = find_dto;
 
         try {
-            // Create start and end dates for the given month and year
-            const start_date = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
-            const end_date = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+            // Create start and end dates for the given month and year in Asia/Manila timezone
+            // Start of month: 00:00:00 Asia/Manila
+            const start_date = new Date(`${year}-${month.toString().padStart(2, '0')}-01T00:00:00+08:00`);
+            
+            // End of month: Last day at 23:59:59.999 Asia/Manila
+            const lastDay = new Date(year, month, 0).getDate(); // Get last day of month
+            const end_date = new Date(`${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}T23:59:59.999+08:00`);
 
             const income = await this.prisma.userIncome.findMany({
                 where: {
                     user_id,
-                    created_at: {
+                    income_date: {
                         gte: start_date,
                         lte: end_date,
                     },
@@ -78,7 +89,7 @@ export class UserIncomeService {
                     },
                 },
                 orderBy: {
-                    created_at: 'desc',
+                    income_date: 'desc',
                 },
             });
 
@@ -118,7 +129,7 @@ export class UserIncomeService {
     }
 
     async update_user_income(user_id: string, income_id: string, update_user_income_dto: UpdateUserIncomeDto): Promise<UserIncomeEntity> {
-        const { category_id, amount, notes } = update_user_income_dto;
+        const { category_id, amount, notes, income_date } = update_user_income_dto;
 
         try {
             // Check if income exists and belongs to user
@@ -155,6 +166,10 @@ export class UserIncomeService {
             if (category_id !== undefined) update_data.category_id = category_id;
             if (amount !== undefined) update_data.amount = new Decimal(amount);
             if (notes !== undefined) update_data.notes = notes;
+            if (income_date !== undefined) {
+                // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
+                update_data.income_date = new Date(income_date + 'T12:00:00+08:00');
+            }
 
             const updated_income = await this.prisma.userIncome.update({
                 where: {

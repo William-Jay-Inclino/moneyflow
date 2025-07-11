@@ -1,7 +1,31 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput } from 'react-native';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { IncomeItem, CategoryChip } from '../../components';
+import { useAuthStore } from '../../store';
+import { formatCostInput } from '../../utils/costUtils';
+import { formatDate as formatDateUtil, formatTime, getCurrentISODate, formatFullDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
+import { validateExpenseForm } from '../../utils/formValidation';
+
+// Constants
+const CHART_COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+const YEAR_RANGE = 10;
+
+const SUCCESS_MESSAGES = {
+    INCOME_ADDED: 'Income added successfully',
+    INCOME_UPDATED: 'Income updated successfully',
+    INCOME_DELETED: 'Income deleted successfully'
+} as const;
+
+const ERROR_MESSAGES = {
+    USER_NOT_FOUND: 'User not found. Please login again.',
+    CATEGORY_NOT_FOUND: 'Selected category not found',
+    UNABLE_TO_UPDATE: 'Unable to update income',
+    FAILED_TO_ADD: 'Failed to add income. Please try again.',
+    FAILED_TO_UPDATE: 'Failed to update income. Please try again.',
+    FAILED_TO_DELETE: 'Failed to delete income. Please try again.',
+    FAILED_TO_LOAD: 'Failed to load data. Please try again.'
+} as const;
 
 // Month/Year Picker Component
 const MonthYearPicker = memo(({ 
@@ -150,20 +174,23 @@ interface AllIncomeScreenProps {
 }
 
 export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const { user } = useAuthStore();
+    
+    const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
     const [showMonthPicker, setShowMonthPicker] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editFormData, setEditFormData] = useState({ amount: '', notes: '', category: '' });
-    const [addFormData, setAddFormData] = useState({ amount: '', notes: '', category: '' });
+    const [editFormData, setEditFormData] = useState({ amount: '', notes: '', category: '', day: '' });
+    const [addFormData, setAddFormData] = useState({ amount: '', notes: '', category: '', day: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [incomeList, setIncomeList] = useState([
         {
             id: '1',
             amount: 3500.00,
             description: 'Monthly Salary',
             category: 'Salary',
-            date: '2025-07-01',
+            income_date: '2025-07-01T01:00:00.000Z',
             time: '09:00 AM'
         },
         {
@@ -171,7 +198,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount: 800.00,
             description: 'Freelance Project',
             category: 'Freelance',
-            date: '2025-07-05',
+            income_date: '2025-07-05T06:30:00.000Z',
             time: '02:30 PM'
         },
         {
@@ -179,7 +206,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount: 150.00,
             description: 'Stock Dividends',
             category: 'Investment',
-            date: '2025-07-10',
+            income_date: '2025-07-10T02:15:00.000Z',
             time: '10:15 AM'
         },
         {
@@ -187,7 +214,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount: 1200.00,
             description: 'Rental Income',
             category: 'Rental',
-            date: '2025-07-01',
+            income_date: '2025-07-01T00:00:00.000Z',
             time: '08:00 AM'
         },
         {
@@ -195,7 +222,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount: 250.00,
             description: 'Side Business',
             category: 'Business',
-            date: '2025-07-15',
+            income_date: '2025-07-15T08:20:00.000Z',
             time: '04:20 PM'
         },
         {
@@ -203,7 +230,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount: 75.00,
             description: 'Cashback Rewards',
             category: 'Other',
-            date: '2025-07-20',
+            income_date: '2025-07-20T03:30:00.000Z',
             time: '11:30 AM'
         }
     ]);
@@ -211,10 +238,12 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     const categories = useMemo(() => ['Salary', 'Freelance', 'Investment', 'Business', 'Rental', 'Other'], []);
 
     const handleEditIncome = useCallback((income: any) => {
+        const incomeDate = new Date(income.income_date);
         setEditFormData({
             amount: income.amount.toString(),
             notes: income.description,
-            category: income.category
+            category: income.category,
+            day: incomeDate.getDate().toString()
         });
         setEditingId(income.id);
         setEditModalVisible(true);
@@ -238,78 +267,120 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         );
     }, []);
 
-    const handleAddIncome = useCallback(() => {
-        if (!addFormData.amount.trim()) {
-            Alert.alert('Missing Amount', 'Please enter the income amount');
-            return;
-        }
-        if (!addFormData.notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!addFormData.category) {
-            Alert.alert('Missing Category', 'Please select a category');
+    const handleAddIncome = useCallback(async () => {
+        const validationError = validateExpenseForm(addFormData.amount, addFormData.notes, addFormData.category, user?.id);
+        if (validationError) {
+            Alert.alert('Missing Information', validationError);
             return;
         }
 
-        // Create new income with the selected month/year
-        const newIncome = {
-            id: Date.now().toString(),
-            amount: parseFloat(addFormData.amount),
-            description: addFormData.notes,
-            category: addFormData.category,
-            date: new Date(currentDate.getFullYear(), currentDate.getMonth(), new Date().getDate()).toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        };
+        // Validate day selection
+        if (!addFormData.day || isNaN(parseInt(addFormData.day)) || parseInt(addFormData.day) < 1 || parseInt(addFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the income');
+            return;
+        }
+
+        setIsSubmitting(true);
         
-        setIncomeList(prev => [newIncome, ...prev]);
-        Alert.alert('Success', 'Income added successfully');
-        
-        // Reset form and close modal
-        setAddFormData({ amount: '', notes: '', category: '' });
-        setAddModalVisible(false);
-    }, [addFormData, currentDate]);
+        try {
+            // Create income date using the selected month/year and day in Asia/Manila timezone
+            const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
+            
+            const newIncome = {
+                id: Date.now().toString(),
+                amount: parseFloat(addFormData.amount),
+                description: addFormData.notes,
+                category: addFormData.category,
+                income_date: incomeDate,
+                time: new Date().toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    timeZone: 'Asia/Manila'
+                })
+            };
+            
+            setIncomeList(prev => [newIncome, ...prev]);
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_ADDED);
+            
+            // Reset form and close modal
+            setAddFormData({ amount: '', notes: '', category: '', day: '' });
+            setAddModalVisible(false);
+        } catch (error) {
+            console.error('Error adding income:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_ADD);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [addFormData, user, localCurrentDate]);
 
     const cancelAdd = useCallback(() => {
         setAddModalVisible(false);
-        setAddFormData({ amount: '', notes: '', category: '' });
+        setAddFormData({ amount: '', notes: '', category: '', day: '' });
     }, []);
 
-    const handleUpdateIncome = useCallback(() => {
-        if (!editFormData.amount.trim()) {
-            Alert.alert('Missing Amount', 'Please enter the income amount');
-            return;
-        }
-        if (!editFormData.notes.trim()) {
-            Alert.alert('Missing Notes', 'Please enter a description');
-            return;
-        }
-        if (!editFormData.category) {
-            Alert.alert('Missing Category', 'Please select a category');
+    const handleUpdateIncome = useCallback(async () => {
+        const validationError = validateExpenseForm(editFormData.amount, editFormData.notes, editFormData.category, user?.id);
+        if (validationError || !editingId) {
+            Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
             return;
         }
 
-        setIncomeList(prev => prev.map(item => 
-            item.id === editingId 
-                ? { ...item, amount: parseFloat(editFormData.amount), description: editFormData.notes, category: editFormData.category }
-                : item
-        ));
-        Alert.alert('Success', 'Income updated successfully');
-        cancelEdit();
-    }, [editFormData, editingId]);
+        // Validate day selection
+        if (!editFormData.day || isNaN(parseInt(editFormData.day)) || parseInt(editFormData.day) < 1 || parseInt(editFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the income');
+            return;
+        }
+
+        setIsSubmitting(true);
+        
+        try {
+            // Create income date using the selected month/year and day in Asia/Manila timezone
+            const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
+
+            setIncomeList(prev => prev.map(item => 
+                item.id === editingId 
+                    ? { 
+                        ...item, 
+                        amount: parseFloat(editFormData.amount), 
+                        description: editFormData.notes, 
+                        category: editFormData.category,
+                        income_date: incomeDate
+                    }
+                    : item
+            ));
+            
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_UPDATED);
+            cancelEdit();
+        } catch (error) {
+            console.error('Error updating income:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_UPDATE);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [editFormData, editingId, user, localCurrentDate]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);
         setEditModalVisible(false);
-        setEditFormData({ amount: '', notes: '', category: '' });
+        setEditFormData({ amount: '', notes: '', category: '', day: '' });
     }, []);
 
     const updateEditFormField = useCallback((field: string, value: string) => {
-        setEditFormData(prev => ({ ...prev, [field]: value }));
+        // For amount field, ensure only valid number format
+        if (field === 'amount') {
+            setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
+        } else {
+            setEditFormData(prev => ({ ...prev, [field]: value }));
+        }
     }, []);
 
     const updateAddFormField = useCallback((field: string, value: string) => {
-        setAddFormData(prev => ({ ...prev, [field]: value }));
+        // For amount field, ensure only valid number format
+        if (field === 'amount') {
+            setAddFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
+        } else {
+            setAddFormData(prev => ({ ...prev, [field]: value }));
+        }
     }, []);
 
     const handleEditFormCategorySelect = useCallback((category: string) => {
@@ -332,10 +403,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     }, []);
 
     const formatDate = useCallback((dateString: string) => {
-        const date = new Date(dateString);
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${month}/${day}`;
+        return formatDateUtil(dateString);
     }, []);
 
     const formatMonthYear = useCallback((date: Date) => {
@@ -346,32 +414,27 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         return date.toLocaleDateString('en-US', options);
     }, []);
 
-    const goToPreviousMonth = useCallback(() => {
-        setCurrentDate(prev => {
+    const navigateMonth = useCallback((direction: 'prev' | 'next') => {
+        setLocalCurrentDate(prev => {
             const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() - 1);
+            newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
             return newDate;
         });
     }, []);
 
-    const goToNextMonth = useCallback(() => {
-        setCurrentDate(prev => {
-            const newDate = new Date(prev);
-            newDate.setMonth(newDate.getMonth() + 1);
-            return newDate;
-        });
-    }, []);
+    const goToPreviousMonth = useCallback(() => navigateMonth('prev'), [navigateMonth]);
+    const goToNextMonth = useCallback(() => navigateMonth('next'), [navigateMonth]);
 
     const filteredIncomes = useMemo(() => {
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
+        const currentMonth = localCurrentDate.getMonth();
+        const currentYear = localCurrentDate.getFullYear();
         
         return incomeList.filter(income => {
-            const incomeDate = new Date(income.date);
+            const incomeDate = new Date(income.income_date);
             return incomeDate.getMonth() === currentMonth && 
                    incomeDate.getFullYear() === currentYear;
         });
-    }, [currentDate, incomeList]);
+    }, [localCurrentDate, incomeList]);
 
     const totalIncome = useMemo(() => 
         filteredIncomes.reduce((sum, item) => sum + item.amount, 0), 
@@ -434,7 +497,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                         style={styles.monthYearContainer}
                         onPress={() => setShowMonthPicker(true)}
                     >
-                        <Text style={styles.monthYearText}>{formatMonthYear(currentDate)}</Text>
+                        <Text style={styles.monthYearText}>{formatMonthYear(localCurrentDate)}</Text>
                         <Text style={styles.calendarIcon}>📅</Text>
                     </TouchableOpacity>
                     
@@ -448,9 +511,9 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
 
                 <MonthYearPicker
                     isVisible={showMonthPicker}
-                    currentDate={currentDate}
+                    currentDate={localCurrentDate}
                     onClose={() => setShowMonthPicker(false)}
-                    onSelect={setCurrentDate}
+                    onSelect={setLocalCurrentDate}
                 />
 
                 {/* Add Income Button */}
@@ -459,7 +522,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                         style={styles.addIncomeButton}
                         onPress={() => setAddModalVisible(true)}
                     >
-                        <Text style={styles.addIncomeButtonText}>+ Add Income for {formatMonthYear(currentDate)}</Text>
+                        <Text style={styles.addIncomeButtonText}>+ Add Income for {formatMonthYear(localCurrentDate)}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -504,7 +567,10 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             {filteredIncomes.map((item) => (
                                 <IncomeItem
                                     key={item.id}
-                                    item={item}
+                                    item={{
+                                        ...item,
+                                        date: item.income_date
+                                    }}
                                     getCategoryIcon={getCategoryIcon}
                                     formatDate={formatDate}
                                     onEdit={handleEditIncome}
@@ -566,6 +632,30 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             </View>
                         </View>
 
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this income</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            editFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => updateEditFormField('day', day.toString())}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            editFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Category</Text>
                             <Text style={styles.helperText}>Select a category for this income</Text>
@@ -586,8 +676,14 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             <TouchableOpacity style={styles.editCancelButton} onPress={cancelEdit}>
                                 <Text style={styles.editCancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleUpdateIncome}>
-                                <Text style={styles.editUpdateButtonText}>Update</Text>
+                            <TouchableOpacity 
+                                style={[styles.editUpdateButton, isSubmitting && { opacity: 0.6 }]} 
+                                onPress={handleUpdateIncome}
+                                disabled={isSubmitting}
+                            >
+                                <Text style={styles.editUpdateButtonText}>
+                                    {isSubmitting ? 'Updating...' : 'Update Income'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -604,7 +700,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 <View style={styles.editModalOverlay}>
                     <View style={styles.editModalContainer}>
                         <View style={styles.editModalHeader}>
-                            <Text style={styles.editModalTitle}>Add Income</Text>
+                            <Text style={styles.editModalTitle}>Add Income for {formatMonthYear(localCurrentDate)}</Text>
                             <TouchableOpacity 
                                 style={styles.editModalCloseButton}
                                 onPress={cancelAdd}
@@ -637,6 +733,30 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             </View>
                         </View>
 
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this income</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            addFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => updateAddFormField('day', day.toString())}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            addFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Category</Text>
                             <Text style={styles.helperText}>Select a category for this income</Text>
@@ -657,8 +777,14 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             <TouchableOpacity style={styles.editCancelButton} onPress={cancelAdd}>
                                 <Text style={styles.editCancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleAddIncome}>
-                                <Text style={styles.editUpdateButtonText}>Add Income</Text>
+                            <TouchableOpacity 
+                                style={[styles.editUpdateButton, isSubmitting && { opacity: 0.6 }]} 
+                                onPress={handleAddIncome}
+                                disabled={isSubmitting}
+                            >
+                                <Text style={styles.editUpdateButtonText}>
+                                    {isSubmitting ? 'Adding...' : 'Add Income'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -1051,6 +1177,35 @@ const styles = StyleSheet.create({
         fontSize: 16,
         backgroundColor: '#fafafa',
         color: '#1e293b',
+    },
+    daySection: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+    },
+    dayScroll: {
+        marginBottom: 12,
+    },
+    dayChip: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    dayChipSelected: {
+        backgroundColor: '#10b981',
+        borderColor: '#10b981',
+    },
+    dayChipText: {
+        fontSize: 14,
+        color: '#374151',
+        fontWeight: '500',
+    },
+    dayChipTextSelected: {
+        color: 'white',
+        fontWeight: '600',
     },
     categorySection: {
         paddingHorizontal: 20,
