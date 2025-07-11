@@ -2,9 +2,9 @@ import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { IncomeItem, CategoryChip } from '../../components';
-import { useAuthStore } from '../../store';
+import { useAuthStore, useIncomeStore, Income } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate as formatDateUtil, formatTime, getCurrentISODate, formatFullDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
+import { formatDate, formatTime, getCurrentISODate, formatFullDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -169,12 +169,29 @@ interface AllIncomeScreenProps {
     navigation: any;
 }
 
-interface AllIncomeScreenProps {
-    navigation: any;
+interface Category {
+    id: string;
+    name: string;
+    type: 'expense' | 'income';
+    color: string;
+    icon: string;
+    userId: string;
 }
 
 export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) => {
     const { user } = useAuthStore();
+    const {
+        categories,
+        getIncomesForMonth,
+        getTotalForMonth,
+        isLoadingMonth,
+        loadIncomesForMonth,
+        loadCategories,
+        addIncome,
+        updateIncome,
+        deleteIncome,
+        getCategoryIcon,
+    } = useIncomeStore();
     
     const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
     const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -184,72 +201,56 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     const [editFormData, setEditFormData] = useState({ amount: '', notes: '', category: '', day: '' });
     const [addFormData, setAddFormData] = useState({ amount: '', notes: '', category: '', day: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [incomeList, setIncomeList] = useState([
-        {
-            id: '1',
-            amount: 3500.00,
-            description: 'Monthly Salary',
-            category: 'Salary',
-            income_date: '2025-07-01T01:00:00.000Z',
-            time: '09:00 AM'
-        },
-        {
-            id: '2',
-            amount: 800.00,
-            description: 'Freelance Project',
-            category: 'Freelance',
-            income_date: '2025-07-05T06:30:00.000Z',
-            time: '02:30 PM'
-        },
-        {
-            id: '3',
-            amount: 150.00,
-            description: 'Stock Dividends',
-            category: 'Investment',
-            income_date: '2025-07-10T02:15:00.000Z',
-            time: '10:15 AM'
-        },
-        {
-            id: '4',
-            amount: 1200.00,
-            description: 'Rental Income',
-            category: 'Rental',
-            income_date: '2025-07-01T00:00:00.000Z',
-            time: '08:00 AM'
-        },
-        {
-            id: '5',
-            amount: 250.00,
-            description: 'Side Business',
-            category: 'Business',
-            income_date: '2025-07-15T08:20:00.000Z',
-            time: '04:20 PM'
-        },
-        {
-            id: '6',
-            amount: 75.00,
-            description: 'Cashback Rewards',
-            category: 'Other',
-            income_date: '2025-07-20T03:30:00.000Z',
-            time: '11:30 AM'
+
+    // Current month data
+    const currentYear = localCurrentDate.getFullYear();
+    const currentMonth = localCurrentDate.getMonth() + 1; // JavaScript months are 0-indexed
+    const filteredIncomes = getIncomesForMonth(currentYear, currentMonth);
+    const totalIncome = getTotalForMonth(currentYear, currentMonth);
+    const isLoadingIncomes = isLoadingMonth(currentYear, currentMonth);
+
+    // Load data on component mount and when date changes
+    useEffect(() => {
+        loadInitialData();
+    }, [user, localCurrentDate]);
+
+    // Load incomes when date changes
+    useEffect(() => {
+        if (user?.id) {
+            loadIncomesForMonth(user.id, currentYear, currentMonth);
         }
-    ]);
+    }, [localCurrentDate, user, loadIncomesForMonth]);
 
-    const categories = useMemo(() => ['Salary', 'Freelance', 'Investment', 'Business', 'Rental', 'Other'], []);
+    const loadInitialData = async () => {
+        if (!user?.id) return;
+        
+        try {
+            await loadCategories(user.id);
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_LOAD);
+        }
+    };
 
-    const handleEditIncome = useCallback((income: any) => {
-        const incomeDate = new Date(income.income_date);
+    const handleEditIncome = useCallback((income: Income) => {
+        const categoryObj = categories.find(cat => cat.name === income.category);
+        const { day } = parseDateComponents(income.date);
         setEditFormData({
             amount: income.amount.toString(),
             notes: income.description,
-            category: income.category,
-            day: incomeDate.getDate().toString()
+            category: categoryObj?.id || '',
+            day: day.toString()
         });
         setEditingId(income.id);
         setEditModalVisible(true);
-    }, []);
+    }, [categories]);
 
-    const handleDeleteIncome = useCallback((id: string) => {
+    const handleDeleteIncome = useCallback(async (id: string) => {
+        if (!user?.id) {
+            Alert.alert('Error', ERROR_MESSAGES.USER_NOT_FOUND);
+            return;
+        }
+
         Alert.alert(
             'Delete Income',
             'Are you sure you want to delete this income?',
@@ -258,14 +259,19 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 { 
                     text: 'Delete', 
                     style: 'destructive',
-                    onPress: () => {
-                        setIncomeList(prev => prev.filter(item => item.id !== id));
-                        Alert.alert('Success', 'Income deleted successfully');
+                    onPress: async () => {
+                        try {
+                            await deleteIncome(user.id, id);
+                            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_DELETED);
+                        } catch (error) {
+                            console.error('Error deleting income:', error);
+                            Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_DELETE);
+                        }
                     }
                 }
             ]
         );
-    }, []);
+    }, [user, deleteIncome]);
 
     const handleAddIncome = useCallback(async () => {
         const validationError = validateExpenseForm(addFormData.amount, addFormData.notes, addFormData.category, user?.id);
@@ -283,23 +289,22 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         setIsSubmitting(true);
         
         try {
+            const categoryObj = categories.find(cat => cat.id === addFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
             // Create income date using the selected month/year and day in Asia/Manila timezone
             const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
             
-            const newIncome = {
-                id: Date.now().toString(),
-                amount: parseFloat(addFormData.amount),
-                description: addFormData.notes,
-                category: addFormData.category,
-                income_date: incomeDate,
-                time: new Date().toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    timeZone: 'Asia/Manila'
-                })
-            };
+            await addIncome(user!.id, {
+                category_id: parseInt(categoryObj.id),
+                amount: addFormData.amount.trim(),
+                notes: addFormData.notes.trim(),
+                income_date: incomeDate // Already in YYYY-MM-DD format
+            });
             
-            setIncomeList(prev => [newIncome, ...prev]);
             Alert.alert('Success', SUCCESS_MESSAGES.INCOME_ADDED);
             
             // Reset form and close modal
@@ -311,7 +316,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         } finally {
             setIsSubmitting(false);
         }
-    }, [addFormData, user, localCurrentDate]);
+    }, [addFormData, user, categories, addIncome]);
 
     const cancelAdd = useCallback(() => {
         setAddModalVisible(false);
@@ -334,20 +339,21 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         setIsSubmitting(true);
         
         try {
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
             // Create income date using the selected month/year and day in Asia/Manila timezone
             const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
 
-            setIncomeList(prev => prev.map(item => 
-                item.id === editingId 
-                    ? { 
-                        ...item, 
-                        amount: parseFloat(editFormData.amount), 
-                        description: editFormData.notes, 
-                        category: editFormData.category,
-                        income_date: incomeDate
-                    }
-                    : item
-            ));
+            await updateIncome(user!.id, editingId, {
+                category_id: parseInt(categoryObj.id),
+                amount: editFormData.amount.trim(),
+                notes: editFormData.notes.trim(),
+                income_date: incomeDate // Already in YYYY-MM-DD format
+            });
             
             Alert.alert('Success', SUCCESS_MESSAGES.INCOME_UPDATED);
             cancelEdit();
@@ -357,7 +363,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         } finally {
             setIsSubmitting(false);
         }
-    }, [editFormData, editingId, user, localCurrentDate]);
+    }, [editFormData, editingId, user, categories, updateIncome]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);
@@ -383,27 +389,16 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         }
     }, []);
 
-    const handleEditFormCategorySelect = useCallback((category: string) => {
-        setEditFormData(prev => ({ ...prev, category }));
+    const handleEditFormCategorySelect = useCallback((categoryId: string) => {
+        setEditFormData(prev => ({ ...prev, category: categoryId }));
     }, []);
 
-    const handleAddFormCategorySelect = useCallback((category: string) => {
-        setAddFormData(prev => ({ ...prev, category }));
+    const handleAddFormCategorySelect = useCallback((categoryId: string) => {
+        setAddFormData(prev => ({ ...prev, category: categoryId }));
     }, []);
 
-    const getCategoryIcon = useCallback((category: string) => {
-        switch (category) {
-            case 'Salary': return '💼';
-            case 'Freelance': return '💻';
-            case 'Investment': return '📈';
-            case 'Business': return '🏢';
-            case 'Rental': return '🏠';
-            default: return '💰';
-        }
-    }, []);
-
-    const formatDate = useCallback((dateString: string) => {
-        return formatDateUtil(dateString);
+    const formatDateDisplay = useCallback((dateString: string) => {
+        return formatDate(dateString);
     }, []);
 
     const formatMonthYear = useCallback((date: Date) => {
@@ -425,22 +420,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     const goToPreviousMonth = useCallback(() => navigateMonth('prev'), [navigateMonth]);
     const goToNextMonth = useCallback(() => navigateMonth('next'), [navigateMonth]);
 
-    const filteredIncomes = useMemo(() => {
-        const currentMonth = localCurrentDate.getMonth();
-        const currentYear = localCurrentDate.getFullYear();
-        
-        return incomeList.filter(income => {
-            const incomeDate = new Date(income.income_date);
-            return incomeDate.getMonth() === currentMonth && 
-                   incomeDate.getFullYear() === currentYear;
-        });
-    }, [localCurrentDate, incomeList]);
-
-    const totalIncome = useMemo(() => 
-        filteredIncomes.reduce((sum, item) => sum + item.amount, 0), 
-        [filteredIncomes]
-    );
-
+    // Use incomes from the store directly
     const categoryData = useMemo(() => {
         const categoryTotals: Record<string, number> = {};
         
@@ -455,7 +435,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             amount,
             color: colors[index % colors.length],
             legendLabel: `+${amount.toFixed(2)}`,
-            percentage: ((amount / totalIncome) * 100).toFixed(0)
+            percentage: totalIncome > 0 ? ((amount / totalIncome) * 100).toFixed(0) : '0'
         }));
     }, [filteredIncomes, totalIncome]);
 
@@ -469,6 +449,29 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         })),
         [categoryData]
     );
+
+    // Check if user is authenticated
+    if (!user?.id) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Text style={styles.backButtonText}>←</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.title}>All Income</Text>
+                    <View style={styles.placeholder} />
+                </View>
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>🔒</Text>
+                    <Text style={styles.emptyStateText}>Please log in</Text>
+                    <Text style={styles.emptyStateSubtext}>You need to be logged in to view your income data</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -517,16 +520,21 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 />
 
                 {/* Add Income Button */}
-                <View style={styles.addIncomeSection}>
+                <View style={styles.addExpenseSection}>
                     <TouchableOpacity 
-                        style={styles.addIncomeButton}
+                        style={styles.addExpenseButton}
                         onPress={() => setAddModalVisible(true)}
                     >
-                        <Text style={styles.addIncomeButtonText}>+ Add Income for {formatMonthYear(localCurrentDate)}</Text>
+                        <Text style={styles.addExpenseButtonText}>+ Add Income for {formatMonthYear(localCurrentDate)}</Text>
                     </TouchableOpacity>
                 </View>
 
-                {filteredIncomes.length > 0 ? (
+                {isLoadingIncomes ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#10b981" />
+                        <Text style={styles.loadingText}>Loading income...</Text>
+                    </View>
+                ) : filteredIncomes.length > 0 ? (
                     <>
                         {/* Total Earned */}
                         <TotalEarned 
@@ -567,12 +575,9 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             {filteredIncomes.map((item) => (
                                 <IncomeItem
                                     key={item.id}
-                                    item={{
-                                        ...item,
-                                        date: item.income_date
-                                    }}
+                                    item={item}
                                     getCategoryIcon={getCategoryIcon}
-                                    formatDate={formatDate}
+                                    formatDate={formatDateDisplay}
                                     onEdit={handleEditIncome}
                                     onDelete={handleDeleteIncome}
                                     editable={true}
@@ -662,10 +667,10 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={editFormData.category === category}
-                                        onPress={handleEditFormCategorySelect}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={editFormData.category === category.id}
+                                        onPress={() => handleEditFormCategorySelect(category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                     />
                                 ))}
@@ -763,10 +768,10 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
-                                        key={category}
-                                        category={category}
-                                        isSelected={addFormData.category === category}
-                                        onPress={handleAddFormCategorySelect}
+                                        key={category.id}
+                                        category={category.name}
+                                        isSelected={addFormData.category === category.id}
+                                        onPress={() => handleAddFormCategorySelect(category.id)}
                                         getCategoryIcon={getCategoryIcon}
                                     />
                                 ))}
@@ -1251,12 +1256,12 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
     },
-    // Add Income Section Styles
-    addIncomeSection: {
+    // Add Expense Section Styles
+    addExpenseSection: {
         paddingHorizontal: 20,
         paddingVertical: 12,
     },
-    addIncomeButton: {
+    addExpenseButton: {
         backgroundColor: '#f8fafc',
         paddingVertical: 12,
         paddingHorizontal: 16,
@@ -1266,9 +1271,19 @@ const styles = StyleSheet.create({
         borderColor: '#e2e8f0',
         borderStyle: 'dashed',
     },
-    addIncomeButtonText: {
+    addExpenseButtonText: {
         fontSize: 14,
         color: '#64748b',
         fontWeight: '500',
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 40,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#64748b',
     },
 });

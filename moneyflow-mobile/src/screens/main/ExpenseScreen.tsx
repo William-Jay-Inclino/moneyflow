@@ -140,7 +140,8 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
 
     const handleEditExpense = useCallback((expense: any) => {
         try {
-            const categoryObj = categories.find(cat => cat.name === expense.category);
+            // Use categoryId for reliable category lookup
+            const categoryObj = categories.find(cat => cat.id === expense.categoryId);
             const { day } = parseDateComponents(expense.date);
             setEditFormData({
                 cost: expense.amount.toString(),

@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
 import { IncomeItem, CategoryChip } from '../../components';
 import { useAuthStore, useIncomeStore } from '../../store';
-import { formatDate as formatDateUtil, formatTime, getCurrentISODate, formatFullDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { formatCostInput } from '../../utils/costUtils';
+import { formatDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -137,14 +137,18 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
 
     const handleEditIncome = useCallback((income: any) => {
         try {
-            const categoryObj = categories.find(cat => cat.name === income.category);
+            // Use categoryId for reliable category lookup
+            const categoryObj = categories.find(cat => cat.id === income.categoryId);
+            
             const { day } = parseDateComponents(income.date);
-            setEditFormData({
+            const formData = {
                 amount: income.amount.toString(),
                 notes: income.description || '',
-                category: categoryObj?.id || '',
+                category: categoryObj?.id?.toString() || '',
                 day: day.toString()
-            });
+            };
+            
+            setEditFormData(formData);
             setEditingId(income.id);
             setEditModalVisible(true);
         } catch (error) {
@@ -230,15 +234,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
         }
     }, [editFormData, editingId, user, categories, updateIncome]);
 
-    const handleCategorySelect = useCallback((category: string) => {
-        setSelectedCategory(category);
-    }, []);
-
-    const handleScrollBeginDrag = useCallback(() => {
-        // Hide any open dropdowns when scrolling starts
-    }, []);
-
-    const updateEditFormData = useCallback((field: string, value: string) => {
+    const updateEditFormField = useCallback((field: string, value: string) => {
         if (field === 'amount') {
             setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
         } else {
@@ -252,21 +248,14 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
 
     const cancelEdit = () => {
         resetEditForm();
-    };
+    };    
 
     const formatDateForDisplay = useCallback((dateString: string) => {
-        return formatFullDate(dateString);
+        return formatDate(dateString);
     }, []);
 
-    const formatDate = (dateString: string) => {
-        return formatFullDate(dateString);
-    };
-
     return (
-        <ScrollView 
-            style={styles.container}
-            onScrollBeginDrag={handleScrollBeginDrag}
-        >
+        <ScrollView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Add Income</Text>
                 <Text style={styles.subtitle}>Quick and easy income tracking</Text>
@@ -278,7 +267,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                     <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Amount</Text>
                         <TextInput
-                            style={styles.amountInput}
+                            style={styles.costInput}
                             placeholder="0.00"
                             value={amount}
                             onChangeText={handleAmountChange}
@@ -306,8 +295,8 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                             <CategoryChip
                                 key={category.id}
                                 category={category.name}
-                                isSelected={selectedCategory === category.id}
-                                onPress={() => handleCategorySelect(category.id)}
+                                isSelected={selectedCategory === category.id.toString()}
+                                onPress={() => setSelectedCategory(category.id.toString())}
                                 getCategoryIcon={getCategoryIcon}
                                 color="#10b981"
                             />
@@ -404,69 +393,93 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
             {/* Edit Income Modal */}
             <Modal
                 visible={editModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setEditModalVisible(false)}
+                transparent={true}
+                animationType="none"
+                onRequestClose={cancelEdit}
             >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <TouchableOpacity 
-                            onPress={() => setEditModalVisible(false)}
-                            style={styles.modalCancelButton}
-                        >
-                            <Text style={styles.modalCancelText}>Cancel</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.modalTitle}>Edit Income</Text>
-                        <TouchableOpacity 
-                            onPress={handleUpdateIncome}
-                            style={styles.modalSaveButton}
-                        >
-                            <Text style={styles.modalSaveText}>Save</Text>
-                        </TouchableOpacity>
-                    </View>
+                <View style={styles.editModalOverlay}>
+                    <View style={styles.editModalContainer}>
+                        <View style={styles.editModalHeader}>
+                            <Text style={styles.editModalTitle}>Edit Income</Text>
+                            <TouchableOpacity onPress={cancelEdit} style={styles.editModalCloseButton}>
+                                <Text style={styles.editModalCloseText}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <ScrollView style={styles.modalContent}>
-                        <View style={styles.modalFormRow}>
-                            <View style={styles.modalInputGroup}>
-                                <Text style={styles.modalInputLabel}>Amount</Text>
+                        <View style={styles.editFormRow}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Amount</Text>
                                 <TextInput
-                                    style={styles.modalAmountInput}
+                                    style={styles.costInput}
                                     placeholder="0.00"
                                     value={editFormData.amount}
-                                    onChangeText={(value) => updateEditFormData('amount', value)}
+                                    onChangeText={(text) => updateEditFormField('amount', text)}
                                     keyboardType="numeric"
                                     placeholderTextColor="#94a3b8"
                                 />
                             </View>
-                            <View style={[styles.modalInputGroup, { flex: 2 }]}>
-                                <Text style={styles.modalInputLabel}>Notes</Text>
+                            <View style={[styles.inputGroup, { flex: 2 }]}>
+                                <Text style={styles.inputLabel}>Notes</Text>
                                 <TextInput
-                                    style={styles.modalNotesInput}
+                                    style={styles.notesInput}
                                     placeholder="Source of income?"
                                     value={editFormData.notes}
-                                    onChangeText={(value) => updateEditFormData('notes', value)}
+                                    onChangeText={(text) => updateEditFormField('notes', text)}
                                     placeholderTextColor="#94a3b8"
                                 />
                             </View>
                         </View>
 
-                        <View style={styles.modalCategorySection}>
-                            <Text style={styles.modalInputLabel}>Category</Text>
-                            <Text style={styles.modalHelperText}>Select a category for this income</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modalCategoryScroll}>
+                        <View style={styles.categorySection}>
+                            <Text style={styles.inputLabel}>Select Category</Text>
+                            <Text style={styles.helperText}>Slide to see more categories</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map((category) => (
                                     <CategoryChip
                                         key={category.id}
                                         category={category.name}
-                                        isSelected={editFormData.category === category.id}
-                                        onPress={() => updateEditFormData('category', category.id)}
+                                        isSelected={editFormData.category === category.id.toString()}
+                                        onPress={() => setEditFormData(prev => ({ ...prev, category: category.id.toString() }))}
                                         getCategoryIcon={getCategoryIcon}
                                         color="#10b981"
                                     />
                                 ))}
                             </ScrollView>
                         </View>
-                    </ScrollView>
+
+                        <View style={styles.daySection}>
+                            <Text style={styles.inputLabel}>Day</Text>
+                            <Text style={styles.helperText}>Select the day of the month for this income</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        style={[
+                                            styles.dayChip,
+                                            editFormData.day === day.toString() && styles.dayChipSelected
+                                        ]}
+                                        onPress={() => setEditFormData(prev => ({ ...prev, day: day.toString() }))}
+                                    >
+                                        <Text style={[
+                                            styles.dayChipText,
+                                            editFormData.day === day.toString() && styles.dayChipTextSelected
+                                        ]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
+                        <View style={styles.editModalButtons}>
+                            <TouchableOpacity style={styles.editCancelButton} onPress={cancelEdit}>
+                                <Text style={styles.editCancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleUpdateIncome}>
+                                <Text style={styles.editUpdateButtonText}>Update Income</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
             </Modal>
         </ScrollView>
@@ -521,7 +534,7 @@ const styles = StyleSheet.create({
         color: '#374151',
         marginBottom: 6,
     },
-    amountInput: {
+    costInput: {
         borderWidth: 1,
         borderColor: '#d1d5db',
         borderRadius: 8,
@@ -765,5 +778,112 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#94a3b8',
         textAlign: 'center',
+    },
+    editModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    editModalContainer: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        width: '100%',
+        maxHeight: '80%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 16,
+    },
+    editModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    editModalTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#1e293b',
+    },
+    editModalCloseButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#f8fafc',
+    },
+    editModalCloseText: {
+        fontSize: 16,
+        color: '#64748b',
+        fontWeight: 'bold',
+    },
+    editFormRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    daySection: {
+        marginBottom: 20,
+    },
+    dayScroll: {
+        marginBottom: 12,
+    },
+    editModalButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 20,
+    },
+    editCancelButton: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    editCancelButtonText: {
+        color: '#64748b',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    editUpdateButton: {
+        flex: 1,
+        backgroundColor: '#10b981',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    editUpdateButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    dayChip: {
+        backgroundColor: '#d1fae5',
+        borderRadius: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#10b981',
+    },
+    dayChipSelected: {
+        backgroundColor: '#10b981',
+        borderColor: '#059669',
+    },
+    dayChipText: {
+        fontSize: 14,
+        color: '#1e293b',
+        fontWeight: '500',
+    },
+    dayChipTextSelected: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });

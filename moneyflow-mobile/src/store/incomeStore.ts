@@ -8,6 +8,7 @@ export interface Income {
     amount: number;
     description: string;
     category: string;
+    categoryId: string;
     date: string;
     time: string;
 }
@@ -101,14 +102,10 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             set({ isLoadingCategories: true });
             
             try {
-                console.log('Loading income categories for user:', userId);
-                
                 // Use the shared category system with income type filtering
                 const data = await categoryApi.getUserCategories(userId, 'INCOME');
-                console.log('Raw income categories from API:', data);
                 
                 const categories = get().transformCategoryData(data, userId);
-                console.log('Transformed income categories:', categories);
                 
                 set({ categories, isLoadingCategories: false });
             } catch (error) {
@@ -150,10 +147,7 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             });
 
             try {
-                console.log(`Loading incomes for user ${userId}, month ${month}/${year}`);
-                
                 const data = await incomeApi.getIncome(userId, year, month);
-                console.log('Raw income data from API:', data);
                 
                 // Transform API data to match our Income interface
                 const incomes: Income[] = data.map((item: any) => ({
@@ -161,11 +155,10 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                     amount: typeof item.amount === 'string' ? parseCostToNumber(item.amount) : item.amount,
                     description: item.notes || item.description || '',
                     category: item.category?.name || item.category_name || 'Other',
+                    categoryId: (item.category?.id || item.category_id)?.toString() || '',
                     date: formatISODate(item.income_date || item.date),
-                    time: formatTime(item.income_date || item.date || new Date().toISOString())
+                    time: formatTime(item.created_at || item.income_date || item.date || new Date().toISOString())
                 }));
-                
-                console.log('Transformed income data:', incomes);
 
                 // Update cache
                 set({
@@ -201,25 +194,25 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             if (!userId) throw new Error('User ID is required');
             
             try {
-                console.log('Adding income:', incomeData);
-                
                 const response = await incomeApi.addIncome(userId, incomeData);
-                console.log('Income added successfully:', response);
                 
                 // Transform response to Income format
+                const incomeDate = response.income_date || incomeData.income_date || new Date().toISOString();
+                const incomeDateObj = new Date(incomeDate);
+                
                 const newIncome: Income = {
                     id: response.id,
                     amount: typeof response.amount === 'string' ? parseCostToNumber(response.amount) : response.amount,
                     description: response.notes || incomeData.notes || '',
                     category: response.category?.name || 'Other',
-                    date: formatISODate(response.income_date || incomeData.income_date || new Date().toISOString()),
-                    time: formatTime(response.income_date || new Date().toISOString())
+                    categoryId: (response.category?.id || response.category_id || incomeData.category_id)?.toString() || '',
+                    date: formatISODate(incomeDateObj),
+                    time: formatTime(response.created_at || incomeDate)
                 };
 
-                // Add to appropriate month cache
-                const incomeDate = new Date(newIncome.date);
-                const year = incomeDate.getFullYear();
-                const month = incomeDate.getMonth() + 1;
+                // Add to appropriate month cache using the original date
+                const year = incomeDateObj.getFullYear();
+                const month = incomeDateObj.getMonth() + 1;
                 const monthKey = get().getMonthKey(year, month);
                 
                 const { monthlyCache } = get();
@@ -232,6 +225,18 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                             [monthKey]: {
                                 ...cached,
                                 incomes: [newIncome, ...cached.incomes]
+                            }
+                        }
+                    });
+                } else {
+                    // If no cache exists for this month, create it
+                    set({
+                        monthlyCache: {
+                            ...monthlyCache,
+                            [monthKey]: {
+                                incomes: [newIncome],
+                                isLoading: false,
+                                lastLoaded: Date.now()
                             }
                         }
                     });
@@ -248,10 +253,7 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             if (!userId) throw new Error('User ID is required');
             
             try {
-                console.log('Updating income:', incomeId, updates);
-                
                 const response = await incomeApi.updateIncome(userId, incomeId, updates);
-                console.log('Income updated successfully:', response);
                 
                 // Transform response to Income format
                 const updatedIncome: Income = {
@@ -259,8 +261,9 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                     amount: typeof response.amount === 'string' ? parseCostToNumber(response.amount) : response.amount,
                     description: response.notes || updates.notes || '',
                     category: response.category?.name || 'Other',
+                    categoryId: (response.category?.id || response.category_id || updates.category_id)?.toString() || '',
                     date: formatISODate(response.income_date || updates.income_date || new Date().toISOString()),
-                    time: formatTime(response.income_date || new Date().toISOString())
+                    time: formatTime(response.created_at || response.income_date || new Date().toISOString())
                 };
 
                 // Update in all relevant month caches
@@ -294,10 +297,7 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             if (!userId) throw new Error('User ID is required');
             
             try {
-                console.log('Deleting income:', incomeId);
-                
                 await incomeApi.deleteIncome(userId, incomeId);
-                console.log('Income deleted successfully');
                 
                 // Remove from all month caches
                 const { monthlyCache } = get();

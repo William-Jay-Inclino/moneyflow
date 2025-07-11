@@ -7,6 +7,7 @@ interface IncomeItemProps {
         amount: number;
         description: string;
         category: string;
+        categoryId: string;
         date: string;
         time: string;
     };

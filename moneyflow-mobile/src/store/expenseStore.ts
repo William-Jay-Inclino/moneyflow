@@ -8,6 +8,7 @@ export interface Expense {
     amount: number;
     description: string;
     category: string;
+    categoryId: string;
     date: string;
     time: string;
 }
@@ -149,6 +150,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                     amount: parseCostToNumber(expense.cost),
                     description: expense.notes || 'No description',
                     category: expense.category?.category?.name || 'Other',
+                    categoryId: (expense.category?.category?.id || expense.category?.category_id || expense.category_id)?.toString() || '',
                     date: formatISODate(new Date(expense.expense_date || expense.created_at)),
                     time: formatTime(expense.created_at)
                 }));
@@ -194,6 +196,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                 amount: parseCostToNumber(newExpense.cost),
                 description: newExpense.notes || 'No description',
                 category: 'Unknown', // Will be updated by categories lookup
+                categoryId: expense.category_id.toString(),
                 date: formatISODate(new Date(newExpense.expense_date || newExpense.created_at)),
                 time: formatTime(newExpense.created_at)
             };
@@ -259,6 +262,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                             amount: updates.cost ? parseCostToNumber(updates.cost) : currentExpense.amount,
                             description: updates.notes !== undefined ? updates.notes : currentExpense.description,
                             category: updates.category_id ? categoryName : currentExpense.category,
+                            categoryId: updates.category_id ? updates.category_id.toString() : currentExpense.categoryId,
                             date: updatedDate || currentExpense.date,
                             time: updatedTime || currentExpense.time
                         };
