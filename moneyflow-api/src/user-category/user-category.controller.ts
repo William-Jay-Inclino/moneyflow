@@ -31,17 +31,17 @@ export class UserCategoryController {
     constructor(private readonly user_category_service: UserCategoryService) {}
 
     @Post()
-    @ApiOperation({ summary: 'Create a new user category' })
+    @ApiOperation({ summary: 'Assign/enable category for user' })
     @ApiParam({ name: 'user_id', description: 'User ID', type: 'string' })
     @ApiBody({ type: CreateUserCategoryDto })
     @ApiResponse({
         status: HttpStatus.CREATED,
-        description: 'User category created successfully',
+        description: 'User category assigned/enabled successfully',
         type: UserCategoryEntity,
     })
     @ApiResponse({
         status: HttpStatus.BAD_REQUEST,
-        description: 'Invalid input data or duplicate category',
+        description: 'Invalid input data or category already enabled',
     })
     async create_user_category(
         @Param('user_id', ParseUUIDPipe) user_id: string,
@@ -53,10 +53,10 @@ export class UserCategoryController {
         
         try {
             const result = await this.user_category_service.create_user_category(user_id, create_user_category_dto);
-            console.log('✅ User category created successfully:', result);
+            console.log('✅ User category assigned/enabled successfully:', result);
             return result;
         } catch (error) {
-            console.error('❌ Error creating user category:', error);
+            console.error('❌ Error assigning/enabling user category:', error);
             throw error;
         }
     }
@@ -129,12 +129,12 @@ export class UserCategoryController {
     }
 
     @Delete(':category_id')
-    @ApiOperation({ summary: 'Delete user category' })
+    @ApiOperation({ summary: 'Disable user category (remove assignment)' })
     @ApiParam({ name: 'user_id', description: 'User ID', type: 'string' })
     @ApiParam({ name: 'category_id', description: 'Category ID', type: 'number' })
     @ApiResponse({
         status: HttpStatus.OK,
-        description: 'User category deleted successfully',
+        description: 'User category disabled successfully',
     })
     @ApiResponse({
         status: HttpStatus.NOT_FOUND,
@@ -142,7 +142,7 @@ export class UserCategoryController {
     })
     @ApiResponse({
         status: HttpStatus.BAD_REQUEST,
-        description: 'Category is being used by expenses or income entries',
+        description: 'Category is already disabled',
     })
     async delete_user_category(
         @Param('user_id', ParseUUIDPipe) user_id: string,
@@ -153,10 +153,10 @@ export class UserCategoryController {
         
         try {
             const result = await this.user_category_service.delete_user_category(user_id, category_id);
-            console.log('✅ User category deleted successfully');
+            console.log('✅ User category disabled successfully');
             return result;
         } catch (error) {
-            console.error('❌ Error deleting user category:', error);
+            console.error('❌ Error disabling user category:', error);
             throw error;
         }
     }

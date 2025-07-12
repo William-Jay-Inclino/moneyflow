@@ -11,6 +11,8 @@ export class UserCategoryService {
     async create_user_category(user_id: string, create_user_category_dto: CreateUserCategoryDto): Promise<UserCategoryEntity> {
         const { category_id } = create_user_category_dto;
 
+        console.log('🔄 UserCategoryService.create_user_category:', { user_id, category_id });
+
         try {
             // Check if the category exists
             const category = await this.prisma.category.findUnique({
@@ -30,22 +32,42 @@ export class UserCategoryService {
             });
 
             if (existing_user_category) {
-                throw new BadRequestException(`User already has this category`);
+                console.log('🔄 User already has this category, checking enabled status');
+                
+                if (existing_user_category.enabled) {
+                    console.log('❌ User category already enabled');
+                    throw new BadRequestException(`User already has this category enabled`);
+                }
+                
+                // Enable the existing category
+                console.log('✅ Enabling existing user category...');
+                const updated_user_category = await this.prisma.userCategory.update({
+                    where: { id: existing_user_category.id },
+                    data: { enabled: true },
+                    include: { category: true },
+                });
+                
+                console.log('✅ User category enabled successfully');
+                return new UserCategoryEntity(updated_user_category);
             }
 
-            // Create the user category
+            // Create new user category (enabled by default)
+            console.log('➕ Creating new user category...');
             const user_category = await this.prisma.userCategory.create({
                 data: {
                     user_id,
                     category_id,
+                    enabled: true,
                 },
                 include: {
                     category: true,
                 },
             });
 
+            console.log('✅ User category created successfully');
             return new UserCategoryEntity(user_category);
         } catch (error) {
+            console.error('❌ Error in create_user_category:', error);
             if (error instanceof BadRequestException) {
                 throw error;
             }
@@ -54,8 +76,13 @@ export class UserCategoryService {
     }
 
     async find_user_categories(user_id: string, filter_dto?: FilterUserCategoryDto): Promise<UserCategoryEntity[]> {
+        console.log('🔄 UserCategoryService.find_user_categories:', { user_id, filter_dto });
+        
         try {
-            const where_clause: any = { user_id };
+            const where_clause: any = { 
+                user_id,
+                enabled: true // Only return enabled categories
+            };
             
             if (filter_dto?.type) {
                 where_clause.category = {
@@ -74,8 +101,10 @@ export class UserCategoryService {
                 ],
             });
 
+            console.log('✅ Found enabled user categories:', user_categories.length);
             return user_categories.map(user_category => new UserCategoryEntity(user_category));
         } catch (error) {
+            console.error('❌ Error in find_user_categories:', error);
             throw new BadRequestException('Failed to fetch user categories');
         }
     }
@@ -166,50 +195,52 @@ export class UserCategoryService {
     }
 
     async delete_user_category(user_id: string, category_id: number): Promise<void> {
+        console.log('🔄 UserCategoryService.delete_user_category:', { user_id, category_id });
+        
         try {
-            // Check if category exists and belongs to user
+            // Find the UserCategory record by user_id and category_id
             const existing_category = await this.prisma.userCategory.findFirst({
                 where: {
-                    id: category_id,
                     user_id,
+                    category_id, // This is the reference to the Category.id
                 },
             });
 
             if (!existing_category) {
+                console.log('❌ User category not found for user_id:', user_id, 'category_id:', category_id);
+                console.log('📊 Available user categories for this user:');
+                const all_user_categories = await this.prisma.userCategory.findMany({
+                    where: { user_id },
+                    include: { category: true }
+                });
+                console.log(all_user_categories);
                 throw new NotFoundException('User category not found');
             }
 
-            // Check if category is being used by any expenses or income
-            const [expense_count, income_count] = await Promise.all([
-                this.prisma.userExpense.count({
-                    where: {
-                        category_id,
-                        user_id,
-                    },
-                }),
-                this.prisma.userIncome.count({
-                    where: {
-                        category_id,
-                        user_id,
-                    },
-                }),
-            ]);
+            console.log('✅ Found user category to disable:', existing_category);
 
-            if (expense_count > 0 || income_count > 0) {
-                throw new BadRequestException('Cannot delete category that is being used by expenses or income entries');
+            if (!existing_category.enabled) {
+                console.log('❌ User category already disabled');
+                throw new BadRequestException('User category is already disabled');
             }
 
-            // Delete the category
-            await this.prisma.userCategory.delete({
+            // Disable the user category instead of deleting it
+            await this.prisma.userCategory.update({
                 where: {
-                    id: category_id,
+                    id: existing_category.id,
+                },
+                data: {
+                    enabled: false,
                 },
             });
+
+            console.log('✅ User category disabled successfully');
         } catch (error) {
+            console.error('❌ Error in delete_user_category:', error);
             if (error instanceof NotFoundException || error instanceof BadRequestException) {
                 throw error;
             }
-            throw new BadRequestException('Failed to delete user category');
+            throw new BadRequestException('Failed to disable user category');
         }
     }
 }
