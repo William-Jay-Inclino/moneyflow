@@ -11,6 +11,7 @@ import { CategoryModule } from './category';
 import { UserModule } from './user';
 import { AuthModule, JwtAuthGuard } from './auth';
 import { CashFlowModule } from './cash-flow';
+import { UserAccountsModule } from './user-accounts';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CashFlowModule } from './cash-flow';
     UserCategoryModule, 
     UserModule,
     CashFlowModule,
+    UserAccountsModule,
   ],
   controllers: [AppController],
   providers: [
