@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsDecimal, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class CreateUserAccountDto {
@@ -8,6 +8,7 @@ export class CreateUserAccountDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsDecimal({ decimal_digits: '0,2' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   balance?: number;
 }

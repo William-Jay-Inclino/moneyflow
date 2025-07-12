@@ -11,11 +11,24 @@ export class UserAccountsService {
 
   async create(userId: string, createUserAccountDto: CreateUserAccountDto) {
     try {
-      return await this.prisma.userAccount.create({
+      console.log('Creating user account with data:', {
+        userId,
+        name: createUserAccountDto.name,
+        balance: createUserAccountDto.balance,
+        balanceType: typeof createUserAccountDto.balance
+      });
+
+      // Ensure balance is a valid number if provided
+      let balanceValue = new Decimal(0);
+      if (createUserAccountDto.balance !== undefined) {
+        balanceValue = new Decimal(createUserAccountDto.balance);
+      }
+
+      const result = await this.prisma.userAccount.create({
         data: {
           user_id: userId,
           name: createUserAccountDto.name,
-          balance: createUserAccountDto.balance ? new Decimal(createUserAccountDto.balance) : new Decimal(0),
+          balance: balanceValue,
         },
         include: {
           user: {
@@ -26,8 +39,13 @@ export class UserAccountsService {
           },
         },
       });
+
+      console.log('User account created successfully:', result);
+      return result;
     } catch (error) {
-      throw new BadRequestException('Failed to create user account');
+      console.error('Error creating user account:', error);
+      console.error('Error stack:', error.stack);
+      throw new BadRequestException(`Failed to create user account: ${error.message}`);
     }
   }
 

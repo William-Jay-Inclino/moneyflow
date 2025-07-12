@@ -26,7 +26,11 @@ export class UserAccountsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Request() req, @Body() createUserAccountDto: CreateUserAccountDto) {
+  async create(@Request() req, @Body() createUserAccountDto: CreateUserAccountDto) {
+    console.log('Received create account request:', {
+      userId: req.user.id,
+      body: createUserAccountDto
+    });
     return this.userAccountsService.create(req.user.id, createUserAccountDto);
   }
 
@@ -35,7 +39,7 @@ export class UserAccountsController {
     return this.userAccountsService.findAll(req.user.id, query);
   }
 
-  @Get('total-balance')
+  @Get('total')
   getTotalBalance(@Request() req) {
     return this.userAccountsService.getTotalBalance(req.user.id);
   }

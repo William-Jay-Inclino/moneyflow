@@ -100,5 +100,34 @@ export interface CreateCategoryRequest {
     type: 'income' | 'expense';
 }
 
+export interface UserAccount {
+    id: string;
+    name: string;
+    balance: number;
+    created_at: string;
+    updated_at: string;
+    user_id: string;
+}
+
+export interface CreateUserAccountRequest {
+    name: string;
+    balance?: number;
+}
+
+export interface UpdateUserAccountRequest {
+    name?: string;
+    balance?: number;
+}
+
+export interface UserAccountsResponse {
+    data: UserAccount[];
+    meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
+
 // Navigation types
 export * from './navigation';

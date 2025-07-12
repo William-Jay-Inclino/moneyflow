@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Modal, TextInput, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Modal, TextInput, Alert, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../../store';
+import { useUserAccounts } from '../../hooks/useUserAccounts';
+import type { UserAccount } from '@/types';
 
 // Account Item Component
 const AccountItem = memo(({ 
@@ -8,8 +10,8 @@ const AccountItem = memo(({
     onEdit, 
     onDelete 
 }: { 
-    account: any, 
-    onEdit: (account: any) => void, 
+    account: UserAccount, 
+    onEdit: (account: UserAccount) => void, 
     onDelete: (id: string) => void 
 }) => {
     const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -51,10 +53,10 @@ const AccountItem = memo(({
             <View style={styles.tableRow}>
                 <View style={styles.nameColumn}>
                     <Text style={styles.accountName}>{account.name}</Text>
-                    <Text style={styles.lastUpdated}>last updated: {account.lastUpdated}</Text>
+                    <Text style={styles.lastUpdated}>last updated: {new Date(account.updated_at).toLocaleDateString()}</Text>
                 </View>
                 <View style={styles.balanceColumn}>
-                    <Text style={styles.accountBalance}>{account.amount.toFixed(2)}</Text>
+                    <Text style={styles.accountBalance}>${account.balance.toFixed(2)}</Text>
                 </View>
                 <View style={styles.actionColumn}>
                     <TouchableOpacity onPress={handleMenuPress} style={styles.menuButton}>
@@ -107,13 +109,13 @@ const AccountModal = memo(({
     onSave 
 }: { 
     isVisible: boolean, 
-    account: any | null, 
+    account: UserAccount | null, 
     onClose: () => void, 
-    onSave: (accountData: any) => void 
+    onSave: (accountData: { name: string; balance: number }) => void 
 }) => {
     const [formData, setFormData] = useState({
         name: '',
-        amount: ''
+        balance: ''
     });
 
     // Update form data when account changes
@@ -121,12 +123,12 @@ const AccountModal = memo(({
         if (account) {
             setFormData({
                 name: account.name || '',
-                amount: account.amount?.toString() || ''
+                balance: account.balance?.toString() || ''
             });
         } else {
             setFormData({
                 name: '',
-                amount: ''
+                balance: ''
             });
         }
     }, [account]);
@@ -136,16 +138,19 @@ const AccountModal = memo(({
             Alert.alert('Missing Name', 'Please enter an account name');
             return;
         }
-        if (!formData.amount.trim()) {
-            Alert.alert('Missing Amount', 'Please enter an amount');
-            return;
+
+        let balanceValue = 0;
+        if (formData.balance.trim()) {
+            balanceValue = parseFloat(formData.balance);
+            if (isNaN(balanceValue) || balanceValue < 0) {
+                Alert.alert('Invalid Amount', 'Please enter a valid positive amount');
+                return;
+            }
         }
 
         onSave({
-            id: account?.id || Date.now().toString(),
-            name: formData.name,
-            amount: parseFloat(formData.amount),
-            lastUpdated: new Date().toLocaleDateString()
+            name: formData.name.trim(),
+            balance: balanceValue
         });
         onClose();
     };
@@ -176,7 +181,7 @@ const AccountModal = memo(({
                         <Text style={styles.inputLabel}>Account Name</Text>
                         <TextInput
                             style={styles.textInput}
-                            placeholder="e.g., Chase Checking"
+                            placeholder="example: Metrobank Savings"
                             value={formData.name}
                             onChangeText={(text) => updateField('name', text)}
                             placeholderTextColor="#94a3b8"
@@ -184,12 +189,12 @@ const AccountModal = memo(({
                     </View>
 
                     <View style={styles.formSection}>
-                        <Text style={styles.inputLabel}>Current Balance</Text>
+                        <Text style={styles.inputLabel}>Current Balance (Optional)</Text>
                         <TextInput
                             style={styles.textInput}
-                            placeholder="0.00"
-                            value={formData.amount}
-                            onChangeText={(text) => updateField('amount', text)}
+                            placeholder="0.00 (leave empty for 0)"
+                            value={formData.balance}
+                            onChangeText={(text) => updateField('balance', text)}
                             keyboardType="numeric"
                             placeholderTextColor="#94a3b8"
                         />
@@ -213,47 +218,27 @@ const AccountModal = memo(({
 
 export const AccountScreen = () => {
     const { logout, user } = useAuthStore();
-    const [accounts, setAccounts] = useState([
-        {
-            id: '1',
-            name: 'Chase Checking',
-            amount: 5420.50,
-            lastUpdated: '07/08/2025'
-        },
-        {
-            id: '2',
-            name: 'PayPal',
-            amount: 892.30,
-            lastUpdated: '07/07/2025'
-        },
-        {
-            id: '3',
-            name: 'Cash Wallet',
-            amount: 245.00,
-            lastUpdated: '07/06/2025'
-        },
-        {
-            id: '4',
-            name: 'Robinhood',
-            amount: 12850.75,
-            lastUpdated: '07/05/2025'
-        }
-    ]);
+    const {
+        accounts,
+        loading,
+        refreshing,
+        totalBalance,
+        error,
+        createAccount,
+        updateAccount,
+        deleteAccount,
+        refreshAccounts,
+    } = useUserAccounts();
 
     const [modalVisible, setModalVisible] = useState(false);
-    const [editingAccount, setEditingAccount] = useState<any | null>(null);
-
-    const totalBalance = useMemo(() => 
-        accounts.reduce((sum, account) => sum + account.amount, 0), 
-        [accounts]
-    );
+    const [editingAccount, setEditingAccount] = useState<UserAccount | null>(null);
 
     const handleAddAccount = useCallback(() => {
         setEditingAccount(null);
         setModalVisible(true);
     }, []);
 
-    const handleEditAccount = useCallback((account: any) => {
+    const handleEditAccount = useCallback((account: UserAccount) => {
         setEditingAccount(account);
         setModalVisible(true);
     }, []);
@@ -267,29 +252,38 @@ export const AccountScreen = () => {
                 { 
                     text: 'Delete', 
                     style: 'destructive',
-                    onPress: () => {
-                        setAccounts(prev => prev.filter(account => account.id !== id));
-                        Alert.alert('Success', 'Account deleted successfully');
+                    onPress: async () => {
+                        const success = await deleteAccount(id);
+                        if (success) {
+                            Alert.alert('Success', 'Account deleted successfully');
+                        }
                     }
                 }
             ]
         );
-    }, []);
+    }, [deleteAccount]);
 
-    const handleSaveAccount = useCallback((accountData: any) => {
+    const handleSaveAccount = useCallback(async (accountData: { name: string; balance: number }) => {
+        let success = false;
+        
         if (editingAccount) {
             // Update existing account
-            setAccounts(prev => prev.map(account => 
-                account.id === editingAccount.id ? accountData : account
-            ));
-            Alert.alert('Success', 'Account updated successfully');
+            success = await updateAccount(editingAccount.id, accountData);
+            if (success) {
+                Alert.alert('Success', 'Account updated successfully');
+            }
         } else {
             // Add new account
-            setAccounts(prev => [accountData, ...prev]);
-            Alert.alert('Success', 'Account added successfully');
+            success = await createAccount(accountData);
+            if (success) {
+                Alert.alert('Success', 'Account added successfully');
+            }
         }
-        setEditingAccount(null);
-    }, [editingAccount]);
+        
+        if (success) {
+            setEditingAccount(null);
+        }
+    }, [editingAccount, updateAccount, createAccount]);
 
     const closeModal = useCallback(() => {
         setModalVisible(false);
@@ -323,53 +317,94 @@ export const AccountScreen = () => {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                style={styles.scrollContainer} 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={refreshAccounts}
+                        tintColor="#8b5cf6"
+                        colors={["#8b5cf6"]}
+                    />
+                }
+            >
                 {/* Total Balance Summary */}
                 <View style={styles.summaryCard}>
                     <Text style={styles.summaryLabel}>Total Balance</Text>
-                    <Text style={styles.summaryAmount}>{totalBalance.toFixed(2)}</Text>
+                    <Text style={styles.summaryAmount}>${totalBalance.toFixed(2)}</Text>
                     <Text style={styles.summarySubtext}>Across {accounts.length} accounts</Text>
                 </View>
 
-                {/* Add Account Button */}
-                <View style={styles.addAccountSection}>
-                    <TouchableOpacity 
-                        style={styles.addAccountButton}
-                        onPress={handleAddAccount}
-                    >
-                        <Text style={styles.addAccountButtonText}>+ Add New Account</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* Loading State */}
+                {loading && !refreshing && (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#8b5cf6" />
+                        <Text style={styles.loadingText}>Loading accounts...</Text>
+                    </View>
+                )}
 
-                {/* Accounts List */}
-                <View style={styles.accountsSection}>
-                    <Text style={styles.sectionTitle}>Your Accounts</Text>
-                    
-                    {/* Table Header */}
-                    <View style={styles.tableHeader}>
-                        <View style={styles.nameColumn}>
-                            <Text style={styles.headerText}>Account</Text>
-                        </View>
-                        <View style={styles.balanceColumn}>
-                            <Text style={styles.headerText}>Balance</Text>
-                        </View>
-                        <View style={styles.actionColumn}>
-                            <Text style={styles.headerText}></Text>
-                        </View>
+                {/* Error State */}
+                {error && !loading && (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>⚠️ {error}</Text>
+                        <TouchableOpacity style={styles.retryButton} onPress={refreshAccounts}>
+                            <Text style={styles.retryButtonText}>Retry</Text>
+                        </TouchableOpacity>
                     </View>
-                    
-                    {/* Table Content */}
-                    <View style={styles.tableContainer}>
-                        {accounts.map((account) => (
-                            <AccountItem
-                                key={account.id}
-                                account={account}
-                                onEdit={handleEditAccount}
-                                onDelete={handleDeleteAccount}
-                            />
-                        ))}
-                    </View>
-                </View>
+                )}
+
+                {/* Content - only show when not loading initially */}
+                {!loading && (
+                    <>
+                        {/* Add Account Button */}
+                        <View style={styles.addAccountSection}>
+                            <TouchableOpacity 
+                                style={styles.addAccountButton}
+                                onPress={handleAddAccount}
+                            >
+                                <Text style={styles.addAccountButtonText}>+ Add New Account</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Accounts List */}
+                        {accounts.length > 0 ? (
+                            <View style={styles.accountsSection}>
+                                <Text style={styles.sectionTitle}>Your Accounts</Text>
+                                
+                                {/* Table Header */}
+                                <View style={styles.tableHeader}>
+                                    <View style={styles.nameColumn}>
+                                        <Text style={styles.headerText}>Account</Text>
+                                    </View>
+                                    <View style={styles.balanceColumn}>
+                                        <Text style={styles.headerText}>Balance</Text>
+                                    </View>
+                                    <View style={styles.actionColumn}>
+                                        <Text style={styles.headerText}></Text>
+                                    </View>
+                                </View>
+                                
+                                {/* Table Content */}
+                                <View style={styles.tableContainer}>
+                                    {accounts.map((account) => (
+                                        <AccountItem
+                                            key={account.id}
+                                            account={account}
+                                            onEdit={handleEditAccount}
+                                            onDelete={handleDeleteAccount}
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+                        ) : !loading && (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyStateTitle}>No Accounts Yet</Text>
+                                <Text style={styles.emptyStateText}>Add your first account to get started tracking your finances</Text>
+                            </View>
+                        )}
+                    </>
+                )}
             </ScrollView>
 
             <AccountModal
@@ -695,5 +730,61 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: 'white',
         fontWeight: '600',
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: '#64748b',
+        marginTop: 12,
+        fontWeight: '500',
+    },
+    errorContainer: {
+        backgroundColor: '#fef2f2',
+        marginHorizontal: 16,
+        marginTop: 16,
+        padding: 20,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#fecaca',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#dc2626',
+        fontWeight: '500',
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    retryButton: {
+        backgroundColor: '#dc2626',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        fontSize: 14,
+        color: 'white',
+        fontWeight: '600',
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 60,
+        paddingHorizontal: 40,
+    },
+    emptyStateTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#1e293b',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    emptyStateText: {
+        fontSize: 16,
+        color: '#64748b',
+        textAlign: 'center',
+        lineHeight: 24,
     },
 });
