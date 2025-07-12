@@ -115,9 +115,9 @@ const MonthlyTableRow = memo(({
         <View style={[styles.amountColumn, styles.amountCell]}>
             <Text style={[
                 styles.cashFlowAmount, 
-                cashFlow >= 0 ? styles.positiveCashFlow : styles.negativeCashFlow
+                cashFlow > 0 ? styles.positiveCashFlow : cashFlow < 0 ? styles.negativeCashFlow : styles.neutralCashFlow
             ]}>
-                {cashFlow >= 0 ? '+' : ''}{cashFlow.toLocaleString()}
+                {cashFlow > 0 ? '+' : ''}{cashFlow.toLocaleString()}
             </Text>
         </View>
     </View>
@@ -136,7 +136,7 @@ const YearSummary = memo(({
     totalCashFlow: number
 }) => (
     <View style={styles.summaryContainer}>
-        <Text style={styles.summaryTitle}>{year} Summary</Text>
+        <Text style={styles.summaryTitle}>Summary</Text>
         
         <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
@@ -153,9 +153,9 @@ const YearSummary = memo(({
                 <Text style={styles.summaryLabel}>Net Cash Flow</Text>
                 <Text style={[
                     styles.summaryCashFlowAmount,
-                    totalCashFlow >= 0 ? styles.positiveCashFlow : styles.negativeCashFlow
+                    totalCashFlow > 0 ? styles.positiveCashFlow : totalCashFlow < 0 ? styles.negativeCashFlow : styles.neutralCashFlow
                 ]}>
-                    {totalCashFlow >= 0 ? '+' : ''}{totalCashFlow.toLocaleString()}
+                    {totalCashFlow > 0 ? '+' : ''}{totalCashFlow.toLocaleString()}
                 </Text>
             </View>
         </View>
@@ -570,6 +570,9 @@ const styles = StyleSheet.create({
     },
     negativeCashFlow: {
         color: '#ef4444',
+    },
+    neutralCashFlow: {
+        color: '#64748b',
     },
     modalOverlay: {
         flex: 1,

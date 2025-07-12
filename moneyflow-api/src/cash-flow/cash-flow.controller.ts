@@ -14,8 +14,8 @@ import {
     ApiParam,
     ApiQuery,
 } from '@nestjs/swagger';
-import { CashFlowService } from './cash-flow.service';
 import { CashFlowResponse } from './types';
+import { CashFlowService } from './cash-flow.service';
 
 @ApiTags('cash-flow')
 @Controller('users/:user_id/cash-flow')
