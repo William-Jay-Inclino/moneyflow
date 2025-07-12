@@ -11,6 +11,22 @@ async function bootstrap() {
     app.setGlobalPrefix('/moneyflow/api');
     app.enableCors();
 
+    // Request logging middleware
+    app.use((req: any, res: any, next: any) => {
+        const { method, url, body, params, query } = req;
+        console.log(`🌐 [${new Date().toISOString()}] ${method} ${url}`);
+        if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+            console.log('📦 Request body:', JSON.stringify(body, null, 2));
+        }
+        if (Object.keys(params || {}).length > 0) {
+            console.log('🔗 Request params:', params);
+        }
+        if (Object.keys(query || {}).length > 0) {
+            console.log('🔍 Request query:', query);
+        }
+        next();
+    });
+
     // Global validation pipe
     app.useGlobalPipes(new ValidationPipe({
         transform: true,

@@ -47,7 +47,18 @@ export class UserCategoryController {
         @Param('user_id', ParseUUIDPipe) user_id: string,
         @Body(ValidationPipe) create_user_category_dto: CreateUserCategoryDto,
     ): Promise<UserCategoryEntity> {
-        return this.user_category_service.create_user_category(user_id, create_user_category_dto);
+        console.log('🔗 POST /users/:user_id/categories endpoint hit');
+        console.log('📥 Request params:', { user_id });
+        console.log('📦 Request body:', create_user_category_dto);
+        
+        try {
+            const result = await this.user_category_service.create_user_category(user_id, create_user_category_dto);
+            console.log('✅ User category created successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Error creating user category:', error);
+            throw error;
+        }
     }
 
     @Get()
@@ -137,6 +148,16 @@ export class UserCategoryController {
         @Param('user_id', ParseUUIDPipe) user_id: string,
         @Param('category_id', ParseIntPipe) category_id: number,
     ): Promise<void> {
-        return this.user_category_service.delete_user_category(user_id, category_id);
+        console.log('🗑️ DELETE /users/:user_id/categories/:category_id endpoint hit');
+        console.log('📥 Request params:', { user_id, category_id });
+        
+        try {
+            const result = await this.user_category_service.delete_user_category(user_id, category_id);
+            console.log('✅ User category deleted successfully');
+            return result;
+        } catch (error) {
+            console.error('❌ Error deleting user category:', error);
+            throw error;
+        }
     }
 }

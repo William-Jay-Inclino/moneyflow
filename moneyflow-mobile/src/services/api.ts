@@ -48,6 +48,25 @@ api.interceptors.request.use(
     }
 );
 
+// Request interceptor to log all requests
+api.interceptors.request.use(
+    config => {
+        console.log('📤 Axios Request:', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            baseURL: config.baseURL,
+            fullURL: `${config.baseURL}${config.url}`,
+            headers: config.headers,
+            data: config.data
+        });
+        return config;
+    },
+    error => {
+        console.error('❌ Request Error:', error);
+        return Promise.reject(error);
+    }
+);
+
 // Response interceptor for error handling
 api.interceptors.response.use(
     response => response,
@@ -235,15 +254,53 @@ export const categoryApi = {
 
     // Assign a global category to a user
     assignCategoryToUser: async (userId: string, categoryId: number): Promise<any> => {
-        const response = await api.post(`/users/${userId}/categories`, {
-            category_id: categoryId
-        });
-        return response.data;
+        console.log('🔗 categoryApi.assignCategoryToUser called:', { userId, categoryId });
+        console.log('📤 Making POST request to:', `/users/${userId}/categories`);
+        console.log('📦 Request payload:', { category_id: categoryId });
+        
+        try {
+            const response = await api.post(`/users/${userId}/categories`, {
+                category_id: categoryId
+            });
+            console.log('✅ assignCategoryToUser SUCCESS:', response.data);
+            return response.data;
+        } catch (error: any) {
+            console.error('❌ assignCategoryToUser ERROR:', error);
+            console.error('❌ Full error details:', {
+                message: error?.message,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                url: error?.config?.url,
+                method: error?.config?.method,
+                data: error?.response?.data,
+                headers: error?.config?.headers
+            });
+            throw error;
+        }
     },
 
     // Remove a category from a user
     removeCategoryFromUser: async (userId: string, categoryId: number): Promise<void> => {
-        await api.delete(`/users/${userId}/categories/${categoryId}`);
+        console.log('🗑️ categoryApi.removeCategoryFromUser called:', { userId, categoryId });
+        console.log('📤 Making DELETE request to:', `/users/${userId}/categories/${categoryId}`);
+        
+        try {
+            const response = await api.delete(`/users/${userId}/categories/${categoryId}`);
+            console.log('✅ removeCategoryFromUser SUCCESS');
+            return response.data;
+        } catch (error: any) {
+            console.error('❌ removeCategoryFromUser ERROR:', error);
+            console.error('❌ Full error details:', {
+                message: error?.message,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                url: error?.config?.url,
+                method: error?.config?.method,
+                data: error?.response?.data,
+                headers: error?.config?.headers
+            });
+            throw error;
+        }
     },
 
     createCategory: async (
