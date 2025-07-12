@@ -205,6 +205,15 @@ export const transactionApi = {
 
 // Category API - Updated to match backend user-specific endpoints  
 export const categoryApi = {
+    // Get all global categories (from the new Category module)
+    getAllCategories: async (type?: 'EXPENSE' | 'INCOME'): Promise<Category[]> => {
+        let url = '/categories';
+        if (type) url += `?type=${type}`;
+        
+        const response = await api.get(url);
+        return response.data;
+    },
+
     getCategories: async (userId?: string): Promise<ApiResponse<Category[]>> => {
         // If userId is provided, use user-specific endpoint
         if (userId) {
@@ -222,6 +231,19 @@ export const categoryApi = {
         
         const response = await api.get(url);
         return response.data;
+    },
+
+    // Assign a global category to a user
+    assignCategoryToUser: async (userId: string, categoryId: number): Promise<any> => {
+        const response = await api.post(`/users/${userId}/categories`, {
+            category_id: categoryId
+        });
+        return response.data;
+    },
+
+    // Remove a category from a user
+    removeCategoryFromUser: async (userId: string, categoryId: number): Promise<void> => {
+        await api.delete(`/users/${userId}/categories/${categoryId}`);
     },
 
     createCategory: async (

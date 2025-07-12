@@ -15,7 +15,7 @@ import { AllExpensesScreen } from '../screens/main/AllExpensesScreen';
 import { AllIncomeScreen } from '../screens/main/AllIncomeScreen';
 import { CashFlowScreen } from '../screens/main/CashFlowScreen';
 import { IncomeScreen } from '../screens/main/IncomeScreen';
-import { CategoriesScreen } from '../screens/main/CategoriesScreen';
+import CategoriesScreen from '../screens/main/CategoriesScreen';
 import { AccountScreen } from '../screens/main/AccountScreen';
 
 const AuthStack = createStackNavigator();

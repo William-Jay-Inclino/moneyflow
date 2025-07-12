@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma';
 import { UserExpenseModule } from './user-expense';
 import { UserIncomeModule } from './user-income';
 import { UserCategoryModule } from './user-category';
+import { CategoryModule } from './category';
 import { UserModule } from './user';
 import { AuthModule, JwtAuthGuard } from './auth';
 
@@ -17,6 +18,7 @@ import { AuthModule, JwtAuthGuard } from './auth';
     }),
     AuthModule,
     PrismaModule, 
+    CategoryModule,
     UserExpenseModule, 
     UserIncomeModule, 
     UserCategoryModule, 
