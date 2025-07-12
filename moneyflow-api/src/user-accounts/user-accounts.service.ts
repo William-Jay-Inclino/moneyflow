@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserAccountDto } from './dto/create-user-account.dto';
 import { UpdateUserAccountDto } from './dto/update-user-account.dto';
 import { UserAccountQueryDto } from './dto/user-account-query.dto';
+import { UserAccountEntity } from './entities/user-account.entity';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -41,7 +42,7 @@ export class UserAccountsService {
       });
 
       console.log('User account created successfully:', result);
-      return result;
+      return new UserAccountEntity(result);
     } catch (error) {
       console.error('Error creating user account:', error);
       console.error('Error stack:', error.stack);
@@ -85,7 +86,7 @@ export class UserAccountsService {
       ]);
 
       return {
-        data: accounts,
+        data: accounts.map(account => new UserAccountEntity(account)),
         meta: {
           total,
           page,
@@ -119,7 +120,7 @@ export class UserAccountsService {
         throw new NotFoundException('User account not found');
       }
 
-      return account;
+      return new UserAccountEntity(account);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -141,7 +142,7 @@ export class UserAccountsService {
         updateData.balance = new Decimal(updateUserAccountDto.balance);
       }
 
-      return await this.prisma.userAccount.update({
+      const result = await this.prisma.userAccount.update({
         where: { id },
         data: updateData,
         include: {
@@ -153,6 +154,8 @@ export class UserAccountsService {
           },
         },
       });
+
+      return new UserAccountEntity(result);
     } catch (error) {
       throw new BadRequestException('Failed to update user account');
     }
@@ -172,19 +175,30 @@ export class UserAccountsService {
   }
 
   async updateBalance(userId: string, id: string, amount: number, operation: 'add' | 'subtract') {
-    const account = await this.findOne(userId, id);
+    // Get the raw account data to access the Decimal balance
+    const rawAccount = await this.prisma.userAccount.findFirst({
+      where: {
+        id,
+        user_id: userId,
+      },
+    });
+
+    if (!rawAccount) {
+      throw new NotFoundException('User account not found');
+    }
+
     const amountDecimal = new Decimal(amount);
     
     const newBalance = operation === 'add' 
-      ? account.balance.add(amountDecimal)
-      : account.balance.sub(amountDecimal);
+      ? rawAccount.balance.add(amountDecimal)
+      : rawAccount.balance.sub(amountDecimal);
 
     if (newBalance.isNegative()) {
       throw new BadRequestException('Insufficient balance');
     }
 
     try {
-      return await this.prisma.userAccount.update({
+      const result = await this.prisma.userAccount.update({
         where: { id },
         data: { balance: newBalance },
         include: {
@@ -196,6 +210,8 @@ export class UserAccountsService {
           },
         },
       });
+
+      return new UserAccountEntity(result);
     } catch (error) {
       throw new BadRequestException('Failed to update account balance');
     }

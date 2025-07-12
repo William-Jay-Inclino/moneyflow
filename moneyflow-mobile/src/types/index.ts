@@ -103,7 +103,7 @@ export interface CreateCategoryRequest {
 export interface UserAccount {
     id: string;
     name: string;
-    balance: number;
+    balance: string; // Decimal is serialized as string from backend
     created_at: string;
     updated_at: string;
     user_id: string;

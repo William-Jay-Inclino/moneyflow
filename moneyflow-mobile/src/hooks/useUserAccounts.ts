@@ -23,8 +23,11 @@ export const useUserAccounts = () => {
       const response = await userAccountsApi.getAll(params);
       setAccounts(response.data);
       
-      // Calculate total balance from accounts
-      const total = response.data.reduce((sum, account) => sum + account.balance, 0);
+      // Calculate total balance from accounts (balance is string from backend)
+      const total = response.data.reduce((sum, account) => {
+        const balance = parseFloat(account.balance) || 0;
+        return sum + balance;
+      }, 0);
       setTotalBalance(total);
     } catch (err: any) {
       console.error('Error fetching accounts:', err);
@@ -43,7 +46,10 @@ export const useUserAccounts = () => {
       const newAccount = await userAccountsApi.create(data);
       console.log('Account created successfully:', newAccount);
       setAccounts(prev => [newAccount, ...prev]);
-      setTotalBalance(prev => prev + (newAccount.balance || 0));
+      
+      // Parse balance as it's a string from backend
+      const balanceNum = parseFloat(newAccount.balance) || 0;
+      setTotalBalance(prev => prev + balanceNum);
       return true;
     } catch (err: any) {
       console.error('Error creating account:', err);
@@ -66,10 +72,13 @@ export const useUserAccounts = () => {
         account.id === id ? updatedAccount : account
       ));
       
-      // Recalculate total balance
-      const newTotal = accounts.reduce((sum, account) => 
-        sum + (account.id === id ? updatedAccount.balance : account.balance), 0
-      );
+      // Recalculate total balance - parse strings to numbers
+      const newTotal = accounts.reduce((sum, account) => {
+        const balance = account.id === id 
+          ? parseFloat(updatedAccount.balance) || 0
+          : parseFloat(account.balance) || 0;
+        return sum + balance;
+      }, 0);
       setTotalBalance(newTotal);
       
       return true;
@@ -90,7 +99,8 @@ export const useUserAccounts = () => {
       
       const accountToDelete = accounts.find(account => account.id === id);
       if (accountToDelete) {
-        setTotalBalance(prev => prev - accountToDelete.balance);
+        const balanceNum = parseFloat(accountToDelete.balance) || 0;
+        setTotalBalance(prev => prev - balanceNum);
       }
       
       setAccounts(prev => prev.filter(account => account.id !== id));

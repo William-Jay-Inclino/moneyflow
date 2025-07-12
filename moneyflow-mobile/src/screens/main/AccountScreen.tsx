@@ -4,6 +4,21 @@ import { useAuthStore } from '../../store';
 import { useUserAccounts } from '../../hooks/useUserAccounts';
 import type { UserAccount } from '@/types';
 
+// Helper function to safely format balance
+const formatBalance = (balance: any): string => {
+    if (typeof balance === 'string') {
+        const num = parseFloat(balance);
+        return isNaN(num) ? '0.00' : num.toFixed(2);
+    }
+    if (typeof balance === 'number') {
+        return balance.toFixed(2);
+    }
+    if (balance && typeof balance === 'object' && balance.toString) {
+        return parseFloat(balance.toString()).toFixed(2);
+    }
+    return '0.00';
+};
+
 // Account Item Component
 const AccountItem = memo(({ 
     account, 
@@ -56,7 +71,7 @@ const AccountItem = memo(({
                     <Text style={styles.lastUpdated}>last updated: {new Date(account.updated_at).toLocaleDateString()}</Text>
                 </View>
                 <View style={styles.balanceColumn}>
-                    <Text style={styles.accountBalance}>${account.balance.toFixed(2)}</Text>
+                    <Text style={styles.accountBalance}>${formatBalance(account.balance)}</Text>
                 </View>
                 <View style={styles.actionColumn}>
                     <TouchableOpacity onPress={handleMenuPress} style={styles.menuButton}>
@@ -123,7 +138,7 @@ const AccountModal = memo(({
         if (account) {
             setFormData({
                 name: account.name || '',
-                balance: account.balance?.toString() || ''
+                balance: formatBalance(account.balance).replace('$', '') || ''
             });
         } else {
             setFormData({
