@@ -10,6 +10,7 @@ import { UserCategoryModule } from './user-category';
 import { CategoryModule } from './category';
 import { UserModule } from './user';
 import { AuthModule, JwtAuthGuard } from './auth';
+import { CashFlowModule } from './cash-flow';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { AuthModule, JwtAuthGuard } from './auth';
     UserExpenseModule, 
     UserIncomeModule, 
     UserCategoryModule, 
-    UserModule
+    UserModule,
+    CashFlowModule,
   ],
   controllers: [AppController],
   providers: [

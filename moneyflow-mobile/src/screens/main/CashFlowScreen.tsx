@@ -1,5 +1,7 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Modal } from 'react-native';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Modal, ActivityIndicator, Alert } from 'react-native';
+import { useAuthStore } from '../../store/authStore';
+import { cashFlowApi } from '../../services/api';
 
 // Year Picker Component
 const YearPicker = memo(({ 
@@ -165,49 +167,86 @@ interface CashFlowScreenProps {
 }
 
 export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
+    const { user } = useAuthStore();
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [showYearPicker, setShowYearPicker] = useState(false);
+    const [cashFlowData, setCashFlowData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    // Dummy data for cash flow
-    const cashFlowData = useMemo(() => {
+    // Load cash flow data from API
+    const loadCashFlowData = useCallback(async () => {
+        if (!user?.id) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        console.log('📊 Loading cash flow data for year:', selectedYear);
+
+        try {
+            // Get user's timezone (you can customize this logic)
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            
+            const data = await cashFlowApi.getCashFlowByYear(user.id, selectedYear, timezone);
+            console.log('✅ Cash flow data loaded:', data);
+            
+            setCashFlowData(data);
+        } catch (error: any) {
+            console.error('❌ Error loading cash flow data:', error);
+            setError('Failed to load cash flow data. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user?.id, selectedYear]);
+
+    // Load data when component mounts or year changes
+    useEffect(() => {
+        loadCashFlowData();
+    }, [loadCashFlowData]);
+
+    // Transform API data for display
+    const displayData = useMemo(() => {
+        if (!cashFlowData) {
+            return {
+                months: [],
+                yearSummary: { totalIncome: 0, totalExpense: 0, totalCashFlow: 0 }
+            };
+        }
+
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
-        
-        return months.map((month, index) => {
-            // Generate realistic dummy data with some variation
-            const baseIncome = 4000 + Math.random() * 2000;
-            const baseExpense = 2500 + Math.random() * 1500;
-            
-            // Add seasonal variations
-            const seasonalMultiplier = index === 11 ? 1.3 : (index === 5 || index === 6) ? 1.1 : 1;
-            
-            const income = Math.round((baseIncome * seasonalMultiplier) / 100) * 100;
-            const expense = Math.round((baseExpense * seasonalMultiplier) / 100) * 100;
-            const cashFlow = income - expense;
-            
-            return {
-                month,
-                monthIndex: index,
-                income,
-                expense,
-                cashFlow,
-                isCurrentMonth: selectedYear === currentYear && index === currentMonth
-            };
-        });
-    }, [selectedYear]);
 
-    const yearTotals = useMemo(() => {
-        const totalIncome = cashFlowData.reduce((sum, month) => sum + month.income, 0);
-        const totalExpense = cashFlowData.reduce((sum, month) => sum + month.expense, 0);
-        const totalCashFlow = totalIncome - totalExpense;
-        
-        return { totalIncome, totalExpense, totalCashFlow };
-    }, [cashFlowData]);
+        const transformedMonths = cashFlowData.months.map((month: any, index: number) => ({
+            month: month.monthName,
+            monthIndex: month.month - 1, // Convert to 0-based for consistency
+            income: month.totalIncome,
+            expense: month.totalExpense,
+            cashFlow: month.netCashFlow,
+            isCurrentMonth: selectedYear === currentYear && (month.month - 1) === currentMonth
+        }));
+
+        return {
+            months: transformedMonths,
+            yearSummary: cashFlowData.yearSummary
+        };
+    }, [cashFlowData, selectedYear]);
+
+    // Dummy data for cash flow (REMOVED - now using real data)
+    // const cashFlowData = useMemo(() => {
+    //     ... (removed dummy data logic)
+    // }, [selectedYear]);
+
+    // const yearTotals = useMemo(() => {
+    //     ... (removed dummy totals logic)
+    // }, [cashFlowData]);
 
     const goToPreviousYear = useCallback(() => {
         setSelectedYear(prev => prev - 1);
@@ -224,67 +263,81 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
                 <Text style={styles.subtitle}>Track your financial overview</Text>
             </View>
 
-            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-                {/* Year Navigation */}
-                <View style={styles.yearNavigation}>
-                    <TouchableOpacity 
-                        style={styles.navButton}
-                        onPress={goToPreviousYear}
-                    >
-                        <Text style={styles.navButtonText}>‹</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={styles.yearContainer}
-                        onPress={() => setShowYearPicker(true)}
-                    >
-                        <Text style={styles.yearText}>{selectedYear}</Text>
-                        <Text style={styles.calendarIcon}>📅</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={styles.navButton}
-                        onPress={goToNextYear}
-                    >
-                        <Text style={styles.navButtonText}>›</Text>
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#6366f1" />
+                    <Text style={styles.loadingText}>Loading cash flow data...</Text>
+                </View>
+            ) : error ? (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={loadCashFlowData}>
+                        <Text style={styles.retryButtonText}>Retry</Text>
                     </TouchableOpacity>
                 </View>
-
-                <YearPicker
-                    isVisible={showYearPicker}
-                    currentYear={selectedYear}
-                    onClose={() => setShowYearPicker(false)}
-                    onSelect={setSelectedYear}
-                />
-
-                {/* Year Summary */}
-                <YearSummary
-                    year={selectedYear}
-                    totalIncome={yearTotals.totalIncome}
-                    totalExpense={yearTotals.totalExpense}
-                    totalCashFlow={yearTotals.totalCashFlow}
-                />
-
-                {/* Monthly Cash Flow */}
-                <View style={styles.monthlySection}>
-                    <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
-                    
-                    <View style={styles.tableContainer}>
-                        <MonthlyTableHeader />
-                        {cashFlowData.map((monthData, index) => (
-                            <MonthlyTableRow
-                                key={monthData.month}
-                                month={monthData.month}
-                                monthIndex={monthData.monthIndex}
-                                income={monthData.income}
-                                expense={monthData.expense}
-                                cashFlow={monthData.cashFlow}
-                                isCurrentMonth={monthData.isCurrentMonth}
-                            />
-                        ))}
+            ) : (
+                <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+                    {/* Year Navigation */}
+                    <View style={styles.yearNavigation}>
+                        <TouchableOpacity 
+                            style={styles.navButton}
+                            onPress={goToPreviousYear}
+                        >
+                            <Text style={styles.navButtonText}>‹</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={styles.yearContainer}
+                            onPress={() => setShowYearPicker(true)}
+                        >
+                            <Text style={styles.yearText}>{selectedYear}</Text>
+                            <Text style={styles.calendarIcon}>📅</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={styles.navButton}
+                            onPress={goToNextYear}
+                        >
+                            <Text style={styles.navButtonText}>›</Text>
+                        </TouchableOpacity>
                     </View>
-                </View>
-            </ScrollView>
+
+                    <YearPicker
+                        isVisible={showYearPicker}
+                        currentYear={selectedYear}
+                        onClose={() => setShowYearPicker(false)}
+                        onSelect={setSelectedYear}
+                    />
+
+                    {/* Year Summary */}
+                    <YearSummary
+                        year={selectedYear}
+                        totalIncome={displayData.yearSummary.totalIncome}
+                        totalExpense={displayData.yearSummary.totalExpense}
+                        totalCashFlow={displayData.yearSummary.totalCashFlow}
+                    />
+
+                    {/* Monthly Cash Flow */}
+                    <View style={styles.monthlySection}>
+                        <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
+                        
+                        <View style={styles.tableContainer}>
+                            <MonthlyTableHeader />
+                            {displayData.months.map((monthData: any, index: number) => (
+                                <MonthlyTableRow
+                                    key={monthData.month}
+                                    month={monthData.month}
+                                    monthIndex={monthData.monthIndex}
+                                    income={monthData.income}
+                                    expense={monthData.expense}
+                                    cashFlow={monthData.cashFlow}
+                                    isCurrentMonth={monthData.isCurrentMonth}
+                                />
+                            ))}
+                        </View>
+                    </View>
+                </ScrollView>
+            )}
         </SafeAreaView>
     );
 };
@@ -596,6 +649,41 @@ const styles = StyleSheet.create({
     pickerButtonConfirmText: {
         fontSize: 16,
         color: '#6366f1',
+        fontWeight: '600',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#64748b',
+        textAlign: 'center',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#ef4444',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    retryButton: {
+        backgroundColor: '#6366f1',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 16,
         fontWeight: '600',
     },
 });

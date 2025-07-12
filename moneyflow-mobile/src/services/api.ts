@@ -367,4 +367,34 @@ export const incomeApi = {
     },
 };
 
+// Cash Flow API
+export const cashFlowApi = {
+    getCashFlowByYear: async (userId: string, year: number, timezone?: string): Promise<any> => {
+        console.log('📊 cashFlowApi.getCashFlowByYear called:', { userId, year, timezone });
+        
+        try {
+            let url = `/users/${userId}/cash-flow/${year}`;
+            if (timezone) {
+                url += `?timezone=${encodeURIComponent(timezone)}`;
+            }
+            
+            console.log('📤 Making GET request to:', url);
+            const response = await api.get(url);
+            console.log('✅ getCashFlowByYear SUCCESS:', response.data);
+            return response.data;
+        } catch (error: any) {
+            console.error('❌ getCashFlowByYear ERROR:', error);
+            console.error('❌ Full error details:', {
+                message: error?.message,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                url: error?.config?.url,
+                method: error?.config?.method,
+                data: error?.response?.data,
+            });
+            throw error;
+        }
+    },
+};
+
 export default api;
