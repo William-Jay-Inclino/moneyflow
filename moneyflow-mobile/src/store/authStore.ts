@@ -18,7 +18,7 @@ interface AuthStore extends AuthState {
 
 export const useAuthStore = create<AuthStore>()(
     persist(
-        set => ({
+        (set, get) => ({
             user: null,
             token: null,
             isLoading: false,
@@ -26,16 +26,25 @@ export const useAuthStore = create<AuthStore>()(
             pendingVerificationEmail: null,
             pendingVerificationUserId: null,
 
-            setUser: (user: User | null) =>
-                set({ user, isAuthenticated: !!user }),
-            setToken: (token: string | null) => set({ token }),
+            setUser: (user: User | null) => {
+                const token = get().token;
+                set({ user, isAuthenticated: !!(user && token) });
+            },
+            
+            setToken: (token: string | null) => {
+                const user = get().user;
+                set({ token, isAuthenticated: !!(user && token) });
+            },
+            
             setLoading: (isLoading: boolean) => set({ isLoading }),
+            
             setPendingVerification: (email: string | null, userId: string | null) =>
                 set({ pendingVerificationEmail: email, pendingVerificationUserId: userId }),
 
             login: (user: User, token: string) => {
-                // Store token separately for JWT validation
+                // Store token in AsyncStorage (single source of truth)
                 AsyncStorage.setItem('auth-token', token);
+                
                 set({
                     user,
                     token,
@@ -47,7 +56,7 @@ export const useAuthStore = create<AuthStore>()(
             },
 
             logout: () => {
-                // Clear token from AsyncStorage
+                // Clear everything
                 AsyncStorage.removeItem('auth-token');
                 set({
                     user: null,
@@ -60,9 +69,7 @@ export const useAuthStore = create<AuthStore>()(
             },
 
             clearAll: () => {
-                // Force clear all auth data and ensure we start fresh
-                AsyncStorage.removeItem('auth-storage');
-                AsyncStorage.removeItem('auth-token'); // Also clear the JWT token
+                AsyncStorage.multiRemove(['auth-storage', 'auth-token']);
                 set({
                     user: null,
                     token: null,

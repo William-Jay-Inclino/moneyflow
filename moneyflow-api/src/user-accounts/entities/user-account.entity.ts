@@ -28,6 +28,13 @@ export class UserAccountEntity {
     balance: string; // Decimal is serialized as string
 
     @ApiProperty({
+        description: 'Account notes (supports markdown format)',
+        example: '## Account Details\n\nThis is my primary savings account for emergency funds.',
+        required: false,
+    })
+    notes?: string;
+
+    @ApiProperty({
         description: 'Date and time when the account was created',
         example: '2025-07-12T10:30:00Z',
     })

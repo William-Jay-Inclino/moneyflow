@@ -153,9 +153,15 @@ const MainNavigator = () => {
 };
 
 export const AppNavigator = () => {
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user, token } = useAuthStore();
 
-    console.log('AppNavigator - isAuthenticated:', isAuthenticated);
+    console.log('🧭 AppNavigator render - Auth state:', {
+        isAuthenticated,
+        hasUser: !!user,
+        userEmail: user?.email,
+        hasToken: !!token,
+        tokenLength: token?.length
+    });
 
     return isAuthenticated ? <MainNavigator /> : <AuthNavigator />;
 };

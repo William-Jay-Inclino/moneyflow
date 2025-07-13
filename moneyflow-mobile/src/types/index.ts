@@ -104,6 +104,7 @@ export interface UserAccount {
     id: string;
     name: string;
     balance: string; // Decimal is serialized as string from backend
+    notes?: string; // Optional notes field (supports markdown)
     created_at: string;
     updated_at: string;
     user_id: string;
@@ -112,11 +113,13 @@ export interface UserAccount {
 export interface CreateUserAccountRequest {
     name: string;
     balance?: number;
+    notes?: string; // Optional notes field (supports markdown)
 }
 
 export interface UpdateUserAccountRequest {
     name?: string;
     balance?: number;
+    notes?: string; // Optional notes field (supports markdown)
 }
 
 export interface UserAccountsResponse {

@@ -16,7 +16,8 @@ export class UserAccountsService {
         userId,
         name: createUserAccountDto.name,
         balance: createUserAccountDto.balance,
-        balanceType: typeof createUserAccountDto.balance
+        balanceType: typeof createUserAccountDto.balance,
+        notes: createUserAccountDto.notes,
       });
 
       // Ensure balance is a valid number if provided
@@ -30,6 +31,7 @@ export class UserAccountsService {
           user_id: userId,
           name: createUserAccountDto.name,
           balance: balanceValue,
+          notes: createUserAccountDto.notes,
         },
         include: {
           user: {
@@ -57,10 +59,20 @@ export class UserAccountsService {
     const where = {
       user_id: userId,
       ...(search && {
-        name: {
-          contains: search,
-          mode: 'insensitive' as const,
-        },
+        OR: [
+          {
+            name: {
+              contains: search,
+              mode: 'insensitive' as const,
+            },
+          },
+          {
+            notes: {
+              contains: search,
+              mode: 'insensitive' as const,
+            },
+          },
+        ],
       }),
     };
 

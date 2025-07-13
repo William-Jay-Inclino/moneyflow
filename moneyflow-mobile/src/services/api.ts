@@ -29,59 +29,48 @@ const api = axios.create({
     },
 });
 
-// Request interceptor to add auth token
+// Single request interceptor for auth and logging
 api.interceptors.request.use(
     async config => {
         try {
-            const token = await tokenUtils.getValidToken();
+            // Get token from AsyncStorage (single source of truth)
+            const token = await AsyncStorage.getItem('auth-token');
+            
             if (token && config.headers) {
                 config.headers.Authorization = `Bearer ${token}`;
-                console.log('🔑 Adding JWT token to request');
             }
+            
+            // Simple logging
+            console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
         } catch (error) {
-            console.error('Error getting token:', error);
+            console.error('❌ Request interceptor error:', error);
         }
         return config;
     },
-    (error: any) => {
-        return Promise.reject(error);
-    }
-);
-
-// Request interceptor to log all requests
-api.interceptors.request.use(
-    config => {
-        console.log('📤 Axios Request:', {
-            method: config.method?.toUpperCase(),
-            url: config.url,
-            baseURL: config.baseURL,
-            fullURL: `${config.baseURL}${config.url}`,
-            headers: config.headers,
-            data: config.data
-        });
-        return config;
-    },
-    error => {
-        console.error('❌ Request Error:', error);
-        return Promise.reject(error);
-    }
+    error => Promise.reject(error)
 );
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-    response => response,
+    response => {
+        console.log(`✅ ${response.status} ${response.config.url}`);
+        return response;
+    },
     async (error: any) => {
+        console.error(`❌ ${error.response?.status || 'Network Error'} ${error.config?.url}`);
+        
+        // 401 = immediate logout (industry standard)
         if (error.response?.status === 401) {
-            // Token expired or invalid - clear auth data and logout
+            console.log('🔒 401 Unauthorized - Logging out user');
+            
+            // Clear token
             await AsyncStorage.removeItem('auth-token');
             
-            // Import auth store and logout user
+            // Logout user
             const { useAuthStore } = await import('@/store/authStore');
-            const { logout } = useAuthStore.getState();
-            logout();
-            
-            console.log('🔄 401 Unauthorized - Token expired, user logged out');
+            useAuthStore.getState().logout();
         }
+        
         return Promise.reject(error);
     }
 );
@@ -89,63 +78,37 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
     login: async (credentials: LoginRequest): Promise<{ user: User; accessToken: string }> => {
-        console.log('🔐 Attempting login with JWT auth endpoint');
         const response = await api.post('/auth/login', credentials);
         const { accessToken, user } = response.data;
-        
-        // Store JWT token
-        await AsyncStorage.setItem('auth-token', accessToken);
-        console.log('✅ JWT token stored successfully');
-        
         return { user, accessToken };
     },
 
     register: async (data: RegisterRequest): Promise<{ user: User; accessToken: string }> => {
-        console.log('📝 Attempting registration with JWT auth endpoint:', data);
-        console.log('Full URL will be:', `${API_BASE_URL}/auth/register`);
         const response = await api.post('/auth/register', data);
         const { accessToken, user } = response.data;
-        
-        // Store JWT token
-        await AsyncStorage.setItem('auth-token', accessToken);
-        console.log('✅ Registration successful, JWT token stored');
-        
         return { user, accessToken };
     },
 
     verifyEmail: async (data: { email: string; code: string }): Promise<User> => {
-        console.log('✉️ Verifying email with new auth endpoint');
         const response = await api.post('/auth/verify-email', data);
         return response.data.user;
     },
 
-    debugVerifyByEmail: async (data: { email: string; token: string }): Promise<User> => {
-        // Keep using the debug endpoint for development
-        const response = await api.post('/users/debug/verify-by-email', data);
-        return response.data;
-    },
-
-    resendVerification: async (
-        data: ResendVerificationRequest
-    ): Promise<{ message: string }> => {
-        console.log('📤 Resending verification with new auth endpoint');
+    resendVerification: async (data: ResendVerificationRequest): Promise<{ message: string }> => {
         const response = await api.post('/auth/resend-verification', data);
         return response.data;
     },
 
     logout: async (): Promise<void> => {
-        console.log('👋 Logging out and clearing auth data');
-        await AsyncStorage.removeItem('auth-token');
-        // Call backend logout endpoint for consistency
         try {
             await api.post('/auth/logout');
         } catch (error) {
-            console.log('Logout endpoint error (non-critical):', error);
+            // Non-critical error
         }
+        await AsyncStorage.removeItem('auth-token');
     },
 
     getProfile: async (): Promise<User> => {
-        console.log('👤 Getting user profile with JWT auth');
         const response = await api.get('/auth/profile');
         return response.data;
     },
