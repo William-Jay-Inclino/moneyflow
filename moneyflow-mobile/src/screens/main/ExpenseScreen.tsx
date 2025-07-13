@@ -238,95 +238,70 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         await loadOfflineData(); // Refresh display
     }, [loadOfflineData]);
 
-    // Sync offline expenses to server
+    // Simplified sync: only reference unsynced state in local DB
     const syncOfflineExpenses = useCallback(async () => {
         if (!user?.id || isSyncing || !isOnline) {
             return;
         }
-        
         // Prevent rapid consecutive syncs (minimum 5 seconds between syncs)
         const now = Date.now();
         if (now - lastSyncTimeRef.current < 5000) {
             return;
         }
         lastSyncTimeRef.current = now;
-        
         setIsSyncing(true);
         try {
-            const expenses = await getStoredExpenses();
-            const unsyncedExpenses = expenses.filter(exp => !exp.synced && exp.userId === user.id);
-            
+            let expenses = await getStoredExpenses();
+            // Only unsynced expenses for this user
+            let unsyncedExpenses = expenses.filter(exp => !exp.synced && exp.userId === user.id);
             if (unsyncedExpenses.length === 0) {
                 return;
             }
-
             const expenseStore = useExpenseStore.getState();
             let syncedCount = 0;
             const failedExpenseIds: string[] = [];
-            
-            // Try to sync each expense to server based on operation type
+            // Sync each unsynced expense based on its state
             for (const expense of unsyncedExpenses) {
                 try {
-                    const operation = expense.operation || 'create';
-                    
-                    switch (operation) {
-                        case 'create':
-                            await expenseStore.addExpense(user.id, {
-                                category_id: parseInt(expense.categoryId),
-                                cost: expense.amount.toString(),
-                                notes: expense.description,
-                                expense_date: expense.date
-                            });
-                            break;
-                            
-                        case 'update':
-                            if (expense.originalId) {
-                                await expenseStore.updateExpense(user.id, expense.originalId, {
-                                    category_id: parseInt(expense.categoryId),
-                                    cost: expense.amount.toString(),
-                                    notes: expense.description,
-                                    expense_date: expense.date
-                                });
-                            }
-                            break;
-                            
-                        case 'delete':
-                            if (expense.originalId) {
-                                await expenseStore.deleteExpense(user.id, expense.originalId);
-                            }
-                            break;
+                    if (expense.operation === 'delete' && expense.originalId) {
+                        // Delete in backend
+                        await expenseStore.deleteExpense(user.id, expense.originalId);
+                    } else if (expense.originalId) {
+                        // Update in backend
+                        await expenseStore.updateExpense(user.id, expense.originalId, {
+                            category_id: parseInt(expense.categoryId),
+                            cost: expense.amount.toString(),
+                            notes: expense.description,
+                            expense_date: expense.date
+                        });
+                    } else {
+                        // Add new in backend
+                        await expenseStore.addExpense(user.id, {
+                            category_id: parseInt(expense.categoryId),
+                            cost: expense.amount.toString(),
+                            notes: expense.description,
+                            expense_date: expense.date
+                        });
                     }
-                    
+                    // Mark as synced
+                    expenses = expenses.map(exp2 => exp2.id === expense.id ? { ...exp2, synced: true } : exp2);
                     syncedCount++;
                 } catch (error) {
-                    console.error(`Failed to sync ${expense.operation || 'create'} operation for expense ${expense.id}:`, error);
                     failedExpenseIds.push(expense.id);
                 }
             }
-            
-            // Only remove successfully synced expenses from offline storage
-            if (syncedCount > 0) {
-                const currentExpenses = await getStoredExpenses();
-                const remainingExpenses = currentExpenses.filter(exp => {
-                    // Keep expenses that are already synced, belong to other users, or failed to sync
-                    return exp.synced || exp.userId !== user.id || failedExpenseIds.includes(exp.id);
-                });
-                
-                await saveStoredExpenses(remainingExpenses);
-                await loadOfflineData();
-                
-                // Refresh online data
-                await expenseStore.loadExpensesForMonth(user.id, currentYear, currentMonth);
-            }
-            
+            // Remove only successfully synced expenses
+            const remainingExpenses = expenses.filter(exp => !exp.synced || failedExpenseIds.includes(exp.id));
+            await saveStoredExpenses(remainingExpenses);
+            await loadOfflineData();
+            // Refresh online data
+            await expenseStore.loadExpensesForMonth(user.id, currentYear, currentMonth);
             if (syncedCount > 0) {
                 Alert.alert('Sync Complete', `${syncedCount} expense${syncedCount !== 1 ? 's' : ''} synced successfully`);
             }
-            
             if (failedExpenseIds.length > 0) {
                 Alert.alert('Partial Sync', `${syncedCount} expenses synced successfully. ${failedExpenseIds.length} failed and will be retried later.`);
             }
-            
         } catch (error) {
             console.error('Sync failed:', error);
             Alert.alert('Sync Failed', 'Unable to sync expenses. Please try again.');
@@ -428,7 +403,11 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const handleEditExpense = useCallback((expense: any) => {
         try {
             // Use categoryId for reliable category lookup
-            const categoryObj = categories.find(cat => cat.id === expense.categoryId);
+            let categoryObj = categories.find(cat => cat.id === expense.categoryId);
+            // If not found, default to first available category
+            if (!categoryObj && categories.length > 0) {
+                categoryObj = categories[0];
+            }
             const { day } = parseDateComponents(expense.date);
             setEditFormData({
                 cost: expense.amount.toString(),
@@ -650,7 +629,17 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     }, []);
 
     const formatDateForDisplay = useCallback((dateString: string) => {
-        return formatDate(dateString);
+        // Only use the expense's date field, not created_at
+        const dateObj = new Date(dateString);
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        let hours = dateObj.getHours();
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours === 0 ? 12 : hours;
+        const hourStr = String(hours).padStart(2, '0');
+        return `${month}/${day} ${hourStr}:${minutes} ${ampm}`;
     }, []);
 
     return (
@@ -659,6 +648,11 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={styles.title}>Add Expense</Text>
                 <Text style={styles.subtitle}>Quick and easy expense tracking</Text>
             </View>
+            {!isOnline && (
+                <View style={styles.offlineAlert}>
+                    <Text style={styles.offlineAlertText}>You are offline. Expenses will be saved locally and synced when online.</Text>
+                </View>
+            )}
 
             {/* Quick Add Form */}
             <View style={styles.quickAddForm}>
@@ -729,7 +723,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             </View>
 
             {/* Offline Status and Sync Section */}
-            {(unsyncedCount > 0 || !isOnline) && (
+            {unsyncedCount > 0 && (
                 <View style={styles.syncStatusCard}>
                     <View style={styles.syncStatusHeader}>
                         <View style={styles.statusIndicator}>
@@ -760,19 +754,15 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                             </TouchableOpacity>
                         )}
                     </View>
-                    {unsyncedCount > 0 && (
-                        <>
-                            <Text style={styles.unsyncedText}>
-                                {unsyncedCount} operation{unsyncedCount !== 1 ? 's' : ''} pending sync
-                            </Text>
-                            <Text style={styles.syncHelperText}>
-                                {isOnline 
-                                    ? 'Tap "Sync Now" to upload your offline changes to the server.' 
-                                    : 'Connect to the internet to sync your offline changes.'
-                                }
-                            </Text>
-                        </>
-                    )}
+                    <Text style={styles.unsyncedText}>
+                        {unsyncedCount} operation{unsyncedCount !== 1 ? 's' : ''} pending sync
+                    </Text>
+                    <Text style={styles.syncHelperText}>
+                        {isOnline 
+                            ? 'Tap "Sync Now" to upload your offline changes to the server.' 
+                            : 'Connect to the internet to sync your offline changes.'
+                        }
+                    </Text>
                 </View>
             )}
 
@@ -810,9 +800,11 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
 
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Recent Expenses</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('AllExpenses')}>
-                            <Text style={styles.seeAllText}>See All</Text>
-                        </TouchableOpacity>
+                        {isOnline && (
+                            <TouchableOpacity onPress={() => navigation.navigate('AllExpenses')}>
+                                <Text style={styles.seeAllText}>See All</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {isLoadingExpenses ? (
@@ -1368,5 +1360,18 @@ const styles = StyleSheet.create({
         marginTop: 4,
         textAlign: 'center',
         lineHeight: 14,
+    },
+    offlineAlert: {
+        backgroundColor: '#fef3c7',
+        padding: 8,
+        borderRadius: 8,
+        marginTop: 12,
+        marginBottom: 0,
+    },
+    offlineAlertText: {
+        color: '#b45309',
+        fontSize: 13,
+        textAlign: 'center',
+        fontWeight: '500',
     },
 });

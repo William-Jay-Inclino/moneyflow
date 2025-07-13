@@ -71,7 +71,7 @@ export const ExpenseItem = memo<ExpenseItemProps>(({
                     </View>
                     <View style={styles.transactionInfo}>
                         <Text style={styles.transactionDescription}>{item.description}</Text>
-                        <Text style={styles.transactionDate}>{formatDate(item.date)} • {item.time}</Text>
+                        <Text style={styles.transactionDate}>{formatDate(item.date)}</Text>
                     </View>
                 </View>
                 <View style={styles.transactionRight}>

@@ -62,6 +62,20 @@ export const IncomeItem = memo<IncomeItemProps>(({
         onDelete?.(item.id);
     }, [item.id, onDelete]);
 
+    // Helper to format date in MM/DD hh:mm AM/PM
+    const formatIncomeDate = (isoString: string) => {
+        const dateObj = new Date(isoString);
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        let hours = dateObj.getHours();
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const hh = String(hours).padStart(2, '0');
+        return `${mm}/${dd} ${hh}:${minutes} ${ampm}`;
+    };
+
     return (
         <>
             <View style={styles.transactionCard}>
@@ -71,7 +85,8 @@ export const IncomeItem = memo<IncomeItemProps>(({
                     </View>
                     <View style={styles.transactionInfo}>
                         <Text style={styles.transactionDescription}>{item.description}</Text>
-                        <Text style={styles.transactionDate}>{formatDate(item.date)} • {item.time}</Text>
+                        {/* Show formatted date only, no created_at or item.time */}
+                        <Text style={styles.transactionDate}>{formatIncomeDate(item.date)}</Text>
                     </View>
                 </View>
                 <View style={styles.transactionRight}>

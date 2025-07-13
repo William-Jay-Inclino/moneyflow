@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
 import { IncomeItem, CategoryChip } from '../../components';
 import { useAuthStore, useIncomeStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
 import { formatDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 
 // Constants
 const RECENT_INCOME_LIMIT = 10;
@@ -23,6 +25,47 @@ const ERROR_MESSAGES = {
     FAILED_TO_DELETE: 'Failed to delete income. Please try again.',
     FAILED_TO_LOAD: 'Failed to load data. Please try again.'
 } as const;
+
+// Offline storage keys
+const STORAGE_KEYS = {
+    INCOMES: 'offline_incomes',
+    CATEGORIES: 'offline_categories',
+} as const;
+
+// Offline income interface
+interface OfflineIncome {
+    id: string;
+    amount: number;
+    description: string;
+    date: string;
+    categoryId: string;
+    categoryName: string;
+    userId: string;
+    synced: boolean;
+    created_at: string;
+    updated_at: string;
+    originalId?: string;
+    operation?: 'create' | 'update' | 'delete';
+}
+
+// Helper functions for offline storage
+const getStoredIncomes = async (): Promise<OfflineIncome[]> => {
+    try {
+        const storedIncomes = await AsyncStorage.getItem(STORAGE_KEYS.INCOMES);
+        return storedIncomes ? JSON.parse(storedIncomes) : [];
+    } catch (error) {
+        console.error('Error getting stored incomes:', error);
+        return [];
+    }
+};
+
+const saveStoredIncomes = async (incomes: OfflineIncome[]): Promise<void> => {
+    try {
+        await AsyncStorage.setItem(STORAGE_KEYS.INCOMES, JSON.stringify(incomes));
+    } catch (error) {
+        console.error('Error saving stored incomes:', error);
+    }
+};
 
 export const IncomeScreen = ({ navigation }: { navigation: any }) => {
     const { user } = useAuthStore();
@@ -57,10 +100,19 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
     const [showIncomeDetails, setShowIncomeDetails] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Offline state
+    const [offlineIncomes, setOfflineIncomes] = useState<OfflineIncome[]>([]);
+    const [isOnline, setIsOnline] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [unsyncedCount, setUnsyncedCount] = useState(0);
+
     // Always use current month/year - these values update automatically when date changes
     const isLoadingIncomes = isLoadingMonth(currentYear, currentMonth);
     const recentIncome = getRecentIncomes(RECENT_INCOME_LIMIT);
     const totalIncome = getCurrentMonthTotal();
+
+    // Ref to track last sync time to prevent rapid consecutive syncs
+    const lastSyncTimeRef = useRef<number>(0);
 
     // Load user data on component mount
     useEffect(() => {
@@ -254,12 +306,241 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
         return formatDate(dateString);
     }, []);
 
+    // Load offline data on mount
+    const loadOfflineData = useCallback(async () => {
+        const incomes = await getStoredIncomes();
+        // Filter for current month
+        const currentMonthIncomes = incomes.filter(inc => {
+            const incDate = new Date(inc.date);
+            return incDate.getFullYear() === currentYear && incDate.getMonth() + 1 === currentMonth;
+        });
+        setOfflineIncomes(currentMonthIncomes);
+        setUnsyncedCount(incomes.filter(inc => !inc.synced).length);
+    }, [currentYear, currentMonth]);
+
+    useEffect(() => {
+        loadOfflineData();
+    }, [loadOfflineData]);
+
+    // Network status monitoring
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener(state => {
+            const online = state.isConnected === true && state.isInternetReachable === true;
+            setIsOnline(online);
+        });
+        return unsubscribe;
+    }, []);
+
+    // Save income offline
+    const saveIncomeOffline = useCallback(async (income: OfflineIncome) => {
+        const incomes = await getStoredIncomes();
+        const existingIndex = incomes.findIndex(i => i.id === income.id);
+        if (existingIndex >= 0) {
+            incomes[existingIndex] = income;
+        } else {
+            incomes.unshift(income);
+        }
+        await saveStoredIncomes(incomes);
+        await loadOfflineData();
+    }, [loadOfflineData]);
+
+    // Simplified sync: only reference unsynced state in local DB
+    const syncOfflineIncomes = useCallback(async () => {
+        if (!user?.id || isSyncing || !isOnline) {
+            return;
+        }
+        const now = Date.now();
+        if (now - lastSyncTimeRef.current < 5000) {
+            return;
+        }
+        lastSyncTimeRef.current = now;
+        setIsSyncing(true);
+        try {
+            let incomes = await getStoredIncomes();
+            let unsyncedIncomes = incomes.filter(inc => !inc.synced && inc.userId === user.id);
+            if (unsyncedIncomes.length === 0) {
+                return;
+            }
+            let syncedCount = 0;
+            const failedIncomeIds: string[] = [];
+            for (const income of unsyncedIncomes) {
+                try {
+                    if (income.operation === 'delete' && income.originalId) {
+                        await deleteIncome(user.id, income.originalId);
+                    } else if (income.originalId) {
+                        await updateIncome(user.id, income.originalId, {
+                            category_id: parseInt(income.categoryId),
+                            amount: income.amount.toString(),
+                            notes: income.description,
+                            income_date: income.date
+                        });
+                    } else {
+                        await addIncome(user.id, {
+                            category_id: parseInt(income.categoryId),
+                            amount: income.amount.toString(),
+                            notes: income.description,
+                            income_date: income.date
+                        });
+                    }
+                    incomes = incomes.map(i2 => i2.id === income.id ? { ...i2, synced: true } : i2);
+                    syncedCount++;
+                } catch (error) {
+                    failedIncomeIds.push(income.id);
+                }
+            }
+            const remainingIncomes = incomes.filter(i => !i.synced || failedIncomeIds.includes(i.id));
+            await saveStoredIncomes(remainingIncomes);
+            await loadOfflineData();
+            await loadIncomesForMonth(user.id, currentYear, currentMonth);
+            if (syncedCount > 0) {
+                Alert.alert('Sync Complete', `${syncedCount} income${syncedCount !== 1 ? 's' : ''} synced successfully`);
+            }
+            if (failedIncomeIds.length > 0) {
+                Alert.alert('Partial Sync', `${syncedCount} incomes synced successfully. ${failedIncomeIds.length} failed and will be retried later.`);
+            }
+        } catch (error) {
+            console.error('Sync failed:', error);
+            Alert.alert('Sync Failed', 'Unable to sync incomes. Please try again.');
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [user?.id, isSyncing, isOnline, currentYear, currentMonth]);
+
+    // Sync offline data when coming back online
+    useEffect(() => {
+        if (isOnline) {
+            syncOfflineIncomes();
+        }
+    }, [isOnline, syncOfflineIncomes]);
+
+    // Update add/edit/delete logic to use offline-first pattern
+    const handleAddIncomeOffline = useCallback(async () => {
+        const validationError = validateExpenseForm(amount, notes, selectedCategory, user?.id);
+        if (validationError) {
+            Alert.alert('Missing Information', validationError);
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            const categoryObj = categories.find(cat => cat.id === selectedCategory);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Create income date using current day in Asia/Manila timezone
+            const currentDay = new Date().getDate();
+            const incomeDate = createTodayWithDay(currentDay);
+
+            const incomeData: OfflineIncome = {
+                id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                amount: parseFloat(amount),
+                description: notes,
+                date: new Date().toISOString(),
+                categoryId: selectedCategory,
+                categoryName: categoryObj.name,
+                userId: user!.id,
+                synced: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                operation: 'create'
+            };
+
+            await saveIncomeOffline(incomeData);
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_ADDED);
+            resetForm();
+        } catch (error) {
+            console.error('Error adding income offline:', error);
+            Alert.alert('Error', 'Failed to add income. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [amount, notes, selectedCategory, user, categories, saveIncomeOffline]);
+
+    const handleUpdateIncomeOffline = useCallback(async () => {
+        const validationError = validateExpenseForm(editFormData.amount, editFormData.notes, editFormData.category, user?.id);
+        if (validationError || !editingId) {
+            Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
+            return;
+        }
+
+        // Validate day selection
+        if (!editFormData.day || isNaN(parseInt(editFormData.day)) || parseInt(editFormData.day) < 1 || parseInt(editFormData.day) > 31) {
+            Alert.alert('Missing Information', 'Please select a valid day for the income');
+            return;
+        }
+
+        try {
+            const categoryObj = categories.find(cat => cat.id === editFormData.category);
+            if (!categoryObj) {
+                Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                return;
+            }
+
+            // Get original income to preserve month/year
+            const currentIncomes = getCurrentMonthIncomes();
+            const originalIncome = currentIncomes.find(inc => inc.id === editingId);
+            
+            // Create income date using original month/year and selected day in Asia/Manila timezone
+            let incomeDate: string;
+            if (originalIncome) {
+                const { month, year } = parseDateComponents(originalIncome.date);
+                incomeDate = createDateInTimezone(year, month, parseInt(editFormData.day));
+            } else {
+                // Fallback to current month/year if original income not found
+                incomeDate = createTodayWithDay(parseInt(editFormData.day));
+            }
+
+            const updatedOfflineIncome: OfflineIncome = {
+                id: editingId,
+                amount: parseFloat(editFormData.amount),
+                description: editFormData.notes.trim(),
+                date: incomeDate,
+                categoryId: editFormData.category,
+                categoryName: categoryObj.name,
+                userId: user!.id,
+                synced: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                operation: 'update'
+            };
+            await saveIncomeOffline(updatedOfflineIncome);
+            Alert.alert('Success', SUCCESS_MESSAGES.INCOME_UPDATED);
+            resetEditForm();
+        } catch (error) {
+            console.error('Error updating income offline:', error);
+            Alert.alert('Error', 'Failed to update income. Please try again.');
+        }
+    }, [editFormData, editingId, user, categories, saveIncomeOffline]);
+
+    // Show offline alert below header if offline
+    const renderOfflineAlert = () => {
+        if (isOnline || unsyncedCount === 0) return null;
+
+        return (
+            <View style={styles.offlineAlert}>
+                <Text style={styles.offlineAlertText}>
+                    You are offline. Income will be saved locally and synced when online.
+                </Text>
+            </View>
+        );
+    };
+
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Add Income</Text>
                 <Text style={styles.subtitle}>Quick and easy income tracking</Text>
             </View>
+            {!isOnline && (
+                <View style={styles.offlineAlert}>
+                    <Text style={styles.offlineAlertText}>
+                        You are offline. Income will be saved locally and synced when online.
+                    </Text>
+                </View>
+            )}
 
             {/* Quick Add Form */}
             <View style={styles.quickAddForm}>
@@ -306,7 +587,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
 
                 <TouchableOpacity 
                     style={[styles.quickAddButton, isLoading && { opacity: 0.6 }]} 
-                    onPress={handleAddIncome}
+                    onPress={isOnline ? handleAddIncome : handleAddIncomeOffline}
                     disabled={isLoading}
                 >
                     {isLoading ? (
@@ -475,7 +756,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                             <TouchableOpacity style={styles.editCancelButton} onPress={cancelEdit}>
                                 <Text style={styles.editCancelButtonText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.editUpdateButton} onPress={handleUpdateIncome}>
+                            <TouchableOpacity style={styles.editUpdateButton} onPress={isOnline ? handleUpdateIncome : handleUpdateIncomeOffline}>
                                 <Text style={styles.editUpdateButtonText}>Update Income</Text>
                             </TouchableOpacity>
                         </View>
@@ -885,5 +1166,18 @@ const styles = StyleSheet.create({
     dayChipTextSelected: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    offlineAlert: {
+        backgroundColor: '#fef3c7',
+        padding: 8,
+        borderRadius: 8,
+        marginTop: 12,
+        marginBottom: 0,
+    },
+    offlineAlertText: {
+        color: '#b45309',
+        fontSize: 13,
+        textAlign: 'center',
+        fontWeight: '500',
     },
 });
