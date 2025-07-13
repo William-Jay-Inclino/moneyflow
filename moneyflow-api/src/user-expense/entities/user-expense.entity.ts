@@ -21,8 +21,8 @@ export class UserExpenseEntity {
     created_at: Date;
 
     @ApiProperty({
-        description: 'Date when the expense occurred',
-        example: '2025-07-11',
+        description: 'Date and time when the expense occurred',
+        example: '2025-07-11T14:30:00Z',
     })
     expense_date: Date;
 

@@ -29,8 +29,8 @@ export class UserExpenseService {
             }
 
             // Create the expense with timezone-aware date
-            // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
-            const expenseDateTime = new Date(expense_date + 'T12:00:00+08:00');
+            // Use the full ISO string provided by the client for expense_date
+            const expenseDateTime = new Date(expense_date);
             
             const expense = await this.prisma.userExpense.create({
                 data: {
@@ -164,8 +164,8 @@ export class UserExpenseService {
             if (cost !== undefined) update_data.cost = new Decimal(cost);
             if (notes !== undefined) update_data.notes = notes;
             if (expense_date !== undefined) {
-                // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
-                update_data.expense_date = new Date(expense_date + 'T12:00:00+08:00');
+                // Use the full ISO string provided by the client for expense_date
+                update_data.expense_date = new Date(expense_date);
             }
 
             const updated_expense = await this.prisma.userExpense.update({
