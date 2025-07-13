@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { transactionApi, categoryApi } from '../services/api';
 import { parseCostToNumber } from '../utils/costUtils';
 import { formatDate, formatTime, formatISODate } from '../utils/dateUtils';
+import { useCashFlowStore } from './cashFlowStore';
 
 export interface Expense {
     id: string;
@@ -224,6 +225,13 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                 }
             }));
 
+            // Notify cash flow store to refresh the affected year
+            try {
+                useCashFlowStore.getState().notifyAmountChange(userId, expenseYear);
+            } catch (error) {
+                console.warn('Failed to refresh cash flow for year', expenseYear, error);
+            }
+
             return formattedExpense;
         },
 
@@ -313,10 +321,31 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
 
                 return { monthlyCache: newCache };
             });
+            
+            // Notify cash flow store to refresh the affected year(s)
+            try {
+                const currentYear = new Date().getFullYear();
+                const targetYear = updates.expense_date ? new Date(updates.expense_date).getFullYear() : currentYear;
+                useCashFlowStore.getState().notifyAmountChange(userId, targetYear);
+            } catch (error) {
+                console.warn('Failed to refresh cash flow after expense update', error);
+            }
         },
 
         // Delete expense
         deleteExpense: async (userId: string, expenseId: string) => {
+            // Find the expense to get the year before deletion
+            const { monthlyCache } = get();
+            let expenseYear: number | null = null;
+            
+            for (const monthKey of Object.keys(monthlyCache)) {
+                const expense = monthlyCache[monthKey].expenses.find(exp => exp.id === expenseId);
+                if (expense) {
+                    expenseYear = new Date(expense.date).getFullYear();
+                    break;
+                }
+            }
+            
             await transactionApi.deleteExpense(userId, expenseId);
             
             // Remove from all month caches
@@ -333,6 +362,15 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
 
                 return { monthlyCache: newCache };
             });
+            
+            // Notify cash flow store to refresh the affected year
+            if (expenseYear) {
+                try {
+                    useCashFlowStore.getState().notifyAmountChange(userId, expenseYear);
+                } catch (error) {
+                    console.warn('Failed to refresh cash flow after expense deletion', error);
+                }
+            }
         },
 
         // Getters

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { useCashFlowStore } from '../../store/cashFlowStore';
 import { cashFlowApi } from '../../services/api';
 
 // Year Picker Component
@@ -168,49 +169,30 @@ interface CashFlowScreenProps {
 
 export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
     const { user } = useAuthStore();
+    const { 
+        getCashFlowForYear, 
+        isLoadingYear, 
+        loadCashFlowForYear 
+    } = useCashFlowStore();
+    
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [showYearPicker, setShowYearPicker] = useState(false);
-    const [cashFlowData, setCashFlowData] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    // Load cash flow data from API
-    const loadCashFlowData = useCallback(async () => {
-        if (!user?.id) {
-            setIsLoading(false);
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-
-        console.log('📊 Loading cash flow data for year:', selectedYear);
-
-        try {
-            // Get user's timezone (you can customize this logic)
-            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            
-            const data = await cashFlowApi.getCashFlowByYear(user.id, selectedYear, timezone);
-            console.log('✅ Cash flow data loaded:', data);
-            
-            setCashFlowData(data);
-        } catch (error: any) {
-            console.error('❌ Error loading cash flow data:', error);
-            setError('Failed to load cash flow data. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user?.id, selectedYear]);
-
-    // Load data when component mounts or year changes
+    // Load cash flow data when component mounts or year changes
     useEffect(() => {
-        loadCashFlowData();
-    }, [loadCashFlowData]);
+        if (user?.id) {
+            loadCashFlowForYear(user.id, selectedYear);
+        }
+    }, [user?.id, selectedYear, loadCashFlowForYear]);
+
+    // Get current cash flow data
+    const cashFlowData = getCashFlowForYear(selectedYear);
+    const isLoading = isLoadingYear(selectedYear);
 
     // Transform API data for display
     const displayData = useMemo(() => {
@@ -225,17 +207,17 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
         const currentYear = new Date().getFullYear();
 
         const transformedMonths = cashFlowData.months.map((month: any, index: number) => ({
-            month: month.monthName,
-            monthIndex: month.month - 1, // Convert to 0-based for consistency
-            income: month.totalIncome,
-            expense: month.totalExpense,
-            cashFlow: month.netCashFlow,
-            isCurrentMonth: selectedYear === currentYear && (month.month - 1) === currentMonth
+            month: month.name,
+            monthIndex: month.monthIndex,
+            income: month.income,
+            expense: month.expense,
+            cashFlow: month.cashFlow,
+            isCurrentMonth: selectedYear === currentYear && month.monthIndex === currentMonth
         }));
 
         return {
             months: transformedMonths,
-            yearSummary: cashFlowData.yearSummary
+            yearSummary: cashFlowData.summary
         };
     }, [cashFlowData, selectedYear]);
 
@@ -267,13 +249,6 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#6366f1" />
                     <Text style={styles.loadingText}>Loading cash flow data...</Text>
-                </View>
-            ) : error ? (
-                <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={loadCashFlowData}>
-                        <Text style={styles.retryButtonText}>Retry</Text>
-                    </TouchableOpacity>
                 </View>
             ) : (
                 <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>

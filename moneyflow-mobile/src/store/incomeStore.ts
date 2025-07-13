@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { incomeApi, categoryApi } from '../services/api';
 import { parseCostToNumber } from '../utils/costUtils';
 import { formatDate, formatTime, formatISODate } from '../utils/dateUtils';
+import { useCashFlowStore } from './cashFlowStore';
 
 export interface Income {
     id: string;
@@ -242,6 +243,13 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                     });
                 }
                 
+                // Notify cash flow store to refresh the affected year
+                try {
+                    useCashFlowStore.getState().notifyAmountChange(userId, year);
+                } catch (error) {
+                    console.warn('Failed to refresh cash flow for year', year, error);
+                }
+                
                 return newIncome;
             } catch (error) {
                 console.error('Error adding income:', error);
@@ -287,6 +295,14 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                 });
                 
                 set({ monthlyCache: updatedCache });
+                
+                // Notify cash flow store to refresh the affected year
+                try {
+                    const year = new Date(updatedIncome.date).getFullYear();
+                    useCashFlowStore.getState().notifyAmountChange(userId, year);
+                } catch (error) {
+                    console.warn('Failed to refresh cash flow after income update', error);
+                }
             } catch (error) {
                 console.error('Error updating income:', error);
                 throw error;
@@ -297,10 +313,21 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
             if (!userId) throw new Error('User ID is required');
             
             try {
+                // Find the income to get the year before deletion
+                const { monthlyCache } = get();
+                let incomeYear: number | null = null;
+                
+                for (const monthKey of Object.keys(monthlyCache)) {
+                    const income = monthlyCache[monthKey].incomes.find(inc => inc.id === incomeId);
+                    if (income) {
+                        incomeYear = new Date(income.date).getFullYear();
+                        break;
+                    }
+                }
+                
                 await incomeApi.deleteIncome(userId, incomeId);
                 
                 // Remove from all month caches
-                const { monthlyCache } = get();
                 const updatedCache = { ...monthlyCache };
                 
                 Object.keys(updatedCache).forEach(monthKey => {
@@ -312,6 +339,15 @@ export const useIncomeStore = create<IncomeStore>((set, get) => {
                 });
                 
                 set({ monthlyCache: updatedCache });
+                
+                // Notify cash flow store to refresh the affected year
+                if (incomeYear) {
+                    try {
+                        useCashFlowStore.getState().notifyAmountChange(userId, incomeYear);
+                    } catch (error) {
+                        console.warn('Failed to refresh cash flow after income deletion', error);
+                    }
+                }
             } catch (error) {
                 console.error('Error deleting income:', error);
                 throw error;

@@ -268,7 +268,7 @@ export const AccountScreen = () => {
                         <Text style={styles.label}>Notes (Optional)</Text>
                         <TextInput
                             style={[styles.input, styles.notesInput]}
-                            placeholder="Add notes about this account (supports markdown)"
+                            placeholder="Add notes about this account"
                             value={accountNotes}
                             onChangeText={setAccountNotes}
                             multiline={true}
