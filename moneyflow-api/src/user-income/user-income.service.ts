@@ -32,7 +32,7 @@ export class UserIncomeService {
             // If income_date is provided, convert YYYY-MM-DD to Asia/Manila timezone at noon
             // Otherwise, use current date and time
             const incomeDateTime = income_date 
-                ? new Date(income_date + 'T12:00:00+08:00')
+                ? new Date(income_date)
                 : new Date();
 
             const income = await this.prisma.userIncome.create({
@@ -167,8 +167,8 @@ export class UserIncomeService {
             if (amount !== undefined) update_data.amount = new Decimal(amount);
             if (notes !== undefined) update_data.notes = notes;
             if (income_date !== undefined) {
-                // Convert YYYY-MM-DD to Asia/Manila timezone at noon to avoid edge cases
-                update_data.income_date = new Date(income_date + 'T12:00:00+08:00');
+                // Use the full ISO string provided by the client for income_date
+                update_data.income_date = new Date(income_date);
             }
 
             const updated_income = await this.prisma.userIncome.update({

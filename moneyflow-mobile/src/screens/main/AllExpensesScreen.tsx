@@ -293,13 +293,24 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
             }
 
             // Create expense date using the selected month/year and day in Asia/Manila timezone
-            const expenseDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
-            
+            // Now with time: use current time for new adds
+            const now = new Date();
+            const expenseDateObj = new Date(
+                localCurrentDate.getFullYear(),
+                localCurrentDate.getMonth(),
+                parseInt(addFormData.day),
+                now.getHours(),
+                now.getMinutes(),
+                now.getSeconds(),
+                now.getMilliseconds()
+            );
+            const expenseDate = expenseDateObj.toISOString();
+
             await addExpense(user!.id, {
                 category_id: parseInt(categoryObj.id),
                 cost: addFormData.cost.trim(),
                 notes: addFormData.notes.trim(),
-                expense_date: expenseDate // Already in YYYY-MM-DD format
+                expense_date: expenseDate // ISO string with time
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
@@ -313,7 +324,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         } finally {
             setIsSubmitting(false);
         }
-    }, [addFormData, user, categories, addExpense]);
+    }, [addFormData, user, categories, addExpense, localCurrentDate]);
 
     const cancelAdd = useCallback(() => {
         setAddModalVisible(false);
@@ -342,14 +353,42 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 return;
             }
 
-            // Create expense date using the selected month/year and day in Asia/Manila timezone
-            const expenseDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
+            // Try to preserve original time if available
+            let originalTime: { hour: number; minute: number; second: number; ms: number } = { hour: 0, minute: 0, second: 0, ms: 0 };
+            const editingExpense = filteredExpenses.find((e: any) => e.id === editingId);
+            if (editingExpense && editingExpense.date) {
+                const originalDate = new Date(editingExpense.date);
+                originalTime = {
+                    hour: originalDate.getHours(),
+                    minute: originalDate.getMinutes(),
+                    second: originalDate.getSeconds(),
+                    ms: originalDate.getMilliseconds()
+                };
+            } else {
+                const now = new Date();
+                originalTime = {
+                    hour: now.getHours(),
+                    minute: now.getMinutes(),
+                    second: now.getSeconds(),
+                    ms: now.getMilliseconds()
+                };
+            }
+            const expenseDateObj = new Date(
+                localCurrentDate.getFullYear(),
+                localCurrentDate.getMonth(),
+                parseInt(editFormData.day),
+                originalTime.hour,
+                originalTime.minute,
+                originalTime.second,
+                originalTime.ms
+            );
+            const expenseDate = expenseDateObj.toISOString();
 
             await updateExpense(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
                 cost: editFormData.cost.trim(),
                 notes: editFormData.notes.trim(),
-                expense_date: expenseDate // Already in YYYY-MM-DD format
+                expense_date: expenseDate // ISO string with time
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_UPDATED);
@@ -360,7 +399,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         } finally {
             setIsSubmitting(false);
         }
-    }, [editFormData, editingId, user, categories, updateExpense]);
+    }, [editFormData, editingId, user, categories, updateExpense, localCurrentDate, filteredExpenses]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);

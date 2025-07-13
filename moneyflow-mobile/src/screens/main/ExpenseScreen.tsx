@@ -471,11 +471,17 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             // Create expense date using original month/year and selected day in Asia/Manila timezone
             let expenseDate: string;
             if (originalExpense) {
-                const { month, year } = parseDateComponents(originalExpense.date);
-                expenseDate = createDateInTimezone(year, month, parseInt(editFormData.day));
+                // If original expense has a time, preserve it
+                const originalDate = new Date(originalExpense.date);
+                const year = originalDate.getFullYear();
+                const month = originalDate.getMonth();
+                const day = parseInt(editFormData.day);
+                // Set the time to the original time
+                originalDate.setFullYear(year, month, day);
+                expenseDate = originalDate.toISOString();
             } else {
-                // Fallback to current month/year if original expense not found
-                expenseDate = createTodayWithDay(parseInt(editFormData.day));
+                // Fallback to current date and time if original expense not found
+                expenseDate = new Date().toISOString();
             }
 
             // Check if this is an offline expense
