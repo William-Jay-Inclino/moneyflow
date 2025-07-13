@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store';
 import { useIncomeStore } from '../../store/incomeStore';
 import { useExpenseStore } from '../../store/expenseStore';
 import { categoryApi } from '../../services';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 interface Category {
     id: string;
@@ -76,6 +77,16 @@ const CategoriesScreen = () => {
     const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isOnline, setIsOnline] = useState(true);
+
+    // Network status effect
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+            const online = state.isConnected === true && state.isInternetReachable === true;
+            setIsOnline(online);
+        });
+        return unsubscribe;
+    }, []);
 
     // Function to refresh categories in other screens
     const refreshOtherScreenCategories = useCallback(async () => {
@@ -299,6 +310,23 @@ const CategoriesScreen = () => {
             Alert.alert('Error', `Failed to update category. Please try again.\n\nDebug: ${error?.response?.status || 'Unknown'} - ${error?.response?.statusText || 'Unknown error'}`);
         }
     }, [user?.id, expenseCategories, loadExpenseCategories]);
+
+    // Check for offline status
+    if (!isOnline) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Manage Categories</Text>
+                    <Text style={styles.subtitle}>Select which categories you want to use</Text>
+                </View>
+                <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
+                    <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>
+                        You are offline. Categories cannot be displayed. Please reconnect to manage your categories.
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     // Loading state
     if (isLoading) {

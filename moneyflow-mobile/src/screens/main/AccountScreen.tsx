@@ -16,6 +16,7 @@ import {
 import { useAuthStore } from '../../store';
 import { useUserAccounts } from '../../hooks/useUserAccounts';
 import type { UserAccount } from '@/types';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 // Simple helper to format currency without symbol
 const formatBalance = (amount: any): string => {
@@ -47,6 +48,17 @@ export const AccountScreen = () => {
     // Dropdown state
     const [dropdownVisible, setDropdownVisible] = useState<string | null>(null);
     const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0 });
+
+    // Online/offline state
+    const [isOnline, setIsOnline] = useState(true);
+
+    React.useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+            const online = state.isConnected === true && state.isInternetReachable === true;
+            setIsOnline(online);
+        });
+        return unsubscribe;
+    }, []);
 
     // Handle dropdown menu
     const toggleDropdown = useCallback((accountId: string, event?: any) => {
@@ -149,6 +161,27 @@ export const AccountScreen = () => {
             ]
         );
     }, [logout]);
+
+    if (!isOnline) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.title}>Accounts</Text>
+                        <Text style={styles.userEmail}>{user?.email || 'User'}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                        <Text style={styles.logoutText}>Logout</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
+                    <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>
+                        You are offline. Accounts cannot be displayed. Please reconnect to view and manage your accounts.
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>

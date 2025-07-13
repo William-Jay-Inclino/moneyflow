@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Mod
 import { useAuthStore } from '../../store/authStore';
 import { useCashFlowStore } from '../../store/cashFlowStore';
 import { cashFlowApi } from '../../services/api';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 // Year Picker Component
 const YearPicker = memo(({ 
@@ -177,6 +178,7 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
     
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [showYearPicker, setShowYearPicker] = useState(false);
+    const [isOnline, setIsOnline] = useState(true);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -238,81 +240,97 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
         setSelectedYear(prev => prev + 1);
     }, []);
 
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+            const online = state.isConnected === true && state.isInternetReachable === true;
+            setIsOnline(online);
+        });
+        return unsubscribe;
+    }, []);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Cash Flow</Text>
                 <Text style={styles.subtitle}>Track your financial overview</Text>
             </View>
-
-            {isLoading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#6366f1" />
-                    <Text style={styles.loadingText}>Loading cash flow data...</Text>
+            {!isOnline && (
+                <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
+                    <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>
+                        You are offline. Cash flow data cannot be displayed. Please reconnect to view your financial overview.
+                    </Text>
                 </View>
-            ) : (
-                <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-                    {/* Year Navigation */}
-                    <View style={styles.yearNavigation}>
-                        <TouchableOpacity 
-                            style={styles.navButton}
-                            onPress={goToPreviousYear}
-                        >
-                            <Text style={styles.navButtonText}>‹</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.yearContainer}
-                            onPress={() => setShowYearPicker(true)}
-                        >
-                            <Text style={styles.yearText}>{selectedYear}</Text>
-                            <Text style={styles.calendarIcon}>📅</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.navButton}
-                            onPress={goToNextYear}
-                        >
-                            <Text style={styles.navButtonText}>›</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <YearPicker
-                        isVisible={showYearPicker}
-                        currentYear={selectedYear}
-                        onClose={() => setShowYearPicker(false)}
-                        onSelect={setSelectedYear}
-                    />
-
-                    {/* Year Summary */}
-                    <YearSummary
-                        year={selectedYear}
-                        totalIncome={displayData.yearSummary.totalIncome}
-                        totalExpense={displayData.yearSummary.totalExpense}
-                        totalCashFlow={displayData.yearSummary.totalCashFlow}
-                    />
-
-                    {/* Monthly Cash Flow */}
-                    <View style={styles.monthlySection}>
-                        <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
-                        
-                        <View style={styles.tableContainer}>
-                            <MonthlyTableHeader />
-                            {displayData.months.map((monthData: any, index: number) => (
-                                <MonthlyTableRow
-                                    key={monthData.month}
-                                    month={monthData.month}
-                                    monthIndex={monthData.monthIndex}
-                                    income={monthData.income}
-                                    expense={monthData.expense}
-                                    cashFlow={monthData.cashFlow}
-                                    isCurrentMonth={monthData.isCurrentMonth}
-                                />
-                            ))}
-                        </View>
-                    </View>
-                </ScrollView>
             )}
+            {isOnline ? (
+                isLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#6366f1" />
+                        <Text style={styles.loadingText}>Loading cash flow data...</Text>
+                    </View>
+                ) : (
+                    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+                        {/* Year Navigation */}
+                        <View style={styles.yearNavigation}>
+                            <TouchableOpacity 
+                                style={styles.navButton}
+                                onPress={goToPreviousYear}
+                            >
+                                <Text style={styles.navButtonText}>‹</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.yearContainer}
+                                onPress={() => setShowYearPicker(true)}
+                            >
+                                <Text style={styles.yearText}>{selectedYear}</Text>
+                                <Text style={styles.calendarIcon}>📅</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.navButton}
+                                onPress={goToNextYear}
+                            >
+                                <Text style={styles.navButtonText}>›</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <YearPicker
+                            isVisible={showYearPicker}
+                            currentYear={selectedYear}
+                            onClose={() => setShowYearPicker(false)}
+                            onSelect={setSelectedYear}
+                        />
+
+                        {/* Year Summary */}
+                        <YearSummary
+                            year={selectedYear}
+                            totalIncome={displayData.yearSummary.totalIncome}
+                            totalExpense={displayData.yearSummary.totalExpense}
+                            totalCashFlow={displayData.yearSummary.totalCashFlow}
+                        />
+
+                        {/* Monthly Cash Flow */}
+                        <View style={styles.monthlySection}>
+                            <Text style={styles.sectionTitle}>Monthly Breakdown</Text>
+                            
+                            <View style={styles.tableContainer}>
+                                <MonthlyTableHeader />
+                                {displayData.months.map((monthData: any, index: number) => (
+                                    <MonthlyTableRow
+                                        key={monthData.month}
+                                        month={monthData.month}
+                                        monthIndex={monthData.monthIndex}
+                                        income={monthData.income}
+                                        expense={monthData.expense}
+                                        cashFlow={monthData.cashFlow}
+                                        isCurrentMonth={monthData.isCurrentMonth}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                )
+            ) : null}
         </SafeAreaView>
     );
 };

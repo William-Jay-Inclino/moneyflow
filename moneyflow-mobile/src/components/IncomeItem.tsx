@@ -10,6 +10,7 @@ interface IncomeItemProps {
         categoryId: string;
         date: string;
         time: string;
+        categoryName?: string;
     };
     getCategoryIcon: (category: string) => string;
     formatDate: (dateString: string) => string;
@@ -81,7 +82,7 @@ export const IncomeItem = memo<IncomeItemProps>(({
             <View style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                     <View style={styles.iconContainer}>
-                        <Text style={styles.categoryIcon}>{getCategoryIcon(item.category)}</Text>
+                        <Text style={styles.categoryIcon}>{getCategoryIcon(item.category || item.categoryName || 'Other')}</Text>
                     </View>
                     <View style={styles.transactionInfo}>
                         <Text style={styles.transactionDescription}>{item.description}</Text>
