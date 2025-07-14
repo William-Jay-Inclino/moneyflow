@@ -5,18 +5,14 @@ import {
     ApiResponse,
     LoginRequest,
     RegisterRequest,
-    VerifyEmailRequest,
     ResendVerificationRequest,
     User,
-    CreateTransactionRequest,
     CreateCategoryRequest,
-    Transaction,
     Category,
 } from '@/types';
-import { tokenUtils } from '@/utils/tokenUtils';
 
 // Use the API_URL from environment variables
-const API_BASE_URL = API_URL; // Fallback for development
+const API_BASE_URL = API_URL || 'https://jaytechsolutions.cloud/moneyflow/api'; 
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
 
