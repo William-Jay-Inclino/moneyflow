@@ -86,11 +86,13 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                 // Save global categories
                 await AsyncStorage.setItem('global_income_categories', JSON.stringify(transformedIncome));
                 await AsyncStorage.setItem('global_expense_categories', JSON.stringify(transformedExpense));
-                // Enable all for user
+
+                // Save enabled category IDs for the user (all enabled by default)
                 if (user?.id) {
                     await AsyncStorage.setItem(`user_income_categories_${user.id}`, JSON.stringify(transformedIncome.map(cat => cat.id)));
                     await AsyncStorage.setItem(`user_expense_categories_${user.id}`, JSON.stringify(transformedExpense.map(cat => cat.id)));
                 }
+
             } catch (catError) {
                 console.error('Error initializing categories after verification:', catError);
             }

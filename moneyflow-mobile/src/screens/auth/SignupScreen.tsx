@@ -52,17 +52,18 @@ export const SignupScreen = ({ navigation }: any) => {
         setLoading(true);
 
         try {
-            console.log('📝 Attempting JWT registration...');
+            console.log('📝 [SignupScreen] Attempting JWT registration...');
+            console.log('📝 [SignupScreen] Register payload:', { email: email.trim().toLowerCase(), password });
+            if (!authApi || !authApi.register) {
+                throw new Error('authApi.register is not defined');
+            }
             const { user, accessToken } = await authApi.register({ 
                 email: email.trim().toLowerCase(), 
                 password 
             });
-            
-            console.log('✅ JWT registration successful:', { userId: user.id, email: user.email });
-            
+            console.log('✅ [SignupScreen] JWT registration successful:', { userId: user.id, email: user.email });
             // Store pending verification info (user is registered but needs email verification)
             setPendingVerification(user.email, user.id);
-            
             Alert.alert(
                 'Registration Successful',
                 'A verification email has been sent to your email address. Please check your email and enter the verification code.',
@@ -73,20 +74,18 @@ export const SignupScreen = ({ navigation }: any) => {
                     }
                 ]
             );
-            
         } catch (error: any) {
-            console.error('Signup error:', error);
-            
+            console.error('❌ [SignupScreen] Signup error:', error);
             let errorMessage = 'An error occurred during registration';
-            
             if (error.response?.status === 409) {
                 errorMessage = 'An account with this email already exists';
             } else if (error.response?.status === 400) {
                 errorMessage = error.response.data?.message || 'Please check your input and try again';
             } else if (!error.response) {
                 errorMessage = 'Network error. Please check your connection';
+            } else if (error.message) {
+                errorMessage = error.message;
             }
-            
             Alert.alert('Registration Failed', errorMessage);
         } finally {
             setIsLoading(false);

@@ -15,12 +15,14 @@ import { CategoryService } from './category.service';
 import { FilterCategoryDto } from './dto';
 import { CategoryEntity } from './entities';
 import { CategoryType } from '@prisma/client';
+import { Public } from '../auth/decorators';
 
 @ApiTags('categories')
 @Controller('categories')
 export class CategoryController {
     constructor(private readonly categoryService: CategoryService) {}
 
+    @Public()
     @Get()
     @ApiOperation({ summary: 'Get all categories' })
     @ApiQuery({ 
