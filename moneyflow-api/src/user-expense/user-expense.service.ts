@@ -13,19 +13,12 @@ export class UserExpenseService {
         const { category_id, cost, notes, expense_date } = create_user_expense_dto;
 
         try {
-            // Verify category exists and belongs to user
-            const user_category = await this.prisma.userCategory.findFirst({
-                where: {
-                    id: category_id,
-                    user_id: user_id,
-                },
-                include: {
-                    category: true,
-                },
+            // Verify category exists and is an EXPENSE type
+            const category = await this.prisma.category.findUnique({
+                where: { id: category_id },
             });
-
-            if (!user_category || !user_category.category || user_category.category.type !== 'EXPENSE') {
-                throw new BadRequestException('Category not found, does not belong to user, or is not an expense category');
+            if (!category || category.type !== 'EXPENSE') {
+                throw new BadRequestException('Category not found or is not an expense category');
             }
 
             // Create the expense with timezone-aware date
@@ -41,11 +34,7 @@ export class UserExpenseService {
                     notes,
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
 
@@ -79,11 +68,7 @@ export class UserExpenseService {
                     },
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true
                 },
                 orderBy: {
                     expense_date: 'desc',
@@ -104,11 +89,7 @@ export class UserExpenseService {
                     user_id,
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
 
@@ -141,20 +122,14 @@ export class UserExpenseService {
                 throw new NotFoundException('User expense not found');
             }
 
-            // If category_id is provided, verify it belongs to user
+            // If category_id is provided, verify it exists and is EXPENSE type
             if (category_id) {
-                const user_category = await this.prisma.userCategory.findFirst({
-                    where: {
-                        id: category_id,
-                        user_id,
-                    },
-                    include: {
-                        category: true,
-                    },
+                const category = await this.prisma.category.findUnique({
+                    where: { id: category_id },
                 });
 
-                if (!user_category || !user_category.category || user_category.category.type !== CategoryType.EXPENSE) {
-                    throw new BadRequestException('Category not found, does not belong to user, or is not an expense category');
+                if (!category || category.type !== CategoryType.EXPENSE) {
+                    throw new BadRequestException('Category not found or is not an expense category');
                 }
             }
 
@@ -174,11 +149,7 @@ export class UserExpenseService {
                 },
                 data: update_data,
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
 
@@ -259,19 +230,11 @@ export class UserExpenseService {
 
             // Get category names
             const category_ids = expenses_by_category.map(item => item.category_id);
-            const user_categories = await this.prisma.userCategory.findMany({
-                where: {
-                    id: {
-                        in: category_ids,
-                    },
-                    user_id,
-                },
-                include: {
-                    category: true,
-                },
+            const categories = await this.prisma.category.findMany({
+                where: { id: { in: category_ids } },
             });
 
-            const categories_map = new Map(user_categories.map(cat => [cat.id, cat.category?.name || 'Unknown']));
+            const categories_map = new Map(categories.map(cat => [cat.id, cat.name]));
 
             const total_cost = expenses_by_category.reduce((sum, item) => {
                 return sum.plus(item._sum.cost || new Decimal(0));

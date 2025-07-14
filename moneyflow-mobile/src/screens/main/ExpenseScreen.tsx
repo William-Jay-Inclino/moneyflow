@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, ActivityIndicator, AppState, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { ExpenseItem, CategoryChip } from '../../components';
@@ -28,6 +28,14 @@ interface OfflineExpense {
     updated_at: string;
     originalId?: string; // For tracking updates to existing online expenses
     operation?: 'create' | 'update' | 'delete'; // Track the type of operation
+}
+
+interface Category {
+    id: string;
+    name: string;
+    icon: string;
+    enabled: boolean;
+    type: 'INCOME' | 'EXPENSE';
 }
 
 // Constants
@@ -105,7 +113,8 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const isLoadingExpenses = isLoadingMonth(currentYear, currentMonth);
     
     // Get categories and recent expenses from store (will update when data changes)
-    const categories = useExpenseStore(state => state.categories);
+    const [enabledCategoryIds, setEnabledCategoryIds] = useState<string[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const onlineExpenses = useExpenseStore(state => state.getRecentExpenses(RECENT_EXPENSES_LIMIT));
     const currentMonthTotal = useExpenseStore(state => state.getCurrentMonthTotal());
     
@@ -263,25 +272,22 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             // Sync each unsynced expense based on its state
             for (const expense of unsyncedExpenses) {
                 try {
+                    // Prepare payload for API
+                    const payload = {
+                        category_id: parseInt(expense.categoryId),
+                        cost: expense.amount.toString().trim(),
+                        notes: expense.description ? expense.description.trim() : '',
+                        expense_date: expense.date
+                    };
                     if (expense.operation === 'delete' && expense.originalId) {
                         // Delete in backend
                         await expenseStore.deleteExpense(user.id, expense.originalId);
                     } else if (expense.originalId) {
                         // Update in backend
-                        await expenseStore.updateExpense(user.id, expense.originalId, {
-                            category_id: parseInt(expense.categoryId),
-                            cost: expense.amount.toString(),
-                            notes: expense.description,
-                            expense_date: expense.date
-                        });
+                        await expenseStore.updateExpense(user.id, expense.originalId, payload);
                     } else {
                         // Add new in backend
-                        await expenseStore.addExpense(user.id, {
-                            category_id: parseInt(expense.categoryId),
-                            cost: expense.amount.toString(),
-                            notes: expense.description,
-                            expense_date: expense.date
-                        });
+                        await expenseStore.addExpense(user.id, payload);
                     }
                     // Mark as synced
                     expenses = expenses.map(exp2 => exp2.id === expense.id ? { ...exp2, synced: true } : exp2);
@@ -341,6 +347,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             const categoryObj = categories.find(cat => cat.id === selectedCategory);
             if (!categoryObj) {
                 Alert.alert('Error', ERROR_MESSAGES.CATEGORY_NOT_FOUND);
+                setIsLoading(false);
                 return;
             }
 
@@ -365,37 +372,43 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
             // Try to sync immediately if online, otherwise save offline
             if (isOnline) {
                 try {
-                    const expenseStore = useExpenseStore.getState();
-                    await expenseStore.addExpense(user!.id, {
+                    // Use the already available expenseStore instance
+                    const result = await useExpenseStore.getState().addExpense(user!.id, {
                         category_id: parseInt(categoryObj.id),
                         cost: cost.trim(),
                         notes: notes.trim(),
                         expense_date: expenseDate
                     });
-                    
+                    if (!result) {
+                        // API did not save, fallback to offline
+                        console.error('API did not save expense:', result);
+                        await saveExpenseOffline(offlineExpense);
+                        Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED + ' (Saved offline)');
+                    } else {
+                        // Success - show message and reset form
+                        resetForm();
+                        Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
+                    }
                     // Refresh online data
-                    await expenseStore.loadExpensesForMonth(user!.id, currentYear, currentMonth);
-                    
-                    // Success - show message and reset form
-                    resetForm();
-                    Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED);
+                    await useExpenseStore.getState().loadExpensesForMonth(user!.id, currentYear, currentMonth);
                 } catch (error) {
                     console.error('Failed to sync immediately:', error);
                     // If online sync fails, save offline as fallback
                     await saveExpenseOffline(offlineExpense);
-                    resetForm();
                     Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED + ' (Saved offline)');
+                } finally {
+                    setIsLoading(false);
                 }
             } else {
                 // If offline, save to local storage
                 await saveExpenseOffline(offlineExpense);
                 resetForm();
                 Alert.alert('Success', SUCCESS_MESSAGES.EXPENSE_ADDED + ' (Offline)');
+                setIsLoading(false);
             }
         } catch (error) {
             console.error('Error adding expense:', error);
             Alert.alert('Error', ERROR_MESSAGES.FAILED_TO_ADD);
-        } finally {
             setIsLoading(false);
         }
     }, [cost, notes, selectedCategory, user, categories, currentYear, currentMonth, isOnline]);
@@ -641,6 +654,37 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
         const hourStr = String(hours).padStart(2, '0');
         return `${month}/${day} ${hourStr}:${minutes} ${ampm}`;
     }, []);
+
+    // Load enabled categories from AsyncStorage
+    const loadEnabledCategories = useCallback(async () => {
+        try {
+            const stored = await AsyncStorage.getItem('global_expense_categories');
+            if (stored) {
+                const allCategories: Category[] = JSON.parse(stored);
+                setCategories(allCategories.filter((cat) => cat.enabled));
+            } else {
+                setCategories([]);
+            }
+        } catch (error) {
+            setCategories([]);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadEnabledCategories();
+        const appStateSub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') {
+                loadEnabledCategories();
+            }
+        });
+        const eventSub = DeviceEventEmitter.addListener('expenseCategoriesChanged', () => {
+            loadEnabledCategories();
+        });
+        return () => {
+            appStateSub.remove();
+            eventSub.remove();
+        };
+    }, [user?.id, loadEnabledCategories]);
 
     return (
         <ScrollView style={styles.container}>

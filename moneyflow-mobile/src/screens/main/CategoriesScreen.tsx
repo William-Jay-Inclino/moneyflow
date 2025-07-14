@@ -1,10 +1,9 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
 import { useAuthStore } from '../../store';
-import { useIncomeStore } from '../../store/incomeStore';
-import { useExpenseStore } from '../../store/expenseStore';
-import { categoryApi } from '../../services';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { categoryApi } from '../../services';
 
 interface Category {
     id: string;
@@ -51,18 +50,9 @@ const CategoryItem = memo(({
         >
             <View style={styles.categoryContent}>
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={[styles.categoryName, getTextStyle()]}>
-                    {category.name}
-                </Text>
-                <View style={[
-                    styles.toggleIndicator,
-                    category.enabled 
-                        ? (type === 'income' ? styles.toggleEnabledIncome : styles.toggleEnabledExpense)
-                        : styles.toggleDisabled
-                ]}>
-                    <Text style={styles.toggleText}>
-                        {category.enabled ? '✓' : '○'}
-                    </Text>
+                <Text style={[styles.categoryName, getTextStyle()]}> {category.name} </Text>
+                <View style={[ styles.toggleIndicator, category.enabled ? (type === 'income' ? styles.toggleEnabledIncome : styles.toggleEnabledExpense) : styles.toggleDisabled ]}>
+                    <Text style={styles.toggleText}> {category.enabled ? '✓' : '○'} </Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -71,8 +61,6 @@ const CategoryItem = memo(({
 
 const CategoriesScreen = () => {
     const { user } = useAuthStore();
-    const { loadCategories: loadIncomeCategories } = useIncomeStore();
-    const { loadCategories: loadExpenseCategories } = useExpenseStore();
     const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
     const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -88,228 +76,121 @@ const CategoriesScreen = () => {
         return unsubscribe;
     }, []);
 
-    // Function to refresh categories in other screens
-    const refreshOtherScreenCategories = useCallback(async () => {
-        if (!user?.id) return;
-        
-        try {
-            // Refresh categories in both Income and Expense stores
-            await Promise.all([
-                loadIncomeCategories(user.id),
-                loadExpenseCategories(user.id)
-            ]);
-        } catch (error) {
-            console.error('Error refreshing other screen categories:', error);
-            // Don't show error to user as this is a background operation
-        }
-    }, [user?.id, loadIncomeCategories, loadExpenseCategories]);
+    // Helper functions for AsyncStorage keys
+    const incomeKey = `user_income_categories_${user?.id}`;
+    const expenseKey = `user_expense_categories_${user?.id}`;
 
-    // Load categories from API with better error handling
+    // Load categories from API or AsyncStorage depending on network status
     const loadCategories = useCallback(async () => {
         if (!user?.id) {
             setIsLoading(false);
             return;
         }
-
         setIsLoading(true);
         setError(null);
-
-        console.log('🔄 CategoriesScreen.loadCategories START');
-        console.log('👤 User ID:', user.id);
-
         try {
-            console.log('📡 Testing API connectivity...');
-            
-            // Fetch all global categories and user's assigned categories in parallel
-            console.log('📤 Making parallel API calls...');
-            const [allIncomeData, allExpenseData, userIncomeData, userExpenseData] = await Promise.all([
-                categoryApi.getAllCategories('INCOME'),
-                categoryApi.getAllCategories('EXPENSE'),
-                categoryApi.getUserCategories(user.id, 'INCOME'),
-                categoryApi.getUserCategories(user.id, 'EXPENSE')
+            let allIncomeData, allExpenseData;
+            if (isOnline) {
+                // Fetch global categories from API
+                [allIncomeData, allExpenseData] = await Promise.all([
+                    categoryApi.getAllCategories('INCOME'),
+                    categoryApi.getAllCategories('EXPENSE'),
+                ]);
+            } else {
+                // Load global categories from AsyncStorage
+                const [storedIncome, storedExpense] = await Promise.all([
+                    AsyncStorage.getItem('global_income_categories'),
+                    AsyncStorage.getItem('global_expense_categories'),
+                ]);
+                allIncomeData = storedIncome ? JSON.parse(storedIncome) : [];
+                allExpenseData = storedExpense ? JSON.parse(storedExpense) : [];
+            }
+
+            // Load user's enabled categories from AsyncStorage
+            const [storedUserIncome, storedUserExpense] = await Promise.all([
+                AsyncStorage.getItem(incomeKey),
+                AsyncStorage.getItem(expenseKey),
             ]);
-            
-            console.log('✅ All API calls successful');
-            console.log('📊 Data received:', {
-                allIncomeCount: allIncomeData.length,
-                allExpenseCount: allExpenseData.length,
-                userIncomeCount: userIncomeData.length,
-                userExpenseCount: userExpenseData.length
-            });
+            const enabledIncomeIds = storedUserIncome ? JSON.parse(storedUserIncome) : [];
+            const enabledExpenseIds = storedUserExpense ? JSON.parse(storedUserExpense) : [];
 
-            // Create sets of user's assigned category IDs for quick lookup
-            const userIncomeCategoryIds = new Set(
-                userIncomeData.map((cat: any) => cat.category_id || cat.id)
-            );
-            const userExpenseCategoryIds = new Set(
-                userExpenseData.map((cat: any) => cat.category_id || cat.id)
-            );
-
-            console.log('🔍 User category IDs:', {
-                income: Array.from(userIncomeCategoryIds),
-                expense: Array.from(userExpenseCategoryIds)
-            });
-
-            // Transform all global categories and mark as enabled if user has them assigned
+            // Transform global categories and mark enabled from local storage
             const transformedIncome = allIncomeData.map((cat: any) => ({
                 id: cat.id?.toString() || '',
                 name: cat.name || 'Unknown',
                 icon: cat.icon || '💰',
-                enabled: userIncomeCategoryIds.has(cat.id),
+                enabled: enabledIncomeIds.includes(cat.id?.toString()),
                 type: 'INCOME' as const
             }));
-
             const transformedExpense = allExpenseData.map((cat: any) => ({
                 id: cat.id?.toString() || '',
                 name: cat.name || 'Unknown',
                 icon: cat.icon || '💸',
-                enabled: userExpenseCategoryIds.has(cat.id),
+                enabled: enabledExpenseIds.includes(cat.id?.toString()),
                 type: 'EXPENSE' as const
             }));
 
-            console.log('✅ Categories transformed and ready');
-            console.log('📈 Final counts:', {
-                incomeCategories: transformedIncome.length,
-                expenseCategories: transformedExpense.length,
-                enabledIncome: transformedIncome.filter(c => c.enabled).length,
-                enabledExpense: transformedExpense.filter(c => c.enabled).length
-            });
+            // Save all global categories with enabled state to AsyncStorage if online
+            if (isOnline) {
+                await AsyncStorage.setItem('global_income_categories', JSON.stringify(transformedIncome));
+                await AsyncStorage.setItem('global_expense_categories', JSON.stringify(transformedExpense));
+            }
 
             setIncomeCategories(transformedIncome);
             setExpenseCategories(transformedExpense);
         } catch (error: any) {
-            console.error('❌ Error loading categories:', error);
-            console.error('❌ Error details:', {
-                message: error?.message || 'Unknown error',
-                status: error?.response?.status || 'No status',
-                statusText: error?.response?.statusText || 'No status text',
-                url: error?.config?.url || 'No URL',
-                method: error?.config?.method || 'No method'
-            });
             setError('Failed to load categories. Please try again.');
         } finally {
             setIsLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, isOnline]);
 
     // Load categories on mount
     useEffect(() => {
         loadCategories();
     }, [loadCategories]);
 
+    // Toggle income category and update local storage
     const toggleIncomeCategory = useCallback(async (id: string) => {
-        if (!user?.id) {
-            console.log('❌ toggleIncomeCategory: No user ID found');
-            return;
-        }
-
+        if (!user?.id) return;
         const category = incomeCategories.find(cat => cat.id === id);
-        if (!category) {
-            console.log('❌ toggleIncomeCategory: Category not found for ID:', id);
-            return;
-        }
-
-        console.log('🔄 toggleIncomeCategory START:', {
-            userId: user.id,
-            categoryId: id,
-            categoryName: category.name,
-            currentlyEnabled: category.enabled,
-            action: category.enabled ? 'REMOVE' : 'ASSIGN'
-        });
-
+        if (!category) return;
         try {
-            if (category.enabled) {
-                console.log('📤 API CALL: removeCategoryFromUser', { userId: user.id, categoryId: parseInt(id) });
-                await categoryApi.removeCategoryFromUser(user.id, parseInt(id));
-                console.log('✅ API SUCCESS: removeCategoryFromUser');
-            } else {
-                console.log('📤 API CALL: assignCategoryToUser', { userId: user.id, categoryId: parseInt(id) });
-                await categoryApi.assignCategoryToUser(user.id, parseInt(id));
-                console.log('✅ API SUCCESS: assignCategoryToUser');
-            }
-
-            // Update local state
-            setIncomeCategories(prev => 
-                prev.map(cat => 
-                    cat.id === id ? { ...cat, enabled: !cat.enabled } : cat
-                )
-            );
-            console.log('✅ Local state updated successfully');
-
-            // Refresh categories in IncomeScreen to reflect changes
-            console.log('🔄 Refreshing IncomeScreen categories...');
-            loadIncomeCategories(user.id);
-            console.log('✅ toggleIncomeCategory COMPLETE');
-        } catch (error: any) {
-            console.error('❌ Error toggling income category:', error);
-            console.error('❌ Error details:', {
-                message: error?.message || 'Unknown error',
-                status: error?.response?.status || 'No status',
-                statusText: error?.response?.statusText || 'No status text',
-                url: error?.config?.url || 'No URL',
-                method: error?.config?.method || 'No method',
-                data: error?.config?.data || 'No data'
-            });
-            Alert.alert('Error', `Failed to update category. Please try again.\n\nDebug: ${error?.response?.status || 'Unknown'} - ${error?.response?.statusText || 'Unknown error'}`);
+            const updated = category.enabled
+                ? incomeCategories.filter(cat => cat.id !== id && cat.enabled).map(cat => cat.id)
+                : [...incomeCategories.filter(cat => cat.enabled).map(cat => cat.id), id];
+            await AsyncStorage.setItem(incomeKey, JSON.stringify(updated));
+            const newIncomeCategories = incomeCategories.map(cat => cat.id === id ? { ...cat, enabled: !cat.enabled } : cat);
+            setIncomeCategories(newIncomeCategories);
+            // Update global categories in AsyncStorage
+            await AsyncStorage.setItem('global_income_categories', JSON.stringify(newIncomeCategories));
+            // Emit event to notify ExpenseScreen (optional, if you want to refresh income categories elsewhere)
+            DeviceEventEmitter.emit('incomeCategoriesChanged');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update category. Please try again.');
         }
-    }, [user?.id, incomeCategories, loadIncomeCategories]);
+    }, [user?.id, incomeCategories]);
 
+    // Toggle expense category and update local storage
     const toggleExpenseCategory = useCallback(async (id: string) => {
-        if (!user?.id) {
-            console.log('❌ toggleExpenseCategory: No user ID found');
-            return;
-        }
-
+        if (!user?.id) return;
         const category = expenseCategories.find(cat => cat.id === id);
-        if (!category) {
-            console.log('❌ toggleExpenseCategory: Category not found for ID:', id);
-            return;
-        }
-
-        console.log('🔄 toggleExpenseCategory START:', {
-            userId: user.id,
-            categoryId: id,
-            categoryName: category.name,
-            currentlyEnabled: category.enabled,
-            action: category.enabled ? 'REMOVE' : 'ASSIGN'
-        });
-
+        if (!category) return;
         try {
-            if (category.enabled) {
-                console.log('📤 API CALL: removeCategoryFromUser', { userId: user.id, categoryId: parseInt(id) });
-                await categoryApi.removeCategoryFromUser(user.id, parseInt(id));
-                console.log('✅ API SUCCESS: removeCategoryFromUser');
-            } else {
-                console.log('📤 API CALL: assignCategoryToUser', { userId: user.id, categoryId: parseInt(id) });
-                await categoryApi.assignCategoryToUser(user.id, parseInt(id));
-                console.log('✅ API SUCCESS: assignCategoryToUser');
-            }
-
-            // Update local state
-            setExpenseCategories(prev => 
-                prev.map(cat => 
-                    cat.id === id ? { ...cat, enabled: !cat.enabled } : cat
-                )
-            );
-            console.log('✅ Local state updated successfully');
-
-            // Refresh categories in ExpenseScreen to reflect changes
-            console.log('🔄 Refreshing ExpenseScreen categories...');
-            loadExpenseCategories(user.id);
-            console.log('✅ toggleExpenseCategory COMPLETE');
-        } catch (error: any) {
-            console.error('❌ Error toggling expense category:', error);
-            console.error('❌ Error details:', {
-                message: error?.message || 'Unknown error',
-                status: error?.response?.status || 'No status',
-                statusText: error?.response?.statusText || 'No status text',
-                url: error?.config?.url || 'No URL',
-                method: error?.config?.method || 'No method',
-                data: error?.config?.data || 'No data'
-            });
-            Alert.alert('Error', `Failed to update category. Please try again.\n\nDebug: ${error?.response?.status || 'Unknown'} - ${error?.response?.statusText || 'Unknown error'}`);
+            const updated = category.enabled
+                ? expenseCategories.filter(cat => cat.id !== id && cat.enabled).map(cat => cat.id)
+                : [...expenseCategories.filter(cat => cat.enabled).map(cat => cat.id), id];
+            await AsyncStorage.setItem(expenseKey, JSON.stringify(updated));
+            const newExpenseCategories = expenseCategories.map(cat => cat.id === id ? { ...cat, enabled: !cat.enabled } : cat);
+            setExpenseCategories(newExpenseCategories);
+            // Update global categories in AsyncStorage
+            await AsyncStorage.setItem('global_expense_categories', JSON.stringify(newExpenseCategories));
+            // Emit event to notify ExpenseScreen
+            DeviceEventEmitter.emit('expenseCategoriesChanged');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update category. Please try again.');
         }
-    }, [user?.id, expenseCategories, loadExpenseCategories]);
+    }, [user?.id, expenseCategories]);
 
     // Check for offline status
     if (!isOnline) {
@@ -371,7 +252,6 @@ const CategoriesScreen = () => {
                 <Text style={styles.title}>Manage Categories</Text>
                 <Text style={styles.subtitle}>Select which categories you want to use</Text>
             </View>
-
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Income Categories Section */}
                 <View style={styles.section}>
@@ -384,7 +264,6 @@ const CategoriesScreen = () => {
                             <Text style={styles.countText}>{enabledIncomeCount} of {incomeCategories.length} enabled</Text>
                         </View>
                     </View>
-                    
                     <View style={styles.categoriesGrid}>
                         {incomeCategories.length > 0 ? (
                             incomeCategories.map((category) => (
@@ -402,7 +281,6 @@ const CategoriesScreen = () => {
                         )}
                     </View>
                 </View>
-
                 {/* Expense Categories Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
@@ -414,7 +292,6 @@ const CategoriesScreen = () => {
                             <Text style={styles.countText}>{enabledExpenseCount} of {expenseCategories.length} enabled</Text>
                         </View>
                     </View>
-                    
                     <View style={styles.categoriesGrid}>
                         {expenseCategories.length > 0 ? (
                             expenseCategories.map((category) => (
@@ -432,7 +309,6 @@ const CategoriesScreen = () => {
                         )}
                     </View>
                 </View>
-
                 {/* Helper Text */}
                 <View style={styles.helperSection}>
                     <Text style={styles.helperText}>

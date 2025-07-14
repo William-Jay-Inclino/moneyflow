@@ -22,6 +22,11 @@
         "backgroundColor": "#2E7D32"
       },
       "package": "com.moneyflow.mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ad206b06-8573-4649-bee9-60572984dcf8"
+      }
     }
   }
 }

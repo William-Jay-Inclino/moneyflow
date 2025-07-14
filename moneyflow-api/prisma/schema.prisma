@@ -17,7 +17,6 @@ model User {
     registered_at      DateTime  @default(now()) @db.Timestamptz
 
     // Relations
-    user_categories UserCategory[]
     user_expenses   UserExpense[]
     user_income     UserIncome[]
     user_accounts   UserAccount[]
@@ -53,7 +52,10 @@ model Category {
 	is_default Boolean      @default(false)
 
 	// Relations
-	user_categories UserCategory[]
+	user_expenses UserExpense[]
+	user_incomes UserIncome[]
+
+    @@index([type])
 
 	@@map("categories")
 }
@@ -62,25 +64,6 @@ enum CategoryType {
 	INCOME
 	EXPENSE
 }
-
-model UserCategory {
-	id          Int          @id @default(autoincrement())
-	user_id     String       @db.Uuid
-	category_id Int?
-	enabled     Boolean      @default(true)
-
-	// Relations
-	user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	category      Category?     @relation(fields: [category_id], references: [id], onDelete: SetNull)
-	user_expenses UserExpense[]
-	user_income   UserIncome[]
-
-	@@unique([user_id, category_id])
-	@@index([user_id])
-	@@index([user_id, enabled])
-	@@map("user_categories")
-}
-
 model UserExpense {
 	id           String   @id @default(uuid()) @db.Uuid
 	user_id      String   @db.Uuid
@@ -92,7 +75,7 @@ model UserExpense {
 
 	// Relations
 	user     User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+	category Category @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
 	@@index([user_id, expense_date])
@@ -110,7 +93,7 @@ model UserIncome {
 
 	// Relations
 	user     User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-	category UserCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+	category Category @relation(fields: [category_id], references: [id], onDelete: Restrict)
 
 	@@index([user_id])
 	@@index([user_id, income_date])

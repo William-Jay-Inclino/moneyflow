@@ -13,19 +13,12 @@ export class UserIncomeService {
         const { category_id, amount, notes, income_date } = create_user_income_dto;
 
         try {
-            // Verify category exists and belongs to user
-            const user_category = await this.prisma.userCategory.findFirst({
-                where: {
-                    id: category_id,
-                    user_id: user_id,
-                },
-                include: {
-                    category: true,
-                },
+            // Verify category exists and is INCOME type
+            const category = await this.prisma.category.findUnique({
+                where: { id: category_id },
             });
-
-            if (!user_category || !user_category.category || user_category.category.type !== CategoryType.INCOME) {
-                throw new BadRequestException('Category not found, does not belong to user, or is not an income category');
+            if (!category || category.type !== CategoryType.INCOME) {
+                throw new BadRequestException('Category not found or is not an income category');
             }
 
             // Create the income with timezone-aware date
@@ -44,11 +37,7 @@ export class UserIncomeService {
                     notes,
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
 
@@ -63,7 +52,6 @@ export class UserIncomeService {
 
     async find_user_income(user_id: string, find_dto: FindUserIncomeDto): Promise<UserIncomeEntity[]> {
         const { year, month } = find_dto;
-
         try {
             // Create start and end dates for the given month and year in Asia/Manila timezone
             // Start of month: 00:00:00 Asia/Manila
@@ -82,17 +70,12 @@ export class UserIncomeService {
                     },
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
                 orderBy: {
                     income_date: 'desc',
                 },
             });
-
             return income.map(income_item => new UserIncomeEntity(income_item));
         } catch (error) {
             throw new BadRequestException('Failed to fetch user income');
@@ -107,18 +90,12 @@ export class UserIncomeService {
                     user_id,
                 },
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
-
             if (!income) {
                 throw new NotFoundException('User income not found');
             }
-
             return new UserIncomeEntity(income);
         } catch (error) {
             if (error instanceof NotFoundException) {
@@ -130,7 +107,6 @@ export class UserIncomeService {
 
     async update_user_income(user_id: string, income_id: string, update_user_income_dto: UpdateUserIncomeDto): Promise<UserIncomeEntity> {
         const { category_id, amount, notes, income_date } = update_user_income_dto;
-
         try {
             // Check if income exists and belongs to user
             const existing_income = await this.prisma.userIncome.findFirst({
@@ -139,28 +115,18 @@ export class UserIncomeService {
                     user_id,
                 },
             });
-
             if (!existing_income) {
                 throw new NotFoundException('User income not found');
             }
-
-            // If category_id is provided, verify it belongs to user
+            // If category_id is provided, verify it exists and is INCOME type
             if (category_id) {
-                const user_category = await this.prisma.userCategory.findFirst({
-                    where: {
-                        id: category_id,
-                        user_id,
-                    },
-                    include: {
-                        category: true,
-                    },
+                const category = await this.prisma.category.findUnique({
+                    where: { id: category_id },
                 });
-
-                if (!user_category || !user_category.category || user_category.category.type !== CategoryType.INCOME) {
-                    throw new BadRequestException('Category not found, does not belong to user, or is not an income category');
+                if (!category || category.type !== CategoryType.INCOME) {
+                    throw new BadRequestException('Category not found or is not an income category');
                 }
             }
-
             // Update the income
             const update_data: any = {};
             if (category_id !== undefined) update_data.category_id = category_id;
@@ -170,21 +136,15 @@ export class UserIncomeService {
                 // Use the full ISO string provided by the client for income_date
                 update_data.income_date = new Date(income_date);
             }
-
             const updated_income = await this.prisma.userIncome.update({
                 where: {
                     id: income_id,
                 },
                 data: update_data,
                 include: {
-                    category: {
-                        include: {
-                            category: true,
-                        },
-                    },
+                    category: true,
                 },
             });
-
             return new UserIncomeEntity(updated_income);
         } catch (error) {
             if (error instanceof NotFoundException || error instanceof BadRequestException) {
@@ -234,7 +194,6 @@ export class UserIncomeService {
         const where: any = {
             user_id,
         };
-
         if (start_date || end_date) {
             where.created_at = {};
             if (start_date) {
@@ -244,49 +203,31 @@ export class UserIncomeService {
                 where.created_at.lte = new Date(end_date);
             }
         }
-
         try {
             const [total_income, income_by_category] = await Promise.all([
                 this.prisma.userIncome.count({ where }),
                 this.prisma.userIncome.groupBy({
                     by: ['category_id'],
                     where,
-                    _sum: {
-                        amount: true,
-                    },
-                    _count: {
-                        id: true,
-                    },
+                    _sum: { amount: true },
+                    _count: { id: true },
                 }),
             ]);
-
             // Get category names
             const category_ids = income_by_category.map(item => item.category_id);
-            const user_categories = await this.prisma.userCategory.findMany({
-                where: {
-                    id: {
-                        in: category_ids,
-                    },
-                    user_id,
-                },
-                include: {
-                    category: true,
-                },
+            const categories = await this.prisma.category.findMany({
+                where: { id: { in: category_ids } },
             });
-
-            const categories_map = new Map(user_categories.map(cat => [cat.id, cat.category?.name || 'Unknown']));
-
+            const categories_map = new Map(categories.map(cat => [cat.id, cat.name]));
             const total_amount = income_by_category.reduce((sum, item) => {
                 return sum.plus(item._sum.amount || new Decimal(0));
             }, new Decimal(0));
-
             const categories_summary = income_by_category.map(item => ({
                 category_id: item.category_id,
                 category_name: categories_map.get(item.category_id) || 'Unknown',
                 total_amount: (item._sum.amount || new Decimal(0)).toString(),
                 count: item._count.id,
             }));
-
             return {
                 total_income,
                 total_amount: total_amount.toString(),

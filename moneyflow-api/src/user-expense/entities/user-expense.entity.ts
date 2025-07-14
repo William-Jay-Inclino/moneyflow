@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Decimal } from '@prisma/client/runtime/library';
+import { CategoryEntity } from 'src/category';
 
 export class UserExpenseEntity {
     @ApiProperty({
@@ -50,18 +50,7 @@ export class UserExpenseEntity {
         description: 'Category information',
         required: false,
     })
-    category?: {
-        id: number;
-        category_id: number | null;
-        category?: {
-            id: number;
-            name: string;
-            type: string;
-            color: string;
-            icon: string;
-            is_default: boolean;
-        };
-    };
+    category: CategoryEntity;
 
     constructor(partial: any) {
         Object.assign(this, partial);

@@ -16,7 +16,7 @@ import {
 import { tokenUtils } from '@/utils/tokenUtils';
 
 // Use the API_URL from environment variables
-const API_BASE_URL = API_URL || 'http://192.168.1.5:7000/moneyflow/api'; // Fallback for development
+const API_BASE_URL = API_URL; // Fallback for development
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
 

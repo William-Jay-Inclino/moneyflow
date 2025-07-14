@@ -68,10 +68,6 @@ export class UserService {
                 // Note: We don't throw here because user is created successfully
                 // They can always request a resend
             }
-
-            // Create default user categories
-            await this.create_default_user_categories(user.id);
-
             return new UserEntity(user);
         } catch (error) {
             if (error instanceof ConflictException) {
@@ -308,75 +304,6 @@ export class UserService {
         } catch (error) {
             console.error('❌ Email test failed:', error);
             throw new BadRequestException(`Email configuration test failed: ${error.message}`);
-        }
-    }
-
-    async debug_get_user_categories(user_id: string): Promise<{ user_id: string; category_count: number; categories: any[] }> {
-        try {
-            const userCategories = await this.prisma.userCategory.findMany({
-                where: { user_id },
-                include: {
-                    category: true
-                }
-            });
-
-            return {
-                user_id,
-                category_count: userCategories.length,
-                categories: userCategories.map(uc => ({
-                    id: uc.id,
-                    category_id: uc.category_id,
-                    category_name: uc.category?.name,
-                    category_type: uc.category?.type,
-                    is_default: uc.category?.is_default
-                }))
-            };
-        } catch (error) {
-            throw new BadRequestException('Failed to get user categories');
-        }
-    }
-
-    private async create_default_user_categories(user_id: string): Promise<void> {
-        console.log(`🔍 Starting default category creation for user: ${user_id}`);
-        
-        try {
-            // Get all default categories
-            const default_categories = await this.prisma.category.findMany({
-                where: {
-                    is_default: true
-                }
-            });
-
-            console.log(`📊 Found ${default_categories.length} default categories in database`);
-
-            if (default_categories.length === 0) {
-                console.warn('⚠️ No default categories found in database! Categories may not be seeded.');
-                return;
-            }
-
-            // Create user categories from default categories
-            let created_count = 0;
-            for (const default_category of default_categories) {
-                try {
-                    await this.prisma.userCategory.create({
-                        data: {
-                            user_id,
-                            category_id: default_category.id,
-                        },
-                    });
-                    created_count++;
-                    console.log(`✅ Created user category: ${default_category.name} (${default_category.type})`);
-                } catch (categoryError) {
-                    console.error(`❌ Failed to create user category for ${default_category.name}:`, categoryError);
-                }
-            }
-
-            console.log(`✅ Successfully created ${created_count}/${default_categories.length} default categories for user ${user_id}`);
-        } catch (error) {
-            console.error('❌ Error in create_default_user_categories:', error);
-            console.error('❌ Error stack:', error.stack);
-            // We don't throw here because user creation should not fail if default categories fail
-            // This can be handled separately or retried later
         }
     }
 

@@ -6,7 +6,6 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma';
 import { UserExpenseModule } from './user-expense';
 import { UserIncomeModule } from './user-income';
-import { UserCategoryModule } from './user-category';
 import { CategoryModule } from './category';
 import { UserModule } from './user';
 import { AuthModule, JwtAuthGuard } from './auth';
@@ -23,7 +22,6 @@ import { UserAccountsModule } from './user-accounts';
     CategoryModule,
     UserExpenseModule, 
     UserIncomeModule, 
-    UserCategoryModule, 
     UserModule,
     CashFlowModule,
     UserAccountsModule,
