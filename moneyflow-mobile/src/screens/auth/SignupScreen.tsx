@@ -76,6 +76,7 @@ export const SignupScreen = ({ navigation }: any) => {
             );
         } catch (error: any) {
             console.error('❌ [SignupScreen] Signup error:', error);
+            Alert.alert('Registration Failed', JSON.stringify(error));
             let errorMessage = 'An error occurred during registration';
             if (error.response?.status === 409) {
                 errorMessage = 'An account with this email already exists';
