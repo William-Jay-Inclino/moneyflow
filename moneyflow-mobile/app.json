@@ -1,6 +1,7 @@
 {
   "name": "MoneyFlow",
   "displayName": "MoneyFlow",
+  "icon": "./icon.png",
   "expo": {
     "name": "MoneyFlow",
     "slug": "moneyflow-mobile",
