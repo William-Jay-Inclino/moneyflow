@@ -57,7 +57,7 @@ interface ExpenseStore {
     getRecentExpenses: (limit?: number) => Expense[];
     getTotalForMonth: (year: number, month: number) => number;
     getCurrentMonthTotal: () => number;
-    getCategoryIcon: (categoryName: string) => string;
+    getCategoryIcon: (categoryId: string) => string;
     isLoadingMonth: (year: number, month: number) => boolean;
     
     // Helper functions
@@ -100,9 +100,20 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
         loadCategories: async (_userId: string) => {
             try {
                 set({ isLoadingCategories: true });
-                // Use global category API
-                const response: any = await categoryApi.getAllCategories('EXPENSE');
-                const categoryData = Array.isArray(response) ? response : response?.data || [];
+                let categoryData: any[] = [];
+                // Try to load from AsyncStorage first
+                const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                const stored = await AsyncStorage.getItem('global_expense_categories');
+                if (stored) {
+                    categoryData = JSON.parse(stored);
+                }
+                // If not found in AsyncStorage, fetch from API
+                if (!categoryData.length) {
+                    const response: any = await categoryApi.getAllCategories('EXPENSE');
+                    categoryData = Array.isArray(response) ? response : response?.data || [];
+                    // Save to AsyncStorage for offline use
+                    await AsyncStorage.setItem('global_expense_categories', JSON.stringify(categoryData));
+                }
                 const transformedCategories = get().transformCategoryData(categoryData, '');
                 set({ categories: transformedCategories });
             } catch (error) {
@@ -391,8 +402,8 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
             return get().monthlyCache[monthKey]?.isLoading || false;
         },
 
-        getCategoryIcon: (categoryName: string) => {
-            const category = get().categories.find(cat => cat.name === categoryName);
+        getCategoryIcon: (categoryId: string) => {
+            const category = get().categories.find(cat => cat.id === categoryId);
             return category?.icon || '💳';
         },
 

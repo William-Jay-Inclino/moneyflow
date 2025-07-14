@@ -642,33 +642,31 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     }, []);
 
     const formatDateForDisplay = useCallback((dateString: string) => {
-        // Only use the expense's date field, not created_at
         const dateObj = new Date(dateString);
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const month = dateObj.toLocaleString('default', { month: 'long' });
         const day = String(dateObj.getDate()).padStart(2, '0');
-        let hours = dateObj.getHours();
-        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours === 0 ? 12 : hours;
-        const hourStr = String(hours).padStart(2, '0');
-        return `${month}/${day} ${hourStr}:${minutes} ${ampm}`;
+        return `${month} ${day}`;
     }, []);
 
     // Load enabled categories from AsyncStorage
     const loadEnabledCategories = useCallback(async () => {
         try {
+            // Load global categories
             const stored = await AsyncStorage.getItem('global_expense_categories');
+            // Load enabled category IDs for current user
+            const enabledIdsRaw = await AsyncStorage.getItem(`user_expense_categories_${user?.id}`);
+            const enabledIds = enabledIdsRaw ? JSON.parse(enabledIdsRaw) : [];
             if (stored) {
                 const allCategories: Category[] = JSON.parse(stored);
-                setCategories(allCategories.filter((cat) => cat.enabled));
+                // Only show categories whose IDs are in enabledIds
+                setCategories(allCategories.filter((cat) => enabledIds.includes(cat.id)));
             } else {
                 setCategories([]);
             }
         } catch (error) {
             setCategories([]);
         }
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         loadEnabledCategories();
@@ -734,7 +732,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 category={category.name}
                                 isSelected={selectedCategory === category.id}
                                 onPress={() => setSelectedCategory(category.id)}
-                                getCategoryIcon={getCategoryIcon}
+                                getCategoryIcon={() => getCategoryIcon(category.id)}
                                 color="#3b82f6"
                             />
                         )) : (
@@ -861,7 +859,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                             <ExpenseItem
                                 key={item.id}
                                 item={item}
-                                getCategoryIcon={getCategoryIcon}
+                                getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                 formatDate={formatDateForDisplay}
                                 onEdit={handleEditExpense}
                                 onDelete={handleDeleteExpense}
@@ -942,7 +940,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                         category={category.name}
                                         isSelected={editFormData.category === category.id}
                                         onPress={() => setEditFormData(prev => ({ ...prev, category: category.id }))}
-                                        getCategoryIcon={getCategoryIcon}
+                                        getCategoryIcon={() => getCategoryIcon(category.id)}
                                         color="#3b82f6"
                                     />
                                 ))}

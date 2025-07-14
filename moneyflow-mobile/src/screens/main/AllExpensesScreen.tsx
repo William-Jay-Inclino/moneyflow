@@ -129,7 +129,7 @@ const CategoryLegend = memo(({
             <View key={category.name} style={styles.categoryItem}>
                 <View style={styles.categoryLeft}>
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
-                    <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.name)}</Text>
+                    <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.id)}</Text>
                     <Text style={styles.categoryName}>{category.name}</Text>
                 </View>
                 <View style={styles.categoryRight}>
@@ -198,6 +198,56 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
     const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '', day: '' });
     const [addFormData, setAddFormData] = useState({ cost: '', notes: '', category: '', day: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [localCategories, setLocalCategories] = useState<Category[]>([]);
+    const [enabledCategoryIds, setEnabledCategoryIds] = useState<string[]>([]);
+
+    // Load categories from AsyncStorage for offline support
+    useEffect(() => {
+        const loadCategoriesFromStorage = async () => {
+            try {
+                const stored = await import('@react-native-async-storage/async-storage');
+                const AsyncStorage = stored.default;
+                const raw = await AsyncStorage.getItem('global_expense_categories');
+                if (raw) {
+                    setLocalCategories(JSON.parse(raw));
+                } else {
+                    setLocalCategories(categories);
+                }
+                // Load enabled category IDs for current user
+                if (user?.id) {
+                    const enabledRaw = await AsyncStorage.getItem(`user_expense_categories_${user.id}`);
+                    if (enabledRaw) {
+                        setEnabledCategoryIds(JSON.parse(enabledRaw));
+                    } else {
+                        // fallback: enable all is_default categories if not set
+                        let parsedCategories;
+                        if (raw) {
+                            parsedCategories = JSON.parse(raw);
+                        } else {
+                            parsedCategories = categories;
+                        }
+                        // fallback: enable all is_default categories if not set
+                        const defaults = parsedCategories.filter((cat: any) => cat.is_default).map((cat: any) => cat.id);
+                        setEnabledCategoryIds(defaults);
+                    }
+                }
+            } catch (error) {
+                setLocalCategories(categories);
+            }
+        };
+        loadCategoriesFromStorage();
+    }, [user?.id, categories]);
+
+    // Only show enabled categories for selection
+    const enabledCategories = useMemo(() => {
+        return localCategories.filter(cat => enabledCategoryIds.includes(cat.id));
+    }, [localCategories, enabledCategoryIds]);
+
+    // Helper to get category icon from localCategories
+    const getLocalCategoryIcon = useCallback((categoryId: string) => {
+        const cat = localCategories.find(c => c.id === categoryId);
+        return cat?.icon || '💳';
+    }, [localCategories]);
 
     // Current month data
     const currentYear = localCurrentDate.getFullYear();
@@ -458,27 +508,30 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
     // Use expenses from the store directly
     const categoryData = useMemo(() => {
+        // Aggregate by categoryId, then join with localCategories for name, icon, color
         const categoryTotals: Record<string, number> = {};
-        
         filteredExpenses.forEach((expense: any) => {
-            categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+            const catId = expense.categoryId;
+            categoryTotals[catId] = (categoryTotals[catId] || 0) + expense.amount;
         });
-
         const colors = CHART_COLORS;
-        
-        return Object.entries(categoryTotals).map(([name, amount], index) => ({
-            name,
-            amount,
-            color: colors[index % colors.length],
-            legendLabel: `-${amount.toFixed(2)}`,
-            percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : '0'
-        }));
-    }, [filteredExpenses, totalExpenses]);
+        return Object.entries(categoryTotals).map(([catId, amount], index) => {
+            const cat = localCategories.find(c => c.id === catId);
+            return {
+                id: catId,
+                name: cat?.name || 'Unknown',
+                icon: cat?.icon || '💳',
+                color: cat?.color || colors[index % colors.length],
+                legendLabel: `-${amount.toFixed(2)}`,
+                percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : '0',
+            };
+        });
+    }, [filteredExpenses, totalExpenses, localCategories]);
 
     const chartData = useMemo(() => 
-        categoryData.map(category => ({
+        categoryData.map((category) => ({
             name: `${category.percentage}%`,
-            population: category.amount,
+            population: parseFloat(category.legendLabel.replace('-', '')),
             color: category.color,
             legendFontColor: '#94a3b8',
             legendFontSize: 9,
@@ -608,7 +661,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
                             <CategoryLegend 
                                 categories={categoryData}
-                                getCategoryIcon={getCategoryIcon}
+                                getCategoryIcon={getLocalCategoryIcon}
                             />
                         </View>
 
@@ -619,7 +672,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                                 <ExpenseItem
                                     key={item.id}
                                     item={item}
-                                    getCategoryIcon={getCategoryIcon}
+                                    getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
                                     formatDate={formatDateDisplay}
                                     onEdit={handleEditExpense}
                                     onDelete={handleDeleteExpense}
@@ -669,7 +722,6 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                                 <Text style={styles.inputLabel}>Notes</Text>
                                 <TextInput
                                     style={styles.notesInput}
-                                    placeholder="What did you buy?"
                                     value={editFormData.notes}
                                     onChangeText={(text) => updateEditFormField('notes', text)}
                                     placeholderTextColor="#94a3b8"
@@ -705,13 +757,13 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             <Text style={styles.inputLabel}>Select Category</Text>
                             <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {categories.map((category) => (
+                                {enabledCategories.map((category) => (
                                     <CategoryChip
                                         key={category.id}
                                         category={category.name}
                                         isSelected={editFormData.category === category.id}
                                         onPress={() => handleEditFormCategorySelect(category.id)}
-                                        getCategoryIcon={getCategoryIcon}
+                                        getCategoryIcon={() => getLocalCategoryIcon(category.id)}
                                     />
                                 ))}
                             </ScrollView>
@@ -767,7 +819,6 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                                 <Text style={styles.inputLabel}>Notes</Text>
                                 <TextInput
                                     style={styles.notesInput}
-                                    placeholder="What did you buy?"
                                     value={addFormData.notes}
                                     onChangeText={(text) => updateAddFormField('notes', text)}
                                     placeholderTextColor="#94a3b8"
@@ -803,15 +854,21 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                             <Text style={styles.inputLabel}>Select Category</Text>
                             <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {categories.map((category) => (
-                                    <CategoryChip
-                                        key={category.id}
-                                        category={category.name}
-                                        isSelected={addFormData.category === category.id}
-                                        onPress={() => handleAddFormCategorySelect(category.id)}
-                                        getCategoryIcon={getCategoryIcon}
-                                    />
-                                ))}
+                                {enabledCategories.length === 0 ? (
+                                    <View style={{ justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                                        <Text style={{ color: '#64748b', fontSize: 14 }}>No categories available. Please check your internet connection or try again later.</Text>
+                                    </View>
+                                ) : (
+                                    enabledCategories.map((category) => (
+                                        <CategoryChip
+                                            key={category.id}
+                                            category={category.name}
+                                            isSelected={addFormData.category === category.id}
+                                            onPress={() => handleAddFormCategorySelect(category.id)}
+                                            getCategoryIcon={() => getLocalCategoryIcon(category.id)}
+                                        />
+                                    ))
+                                )}
                             </ScrollView>
                         </View>
 

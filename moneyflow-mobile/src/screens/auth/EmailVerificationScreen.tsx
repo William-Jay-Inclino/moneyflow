@@ -68,29 +68,37 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                     categoryApi.getAllCategories('INCOME'),
                     categoryApi.getAllCategories('EXPENSE'),
                 ]);
-                // Transform and enable all by default
+                // Transform and include is_default property
                 const transformedIncome = incomeCategories.map((cat: any) => ({
                     id: cat.id?.toString() || '',
                     name: cat.name || 'Unknown',
                     icon: cat.icon || '💰',
                     enabled: true,
-                    type: 'INCOME'
+                    type: 'INCOME',
+                    is_default: cat.is_default === true
                 }));
                 const transformedExpense = expenseCategories.map((cat: any) => ({
                     id: cat.id?.toString() || '',
                     name: cat.name || 'Unknown',
                     icon: cat.icon || '💸',
                     enabled: true,
-                    type: 'EXPENSE'
+                    type: 'EXPENSE',
+                    is_default: cat.is_default === true
                 }));
                 // Save global categories
                 await AsyncStorage.setItem('global_income_categories', JSON.stringify(transformedIncome));
                 await AsyncStorage.setItem('global_expense_categories', JSON.stringify(transformedExpense));
 
-                // Save enabled category IDs for the user (all enabled by default)
+                // Save enabled category IDs for the user (only those with is_default: true)
                 if (user?.id) {
-                    await AsyncStorage.setItem(`user_income_categories_${user.id}`, JSON.stringify(transformedIncome.map(cat => cat.id)));
-                    await AsyncStorage.setItem(`user_expense_categories_${user.id}`, JSON.stringify(transformedExpense.map(cat => cat.id)));
+                    await AsyncStorage.setItem(
+                        `user_income_categories_${user.id}`,
+                        JSON.stringify(transformedIncome.filter(cat => cat.is_default).map(cat => cat.id))
+                    );
+                    await AsyncStorage.setItem(
+                        `user_expense_categories_${user.id}`,
+                        JSON.stringify(transformedExpense.filter(cat => cat.is_default).map(cat => cat.id))
+                    );
                 }
 
             } catch (catError) {
