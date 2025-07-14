@@ -33,7 +33,10 @@ export class AuthController {
     description: 'User with this email already exists',
   })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
-    return this.authService.register(registerDto);
+    console.log('🔔 [AuthController] Register called with:', registerDto);
+    const result = await this.authService.register(registerDto);
+    console.log('✅ [AuthController] Register result:', result);
+    return result;
   }
 
   @Public()

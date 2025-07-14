@@ -97,30 +97,17 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
         },
 
         // Categories
-        loadCategories: async (userId: string) => {
-            if (!userId) return;
-            
+        loadCategories: async (_userId: string) => {
             try {
                 set({ isLoadingCategories: true });
-                const response: any = await categoryApi.getUserCategories(userId, 'EXPENSE');
+                // Use global category API
+                const response: any = await categoryApi.getAllCategories('EXPENSE');
                 const categoryData = Array.isArray(response) ? response : response?.data || [];
-                const transformedCategories = get().transformCategoryData(categoryData, userId);
+                const transformedCategories = get().transformCategoryData(categoryData, '');
                 set({ categories: transformedCategories });
             } catch (error) {
                 console.error('Error loading categories:', error);
-                // Fallback: try to get all categories and filter for expenses
-                try {
-                    const response: any = await categoryApi.getCategories(userId);
-                    const allCategories = Array.isArray(response) ? response : response?.data || [];
-                    const expenseCategories = allCategories.filter((item: any) => {
-                        const category = item.category || item;
-                        return (category.type || item.type)?.toLowerCase() === 'expense';
-                    });
-                    const transformedCategories = get().transformCategoryData(expenseCategories, userId);
-                    set({ categories: transformedCategories });
-                } catch (fallbackError) {
-                    console.error('Fallback category loading failed:', fallbackError);
-                }
+                set({ categories: [] });
             } finally {
                 set({ isLoadingCategories: false });
             }

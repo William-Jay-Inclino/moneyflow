@@ -5,7 +5,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate, createTodayWithDay, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
+import { parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Offline storage keys

@@ -128,6 +128,30 @@ export const LoginScreen = ({ navigation }: any) => {
         navigation.navigate('Signup');
     };
 
+    // Debug: Clear AsyncStorage
+    const handleClearAsyncStorage = () => {
+        Alert.alert(
+            'Clear Local Data',
+            'Are you sure you want to clear all local app data? This will remove all offline expenses and categories.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Clear',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                            await AsyncStorage.clear();
+                            Alert.alert('Success', 'Local data cleared.');
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to clear local data.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Welcome Back</Text>
@@ -172,6 +196,13 @@ export const LoginScreen = ({ navigation }: any) => {
                         <Text style={styles.signupLink}>Sign Up</Text>
                     </TouchableOpacity>
                 </View>
+                {/* Debug Button: Clear AsyncStorage */}
+                <TouchableOpacity
+                    style={styles.debugButton}
+                    onPress={handleClearAsyncStorage}
+                >
+                    <Text style={styles.debugButtonText}>Clear Local Data (Debug)</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -239,6 +270,20 @@ const styles = StyleSheet.create({
     signupLink: {
         fontSize: 14,
         color: '#3b82f6',
+        fontWeight: 'bold',
+    },
+    debugButton: {
+        marginTop: 20,
+        backgroundColor: '#ef4444',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: 'center',
+        alignSelf: 'center',
+    },
+    debugButtonText: {
+        color: 'white',
+        fontSize: 13,
         fontWeight: 'bold',
     },
 });

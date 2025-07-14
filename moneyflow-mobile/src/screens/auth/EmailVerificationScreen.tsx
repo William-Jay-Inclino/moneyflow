@@ -59,6 +59,42 @@ export const EmailVerificationScreen = ({ navigation }: any) => {
                 code: verificationCode.trim()
             });
             
+            // After successful verification, fetch and store global categories, enable all by default
+            try {
+                const { categoryApi } = await import('@services/api');
+                const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                // Fetch global categories
+                const [incomeCategories, expenseCategories] = await Promise.all([
+                    categoryApi.getAllCategories('INCOME'),
+                    categoryApi.getAllCategories('EXPENSE'),
+                ]);
+                // Transform and enable all by default
+                const transformedIncome = incomeCategories.map((cat: any) => ({
+                    id: cat.id?.toString() || '',
+                    name: cat.name || 'Unknown',
+                    icon: cat.icon || '💰',
+                    enabled: true,
+                    type: 'INCOME'
+                }));
+                const transformedExpense = expenseCategories.map((cat: any) => ({
+                    id: cat.id?.toString() || '',
+                    name: cat.name || 'Unknown',
+                    icon: cat.icon || '💸',
+                    enabled: true,
+                    type: 'EXPENSE'
+                }));
+                // Save global categories
+                await AsyncStorage.setItem('global_income_categories', JSON.stringify(transformedIncome));
+                await AsyncStorage.setItem('global_expense_categories', JSON.stringify(transformedExpense));
+                // Enable all for user
+                if (user?.id) {
+                    await AsyncStorage.setItem(`user_income_categories_${user.id}`, JSON.stringify(transformedIncome.map(cat => cat.id)));
+                    await AsyncStorage.setItem(`user_expense_categories_${user.id}`, JSON.stringify(transformedExpense.map(cat => cat.id)));
+                }
+            } catch (catError) {
+                console.error('Error initializing categories after verification:', catError);
+            }
+            
             console.log('✅ Email verification successful');
             clearPendingVerification();
             

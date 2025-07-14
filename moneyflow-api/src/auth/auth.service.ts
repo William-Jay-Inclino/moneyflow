@@ -15,20 +15,24 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+    console.log('🔔 [AuthService] Register called with:', registerDto);
     const { email, password } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
+    console.log('🔍 [AuthService] Existing user lookup result:', existingUser);
 
     if (existingUser) {
+      console.log('❌ [AuthService] User already exists:', email);
       throw new ConflictException('User with this email already exists');
     }
 
     // Hash password
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+    console.log('🔑 [AuthService] Hashed password for', email);
 
     // Generate verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -43,15 +47,18 @@ export class AuthService {
         email_verified: false,
       },
     });
+    console.log('✅ [AuthService] User created:', user);
 
     // Send verification email
     await this.emailService.sendEmailVerification(email, verificationCode);
+    console.log('✉️ [AuthService] Verification email sent to:', email);
 
     // Generate JWT token
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
+    console.log('🔒 [AuthService] JWT token generated for:', email);
 
-    return {
+    const result = {
       accessToken,
       user: {
         id: user.id,
@@ -62,6 +69,8 @@ export class AuthService {
         updatedAt: user.registered_at,
       },
     };
+    console.log('✅ [AuthService] Register result:', result);
+    return result;
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {

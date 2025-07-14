@@ -185,91 +185,28 @@ export const transactionApi = {
     },
 };
 
-// Category API - Updated to match backend user-specific endpoints  
+// Category API - Updated to match backend global endpoints
 export const categoryApi = {
     // Get all global categories (from the new Category module)
     getAllCategories: async (type?: 'EXPENSE' | 'INCOME'): Promise<Category[]> => {
         let url = '/categories';
         if (type) url += `?type=${type}`;
-        
         const response = await api.get(url);
         return response.data;
     },
 
-    getCategories: async (userId?: string): Promise<ApiResponse<Category[]>> => {
-        // If userId is provided, use user-specific endpoint
-        if (userId) {
-            const response = await api.get(`/users/${userId}/categories`);
-            return { success: true, data: response.data };
-        }
-        // Fallback to old endpoint for backwards compatibility
-        const response = await api.get('/user-category');
-        return response.data;
-    },
-
-    getUserCategories: async (userId: string, type?: 'EXPENSE' | 'INCOME'): Promise<Category[]> => {
-        let url = `/users/${userId}/categories`;
+    // Get categories (global only)
+    getCategories: async (type?: 'EXPENSE' | 'INCOME'): Promise<ApiResponse<Category[]>> => {
+        let url = '/categories';
         if (type) url += `?type=${type}`;
-        
         const response = await api.get(url);
-        return response.data;
-    },
-
-    // Assign a global category to a user
-    assignCategoryToUser: async (userId: string, categoryId: number): Promise<any> => {
-        console.log('🔗 categoryApi.assignCategoryToUser called:', { userId, categoryId });
-        console.log('📤 Making POST request to:', `/users/${userId}/categories`);
-        console.log('📦 Request payload:', { category_id: categoryId });
-        
-        try {
-            const response = await api.post(`/users/${userId}/categories`, {
-                category_id: categoryId
-            });
-            console.log('✅ assignCategoryToUser SUCCESS:', response.data);
-            return response.data;
-        } catch (error: any) {
-            console.error('❌ assignCategoryToUser ERROR:', error);
-            console.error('❌ Full error details:', {
-                message: error?.message,
-                status: error?.response?.status,
-                statusText: error?.response?.statusText,
-                url: error?.config?.url,
-                method: error?.config?.method,
-                data: error?.response?.data,
-                headers: error?.config?.headers
-            });
-            throw error;
-        }
-    },
-
-    // Remove a category from a user
-    removeCategoryFromUser: async (userId: string, categoryId: number): Promise<void> => {
-        console.log('🗑️ categoryApi.removeCategoryFromUser called:', { userId, categoryId });
-        console.log('📤 Making DELETE request to:', `/users/${userId}/categories/${categoryId}`);
-        
-        try {
-            const response = await api.delete(`/users/${userId}/categories/${categoryId}`);
-            console.log('✅ removeCategoryFromUser SUCCESS');
-            return response.data;
-        } catch (error: any) {
-            console.error('❌ removeCategoryFromUser ERROR:', error);
-            console.error('❌ Full error details:', {
-                message: error?.message,
-                status: error?.response?.status,
-                statusText: error?.response?.statusText,
-                url: error?.config?.url,
-                method: error?.config?.method,
-                data: error?.response?.data,
-                headers: error?.config?.headers
-            });
-            throw error;
-        }
+        return { success: true, data: response.data };
     },
 
     createCategory: async (
         data: CreateCategoryRequest
     ): Promise<ApiResponse<Category>> => {
-        const response = await api.post('/user-category', data);
+        const response = await api.post('/categories', data);
         return response.data;
     },
 
@@ -277,12 +214,12 @@ export const categoryApi = {
         id: string,
         data: Partial<CreateCategoryRequest>
     ): Promise<ApiResponse<Category>> => {
-        const response = await api.patch(`/user-category/${id}`, data);
+        const response = await api.patch(`/categories/${id}`, data);
         return response.data;
     },
 
     deleteCategory: async (id: string): Promise<ApiResponse<void>> => {
-        const response = await api.delete(`/user-category/${id}`);
+        const response = await api.delete(`/categories/${id}`);
         return response.data;
     },
 };
