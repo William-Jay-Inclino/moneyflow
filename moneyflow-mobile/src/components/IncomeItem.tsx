@@ -63,14 +63,6 @@ export const IncomeItem = memo<IncomeItemProps>(({
         onDelete?.(item.id);
     }, [item.id, onDelete]);
 
-    // Helper to format date in MM/DD hh:mm AM/PM
-    const formatIncomeDate = (isoString: string) => {
-        const dateObj = new Date(isoString);
-        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(dateObj.getDate()).padStart(2, '0');
-        return `${mm}/${dd}`;
-    };
-
     return (
         <>
             <View style={styles.transactionCard}>
@@ -80,8 +72,7 @@ export const IncomeItem = memo<IncomeItemProps>(({
                     </View>
                     <View style={styles.transactionInfo}>
                         <Text style={styles.transactionDescription}>{item.description}</Text>
-                        {/* Show formatted date only, no created_at or item.time */}
-                        <Text style={styles.transactionDate}>{formatIncomeDate(item.date)}</Text>
+                        <Text style={styles.transactionDate}>{formatDate(item.date)}</Text>
                     </View>
                 </View>
                 <View style={styles.transactionRight}>
@@ -210,7 +201,7 @@ const styles = StyleSheet.create({
     incomeAmount: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#16a34a',
+        color: '#22c55e',
         textAlign: 'right',
     },
     menuButton: {

@@ -8,7 +8,7 @@ import { formatDate, parseDateComponents } from '../../utils/dateUtils';
 import { validateIncomeForm } from '../../utils/formValidation';
 
 // Constants
-const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+const CHART_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
 const YEAR_RANGE = 10;
 
 const SUCCESS_MESSAGES = {
@@ -126,7 +126,7 @@ const CategoryLegend = memo(({
 }) => (
     <View style={styles.categoriesContainer}>
         {categories.map((category, index) => (
-            <View key={category.name} style={styles.categoryItem}>
+            <View key={`${category.id}-${category.name}`} style={styles.categoryItem}>
                 <View style={styles.categoryLeft}>
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                     <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.id)}</Text>
@@ -149,7 +149,7 @@ const TotalSpent = memo(({
 }) => (
     <View style={styles.totalContainer}>
         <Text style={styles.totalLabel}>Total Income This Month</Text>
-        <Text style={[styles.totalAmount, { color: '#10b981' }]}>+{totalIncomes.toFixed(2)}</Text>
+        <Text style={[styles.totalAmount, { color: '#22c55e' }]}>+{totalIncomes.toFixed(2)}</Text>
     </View>
 ));
 
@@ -483,7 +483,10 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     }, []);
 
     const formatDateDisplay = useCallback((dateString: string) => {
-        return formatDate(dateString);
+        const dateObj = new Date(dateString);
+        const month = dateObj.toLocaleString('default', { month: 'long' });
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${month} ${day}`;
     }, []);
 
     const formatMonthYear = useCallback((date: Date) => {
@@ -542,15 +545,16 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     if (!user?.id) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity 
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Text style={styles.backButtonText}>←</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.title}>All Incomes</Text>
-                    <View style={styles.placeholder} />
+                <View style={styles.headerMinimal}>
+                    <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                        <TouchableOpacity
+                            style={styles.backButtonStyled}
+                            onPress={() => navigation.goBack()}
+                            accessibilityLabel="Go back"
+                        >
+                            <Text style={styles.backButtonTextStyled}>← Back</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyStateIcon}>🔒</Text>
@@ -563,17 +567,17 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={styles.backButtonText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.title}>All Incomes</Text>
-                <View style={styles.placeholder} />
+            <View style={styles.headerMinimal}>
+                <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                    <TouchableOpacity
+                        style={styles.backButtonStyled}
+                        onPress={() => navigation.goBack()}
+                        accessibilityLabel="Go back"
+                    >
+                        <Text style={styles.backButtonTextStyled}>← Back</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Month Navigation */}
                 <View style={styles.monthNavigation}>
@@ -660,14 +664,14 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
 
                             <View style={styles.categoriesContainer}>
                                 {categoryData.map((category, index) => (
-                                    <View key={category.name} style={styles.categoryItem}>
+                                    <View key={`${category.id}-${category.name}-${index}`} style={styles.categoryItem}>
                                         <View style={styles.categoryLeft}>
                                             <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                                             <Text style={styles.categoryEmojiIcon}>{getLocalCategoryIcon(category.id)}</Text>
                                             <Text style={styles.categoryName}>{category.name}</Text>
                                         </View>
                                         <View style={styles.categoryRight}>
-                                            <Text style={[styles.categoryAmount, { color: '#10b981' }]}>+{parseFloat(category.legendLabel.replace('-', '')).toFixed(2)}</Text>
+                                            <Text style={[styles.categoryAmount, { color: '#22c55e' }]}>+{parseFloat(category.legendLabel.replace('-', '')).toFixed(2)}</Text>
                                             <Text style={styles.categoryPercentage}>{category.percentage}%</Text>
                                         </View>
                                     </View>
@@ -908,22 +912,23 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
+    headerMinimal: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#10b981', // green
+        backgroundColor: '#22c55e',
     },
-    backButton: {
-        padding: 8,
-        borderRadius: 8,
+    backButtonStyled: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
     },
-    backButtonText: {
-        fontSize: 24,
+    backButtonTextStyled: {
         color: 'white',
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '500',
     },
     title: {
         fontSize: 28,
@@ -1006,7 +1011,7 @@ const styles = StyleSheet.create({
     totalAmount: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: '#10b981',
+        color: '#22c55e',
     },
     // Analytics Section Styles
     analyticsSection: {

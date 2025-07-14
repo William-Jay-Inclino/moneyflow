@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useCashFlowStore } from '../../store/cashFlowStore';
 import { cashFlowApi } from '../../services/api';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { MainScreenHeader } from '@/components/MainScreenHeader';
 
 // Year Picker Component
 const YearPicker = memo(({ 
@@ -250,10 +251,11 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Cash Flow</Text>
-                <Text style={styles.subtitle}>Track your financial overview</Text>
-            </View>
+            <MainScreenHeader
+                title="Cash Flow"
+                subtitle="Track your financial overview"
+                color="#6366f1"
+            />
             {!isOnline && (
                 <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
                     <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>

@@ -9,6 +9,7 @@ import { parseDateComponents, formatDate } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 import { IncomeItem } from '../../components/IncomeItem';
 import { CategoryChip } from '../../components/CategoryChip';
+import { MainScreenHeader } from '@/components/MainScreenHeader';
 
 // Offline storage keys
 const STORAGE_KEYS = {
@@ -609,12 +610,11 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
 
     return (
         <ScrollView style={styles.container}>
-            {/* Title/Header Section */}
-            <View style={styles.header}>
-                <Text style={styles.title}>Add Income</Text>
-                <Text style={styles.subtitle}>Quick and easy income tracking</Text>
-            </View>
-
+            <MainScreenHeader
+                title="Add Income"
+                subtitle="Quick and easy income tracking"
+                color="#22c55e"
+            />
             {/* Offline Alert */}
             {!isOnline && (
                 <View style={styles.offlineAlert}>

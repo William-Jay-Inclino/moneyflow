@@ -7,6 +7,7 @@ import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
 import { parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
+import { MainScreenHeader } from '@/components/MainScreenHeader';
 
 // Offline storage keys
 const STORAGE_KEYS = {
@@ -686,10 +687,11 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
 
     return (
         <ScrollView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Add Expense</Text>
-                <Text style={styles.subtitle}>Quick and easy expense tracking</Text>
-            </View>
+            <MainScreenHeader
+                title="Add Expense"
+                subtitle="Quick and easy expense tracking"
+                color="#3b82f6"
+            />
             {!isOnline && (
                 <View style={styles.offlineAlert}>
                     <Text style={styles.offlineAlertText}>You are offline. Expenses will be saved locally and synced when online.</Text>

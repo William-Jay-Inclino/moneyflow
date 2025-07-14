@@ -278,18 +278,28 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         }
     };
 
-    const handleEditExpense = useCallback((expense: Expense) => {
-        const categoryObj = categories.find(cat => cat.name === expense.category);
-        const { day } = parseDateComponents(expense.date);
-        setEditFormData({
-            cost: expense.amount.toString(),
-            notes: expense.description,
-            category: categoryObj?.id || '',
-            day: day.toString()
-        });
-        setEditingId(expense.id);
-        setEditModalVisible(true);
-    }, [categories]);
+    const handleEditExpense = useCallback((expense: any) => {
+        try {
+            // Use categoryId for reliable category lookup
+            let categoryObj = localCategories.find(cat => cat.id === expense.categoryId);
+            // If not found, default to first available category
+            if (!categoryObj && localCategories.length > 0) {
+                categoryObj = localCategories[0];
+            }
+            const { day } = parseDateComponents(expense.date);
+            setEditFormData({
+                cost: expense.amount.toString(),
+                notes: expense.description || '',
+                category: categoryObj?.id || '',
+                day: day.toString()
+            });
+            setEditingId(expense.id);
+            setEditModalVisible(true);
+        } catch (error) {
+            console.error('Error preparing expense for editing:', error);
+            Alert.alert('Error', 'Unable to edit this expense. Please try again.');
+        }
+    }, [localCategories]);
 
     const handleDeleteExpense = useCallback(async (id: string) => {
         if (!user?.id) {
@@ -483,7 +493,10 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
     }, []);
 
     const formatDateDisplay = useCallback((dateString: string) => {
-        return formatDate(dateString);
+        const dateObj = new Date(dateString);
+        const month = dateObj.toLocaleString('default', { month: 'long' });
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${month} ${day}`;
     }, []);
 
     const formatMonthYear = useCallback((date: Date) => {
@@ -542,15 +555,16 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
     if (!user?.id) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity 
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Text style={styles.backButtonText}>←</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.title}>All Expenses</Text>
-                    <View style={styles.placeholder} />
+                <View style={styles.headerMinimal}>
+                    <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                        <TouchableOpacity
+                            style={styles.backButtonStyled}
+                            onPress={() => navigation.goBack()}
+                            accessibilityLabel="Go back"
+                        >
+                            <Text style={styles.backButtonTextStyled}>← Back</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyStateIcon}>🔒</Text>
@@ -563,17 +577,17 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={styles.backButtonText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.title}>All Expenses</Text>
-                <View style={styles.placeholder} />
+            <View style={styles.headerMinimal}>
+                <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                    <TouchableOpacity
+                        style={styles.backButtonStyled}
+                        onPress={() => navigation.goBack()}
+                        accessibilityLabel="Go back"
+                    >
+                        <Text style={styles.backButtonTextStyled}>← Back</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Month Navigation */}
                 <View style={styles.monthNavigation}>
@@ -897,30 +911,23 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
+    headerMinimal: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
         backgroundColor: '#3b82f6',
     },
-    backButton: {
-        padding: 8,
-        borderRadius: 8,
+    backButtonStyled: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
     },
-    backButtonText: {
-        fontSize: 24,
+    backButtonTextStyled: {
         color: 'white',
-        fontWeight: '600',
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    placeholder: {
-        width: 40,
+        fontSize: 16,
+        fontWeight: '500',
     },
     scrollContainer: {
         flex: 1,

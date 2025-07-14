@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { categoryApi } from '../../services';
+import { MainScreenHeader } from '../../components/MainScreenHeader';
 
 interface Category {
     id: string;
@@ -196,10 +197,11 @@ const CategoriesScreen = () => {
     if (!isOnline) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Manage Categories</Text>
-                    <Text style={styles.subtitle}>Select which categories you want to use</Text>
-                </View>
+                <MainScreenHeader
+                    title="Manage Categories"
+                    subtitle="Select which categories you want to use"
+                    color="#14b8a6" // modern teal
+                />
                 <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
                     <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>
                         You are offline. Categories cannot be displayed. Please reconnect to manage your categories.
@@ -213,10 +215,11 @@ const CategoriesScreen = () => {
     if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Manage Categories</Text>
-                    <Text style={styles.subtitle}>Loading your categories...</Text>
-                </View>
+                <MainScreenHeader
+                    title="Manage Categories"
+                    subtitle="Loading your categories..."
+                    color="#14b8a6"
+                />
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#3b82f6" />
                     <Text style={styles.loadingText}>Loading categories...</Text>
@@ -229,10 +232,11 @@ const CategoriesScreen = () => {
     if (error) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Manage Categories</Text>
-                    <Text style={styles.subtitle}>Something went wrong</Text>
-                </View>
+                <MainScreenHeader
+                    title="Manage Categories"
+                    subtitle="Something went wrong"
+                    color="#14b8a6"
+                />
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{error}</Text>
                     <TouchableOpacity style={styles.retryButton} onPress={loadCategories}>
@@ -248,10 +252,11 @@ const CategoriesScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Manage Categories</Text>
-                <Text style={styles.subtitle}>Select which categories you want to use</Text>
-            </View>
+            <MainScreenHeader
+                title="Manage Categories"
+                subtitle="Select which categories you want to use"
+                color="#14b8a6"
+            />
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Income Categories Section */}
                 <View style={styles.section}>
@@ -324,12 +329,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f8fafc',
-    },
-    header: {
-        paddingTop: 50,
-        paddingHorizontal: 24,
-        paddingBottom: 32,
-        backgroundColor: '#3b82f6',
     },
     title: {
         fontSize: 28,

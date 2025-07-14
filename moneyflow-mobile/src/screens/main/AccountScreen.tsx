@@ -21,7 +21,7 @@ import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 // Simple helper to format currency without symbol
 const formatBalance = (amount: any): string => {
     const num = parseFloat(amount) || 0;
-    return num.toFixed(2);
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 export const AccountScreen = () => {
@@ -165,11 +165,9 @@ export const AccountScreen = () => {
     if (!isOnline) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.title}>Accounts</Text>
-                        <Text style={styles.userEmail}>{user?.email || 'User'}</Text>
-                    </View>
+                <View style={styles.customHeader}>
+                    <Text style={styles.headerTitle}>Accounts</Text>
+                    <Text style={styles.headerSubtitle}>{user?.email || 'User'}</Text>
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <Text style={styles.logoutText}>Logout</Text>
                     </TouchableOpacity>
@@ -186,11 +184,9 @@ export const AccountScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
-                <View>
-                    <Text style={styles.title}>Accounts</Text>
-                    <Text style={styles.userEmail}>{user?.email || 'User'}</Text>
-                </View>
+            <View style={styles.customHeader}>
+                <Text style={styles.headerTitle}>Accounts</Text>
+                <Text style={styles.headerSubtitle}>{user?.email || 'User'}</Text>
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
@@ -373,25 +369,39 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        paddingTop: 50,
+    customHeader: {
         backgroundColor: '#6366f1',
+        paddingTop: 28,
+        paddingBottom: 20,
+        paddingHorizontal: 16,
+        borderBottomLeftRadius: 18,
+        borderBottomRightRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+        position: 'relative',
     },
-    title: {
+    headerTitle: {
         fontSize: 24,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: 'white',
+        marginBottom: 2,
+        textAlign: 'center',
+        letterSpacing: 0.5,
     },
-    userEmail: {
+    headerSubtitle: {
         fontSize: 14,
-        color: 'rgba(255,255,255,0.8)',
-        marginTop: 4,
+        color: '#e0e7ff',
+        opacity: 0.92,
+        textAlign: 'center',
+        fontWeight: '400',
+        letterSpacing: 0.2,
+        marginBottom: 8,
     },
     logoutButton: {
+        position: 'absolute',
+        right: 16,
+        top: 16,
         backgroundColor: 'rgba(255,255,255,0.2)',
         paddingHorizontal: 12,
         paddingVertical: 6,

@@ -197,12 +197,12 @@ export const LoginScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
                 {/* Debug Button: Clear AsyncStorage */}
-                <TouchableOpacity
+                {/* <TouchableOpacity
                     style={styles.debugButton}
                     onPress={handleClearAsyncStorage}
                 >
                     <Text style={styles.debugButtonText}>Clear Local Data (Debug)</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
         </View>
     );
