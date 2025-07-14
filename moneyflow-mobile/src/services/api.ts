@@ -115,7 +115,7 @@ export const authApi = {
 };
 
 // Transaction API - Updated to match backend user-specific endpoints
-export const transactionApi = {
+export const expenseApi = {
     getExpenses: async (userId: string, year: number, month: number): Promise<any[]> => {
         const response = await api.get(`/users/${userId}/expenses?year=${year}&month=${month}`);
         return response.data;
@@ -153,34 +153,6 @@ export const transactionApi = {
         if (params.toString()) url += `?${params.toString()}`;
         
         const response = await api.get(url);
-        return response.data;
-    },
-
-    // Legacy methods for backwards compatibility
-    getTransactions: async (): Promise<ApiResponse<Transaction[]>> => {
-        const response = await api.get('/user-expense');
-        return response.data;
-    },
-
-    createTransaction: async (
-        data: CreateTransactionRequest
-    ): Promise<ApiResponse<Transaction>> => {
-        const endpoint =
-            data.type === 'expense' ? '/user-expense' : '/user-income';
-        const response = await api.post(endpoint, data);
-        return response.data;
-    },
-
-    updateTransaction: async (
-        id: string,
-        data: Partial<CreateTransactionRequest>
-    ): Promise<ApiResponse<Transaction>> => {
-        const response = await api.patch(`/user-expense/${id}`, data);
-        return response.data;
-    },
-
-    deleteTransaction: async (id: string): Promise<ApiResponse<void>> => {
-        const response = await api.delete(`/user-expense/${id}`);
         return response.data;
     },
 };
@@ -231,7 +203,7 @@ export const incomeApi = {
         return response.data;
     },
 
-    addIncome: async (userId: string, data: {
+    createIncome: async (userId: string, data: {
         category_id: number;
         amount: string;
         notes?: string;

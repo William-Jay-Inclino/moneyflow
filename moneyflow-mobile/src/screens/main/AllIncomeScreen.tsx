@@ -2,13 +2,13 @@ import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { IncomeItem, CategoryChip } from '../../components';
-import { useAuthStore, useIncomeStore, Income } from '../../store';
+import { useAuthStore, useIncomeStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate, formatTime, getCurrentISODate, formatFullDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
-import { validateExpenseForm } from '../../utils/formValidation';
+import { formatDate, parseDateComponents } from '../../utils/dateUtils';
+import { validateIncomeForm } from '../../utils/formValidation';
 
 // Constants
-const CHART_COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
+const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
 const YEAR_RANGE = 10;
 
 const SUCCESS_MESSAGES = {
@@ -43,7 +43,7 @@ const MonthYearPicker = memo(({
     const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
 
     const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+    const years = Array.from({ length: YEAR_RANGE }, (_, i) => currentYear - 5 + i);
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
@@ -73,16 +73,10 @@ const MonthYearPicker = memo(({
                                 {years.map(year => (
                                     <TouchableOpacity
                                         key={year}
-                                        style={[
-                                            styles.pickerItem,
-                                            selectedYear === year && styles.pickerItemSelected
-                                        ]}
+                                        style={[styles.pickerItem, selectedYear === year && styles.pickerItemSelected]}
                                         onPress={() => setSelectedYear(year)}
                                     >
-                                        <Text style={[
-                                            styles.pickerItemText,
-                                            selectedYear === year && styles.pickerItemTextSelected
-                                        ]}>
+                                        <Text style={[styles.pickerItemText, selectedYear === year && styles.pickerItemTextSelected]}>
                                             {year}
                                         </Text>
                                     </TouchableOpacity>
@@ -96,16 +90,10 @@ const MonthYearPicker = memo(({
                                 {months.map((month, index) => (
                                     <TouchableOpacity
                                         key={month}
-                                        style={[
-                                            styles.pickerItem,
-                                            selectedMonth === index && styles.pickerItemSelected
-                                        ]}
+                                        style={[styles.pickerItem, selectedMonth === index && styles.pickerItemSelected]}
                                         onPress={() => setSelectedMonth(index)}
                                     >
-                                        <Text style={[
-                                            styles.pickerItemText,
-                                            selectedMonth === index && styles.pickerItemTextSelected
-                                        ]}>
+                                        <Text style={[styles.pickerItemText, selectedMonth === index && styles.pickerItemTextSelected]}>
                                             {month}
                                         </Text>
                                     </TouchableOpacity>
@@ -141,7 +129,7 @@ const CategoryLegend = memo(({
             <View key={category.name} style={styles.categoryItem}>
                 <View style={styles.categoryLeft}>
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
-                    <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.name)}</Text>
+                    <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.id)}</Text>
                     <Text style={styles.categoryName}>{category.name}</Text>
                 </View>
                 <View style={styles.categoryRight}>
@@ -153,20 +141,29 @@ const CategoryLegend = memo(({
     </View>
 ));
 
-// Total Earned Component
-const TotalEarned = memo(({ 
-    totalIncome
+// Total Spent Component
+const TotalSpent = memo(({ 
+    totalIncomes
 }: { 
-    totalIncome: number
+    totalIncomes: number
 }) => (
     <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Total Earned This Month</Text>
-        <Text style={styles.totalAmount}>+{totalIncome.toFixed(2)}</Text>
+        <Text style={styles.totalLabel}>Total Income This Month</Text>
+        <Text style={[styles.totalAmount, { color: '#10b981' }]}>+{totalIncomes.toFixed(2)}</Text>
     </View>
 ));
 
 interface AllIncomeScreenProps {
     navigation: any;
+}
+
+interface Income {
+    id: string;
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    time: string;
 }
 
 interface Category {
@@ -190,7 +187,6 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         addIncome,
         updateIncome,
         deleteIncome,
-        getCategoryIcon,
     } = useIncomeStore();
     
     const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
@@ -198,15 +194,65 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editFormData, setEditFormData] = useState({ amount: '', notes: '', category: '', day: '' });
-    const [addFormData, setAddFormData] = useState({ amount: '', notes: '', category: '', day: '' });
+    const [editFormData, setEditFormData] = useState({ cost: '', notes: '', category: '', day: '' });
+    const [addFormData, setAddFormData] = useState({ cost: '', notes: '', category: '', day: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [localCategories, setLocalCategories] = useState<Category[]>([]);
+    const [enabledCategoryIds, setEnabledCategoryIds] = useState<string[]>([]);
+
+    // Load categories from AsyncStorage for offline support
+    useEffect(() => {
+        const loadCategoriesFromStorage = async () => {
+            try {
+                const stored = await import('@react-native-async-storage/async-storage');
+                const AsyncStorage = stored.default;
+                const raw = await AsyncStorage.getItem('global_income_categories');
+                if (raw) {
+                    setLocalCategories(JSON.parse(raw));
+                } else {
+                    setLocalCategories(categories);
+                }
+                // Load enabled category IDs for current user
+                if (user?.id) {
+                    const enabledRaw = await AsyncStorage.getItem(`user_income_categories_${user.id}`);
+                    if (enabledRaw) {
+                        setEnabledCategoryIds(JSON.parse(enabledRaw));
+                    } else {
+                        // fallback: enable all is_default categories if not set
+                        let parsedCategories;
+                        if (raw) {
+                            parsedCategories = JSON.parse(raw);
+                        } else {
+                            parsedCategories = categories;
+                        }
+                        // fallback: enable all is_default categories if not set
+                        const defaults = parsedCategories.filter((cat: any) => cat.is_default).map((cat: any) => cat.id);
+                        setEnabledCategoryIds(defaults);
+                    }
+                }
+            } catch (error) {
+                setLocalCategories(categories);
+            }
+        };
+        loadCategoriesFromStorage();
+    }, [user?.id, categories]);
+
+    // Only show enabled categories for selection
+    const enabledCategories = useMemo(() => {
+        return localCategories.filter(cat => enabledCategoryIds.includes(cat.id));
+    }, [localCategories, enabledCategoryIds]);
+
+    // Helper to get category icon from localCategories
+    const getLocalCategoryIcon = useCallback((categoryId: string) => {
+        const cat = localCategories.find(c => c.id === categoryId);
+        return cat?.icon || '💳';
+    }, [localCategories]);
 
     // Current month data
     const currentYear = localCurrentDate.getFullYear();
-    const currentMonth = localCurrentDate.getMonth() + 1; // JavaScript months are 0-indexed
+    const currentMonth = localCurrentDate.getMonth() + 1;
     const filteredIncomes = getIncomesForMonth(currentYear, currentMonth);
-    const totalIncome = getTotalForMonth(currentYear, currentMonth);
+    const totalIncomes = getTotalForMonth(currentYear, currentMonth);
     const isLoadingIncomes = isLoadingMonth(currentYear, currentMonth);
 
     // Load data on component mount and when date changes
@@ -236,7 +282,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         const categoryObj = categories.find(cat => cat.name === income.category);
         const { day } = parseDateComponents(income.date);
         setEditFormData({
-            amount: income.amount.toString(),
+            cost: income.amount.toString(),
             notes: income.description,
             category: categoryObj?.id || '',
             day: day.toString()
@@ -274,7 +320,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     }, [user, deleteIncome]);
 
     const handleAddIncome = useCallback(async () => {
-        const validationError = validateExpenseForm(addFormData.amount, addFormData.notes, addFormData.category, user?.id);
+        const validationError = validateIncomeForm(addFormData.cost, addFormData.notes, addFormData.category, user?.id);
         if (validationError) {
             Alert.alert('Missing Information', validationError);
             return;
@@ -296,19 +342,30 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
             }
 
             // Create income date using the selected month/year and day in Asia/Manila timezone
-            const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(addFormData.day));
-            
+            // Now with time: use current time for new adds
+            const now = new Date();
+            const incomeDateObj = new Date(
+                localCurrentDate.getFullYear(),
+                localCurrentDate.getMonth(),
+                parseInt(addFormData.day),
+                now.getHours(),
+                now.getMinutes(),
+                now.getSeconds(),
+                now.getMilliseconds()
+            );
+            const incomeDate = incomeDateObj.toISOString();
+
             await addIncome(user!.id, {
                 category_id: parseInt(categoryObj.id),
-                amount: addFormData.amount.trim(),
+                amount: addFormData.cost.trim(),
                 notes: addFormData.notes.trim(),
-                income_date: incomeDate // Already in YYYY-MM-DD format
+                income_date: incomeDate // ISO string with time
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.INCOME_ADDED);
             
             // Reset form and close modal
-            setAddFormData({ amount: '', notes: '', category: '', day: '' });
+            setAddFormData({ cost: '', notes: '', category: '', day: '' });
             setAddModalVisible(false);
         } catch (error) {
             console.error('Error adding income:', error);
@@ -316,15 +373,15 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         } finally {
             setIsSubmitting(false);
         }
-    }, [addFormData, user, categories, addIncome]);
+    }, [addFormData, user, categories, addIncome, localCurrentDate]);
 
     const cancelAdd = useCallback(() => {
         setAddModalVisible(false);
-        setAddFormData({ amount: '', notes: '', category: '', day: '' });
+        setAddFormData({ cost: '', notes: '', category: '', day: '' });
     }, []);
 
     const handleUpdateIncome = useCallback(async () => {
-        const validationError = validateExpenseForm(editFormData.amount, editFormData.notes, editFormData.category, user?.id);
+        const validationError = validateIncomeForm(editFormData.cost, editFormData.notes, editFormData.category, user?.id);
         if (validationError || !editingId) {
             Alert.alert('Error', validationError || ERROR_MESSAGES.UNABLE_TO_UPDATE);
             return;
@@ -345,14 +402,42 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 return;
             }
 
-            // Create income date using the selected month/year and day in Asia/Manila timezone
-            const incomeDate = createDateInTimezone(localCurrentDate.getFullYear(), localCurrentDate.getMonth(), parseInt(editFormData.day));
+            // Try to preserve original time if available
+            let originalTime: { hour: number; minute: number; second: number; ms: number } = { hour: 0, minute: 0, second: 0, ms: 0 };
+            const editingIncome = filteredIncomes.find((e: any) => e.id === editingId);
+            if (editingIncome && editingIncome.date) {
+                const originalDate = new Date(editingIncome.date);
+                originalTime = {
+                    hour: originalDate.getHours(),
+                    minute: originalDate.getMinutes(),
+                    second: originalDate.getSeconds(),
+                    ms: originalDate.getMilliseconds()
+                };
+            } else {
+                const now = new Date();
+                originalTime = {
+                    hour: now.getHours(),
+                    minute: now.getMinutes(),
+                    second: now.getSeconds(),
+                    ms: now.getMilliseconds()
+                };
+            }
+            const incomeDateObj = new Date(
+                localCurrentDate.getFullYear(),
+                localCurrentDate.getMonth(),
+                parseInt(editFormData.day),
+                originalTime.hour,
+                originalTime.minute,
+                originalTime.second,
+                originalTime.ms
+            );
+            const incomeDate = incomeDateObj.toISOString();
 
             await updateIncome(user!.id, editingId, {
                 category_id: parseInt(categoryObj.id),
-                amount: editFormData.amount.trim(),
+                amount: editFormData.cost.trim(),
                 notes: editFormData.notes.trim(),
-                income_date: incomeDate // Already in YYYY-MM-DD format
+                income_date: incomeDate // ISO string with time
             });
             
             Alert.alert('Success', SUCCESS_MESSAGES.INCOME_UPDATED);
@@ -363,17 +448,17 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         } finally {
             setIsSubmitting(false);
         }
-    }, [editFormData, editingId, user, categories, updateIncome]);
+    }, [editFormData, editingId, user, categories, updateIncome, localCurrentDate, filteredIncomes]);
 
     const cancelEdit = useCallback(() => {
         setEditingId(null);
         setEditModalVisible(false);
-        setEditFormData({ amount: '', notes: '', category: '', day: '' });
+        setEditFormData({ cost: '', notes: '', category: '', day: '' });
     }, []);
 
     const updateEditFormField = useCallback((field: string, value: string) => {
-        // For amount field, ensure only valid number format
-        if (field === 'amount') {
+        // For cost field, ensure only valid number format
+        if (field === 'cost') {
             setEditFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
         } else {
             setEditFormData(prev => ({ ...prev, [field]: value }));
@@ -381,8 +466,8 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     }, []);
 
     const updateAddFormField = useCallback((field: string, value: string) => {
-        // For amount field, ensure only valid number format
-        if (field === 'amount') {
+        // For cost field, ensure only valid number format
+        if (field === 'cost') {
             setAddFormData(prev => ({ ...prev, [field]: formatCostInput(value) }));
         } else {
             setAddFormData(prev => ({ ...prev, [field]: value }));
@@ -422,27 +507,30 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
 
     // Use incomes from the store directly
     const categoryData = useMemo(() => {
+        // Aggregate by categoryId, then join with localCategories for name, icon, color
         const categoryTotals: Record<string, number> = {};
-        
-        filteredIncomes.forEach(income => {
-            categoryTotals[income.category] = (categoryTotals[income.category] || 0) + income.amount;
+        filteredIncomes.forEach((income: any) => {
+            const catId = income.categoryId;
+            categoryTotals[catId] = (categoryTotals[catId] || 0) + income.amount;
         });
-
-        const colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#ef4444'];
-        
-        return Object.entries(categoryTotals).map(([name, amount], index) => ({
-            name,
-            amount,
-            color: colors[index % colors.length],
-            legendLabel: `+${amount.toFixed(2)}`,
-            percentage: totalIncome > 0 ? ((amount / totalIncome) * 100).toFixed(0) : '0'
-        }));
-    }, [filteredIncomes, totalIncome]);
+        const colors = CHART_COLORS;
+        return Object.entries(categoryTotals).map(([catId, amount], index) => {
+            const cat = localCategories.find(c => c.id === catId);
+            return {
+                id: catId,
+                name: cat?.name || 'Unknown',
+                icon: cat?.icon || '💳',
+                color: cat?.color || colors[index % colors.length],
+                legendLabel: `-${amount.toFixed(2)}`,
+                percentage: totalIncomes > 0 ? ((amount / totalIncomes) * 100).toFixed(0) : '0',
+            };
+        });
+    }, [filteredIncomes, totalIncomes, localCategories]);
 
     const chartData = useMemo(() => 
-        categoryData.map(category => ({
+        categoryData.map((category) => ({
             name: `${category.percentage}%`,
-            population: category.amount,
+            population: parseFloat(category.legendLabel.replace('-', '')),
             color: category.color,
             legendFontColor: '#94a3b8',
             legendFontSize: 9,
@@ -461,13 +549,13 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                     >
                         <Text style={styles.backButtonText}>←</Text>
                     </TouchableOpacity>
-                    <Text style={styles.title}>All Income</Text>
+                    <Text style={styles.title}>All Incomes</Text>
                     <View style={styles.placeholder} />
                 </View>
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyStateIcon}>🔒</Text>
-                    <Text style={styles.emptyStateText}>Please log in</Text>
-                    <Text style={styles.emptyStateSubtext}>You need to be logged in to view your income data</Text>
+                    <Text style={styles.emptyStateText}>Please log in to view your incomes</Text>
+                    <Text style={styles.emptyStateSubtext}>You need to be authenticated to access this feature</Text>
                 </View>
             </SafeAreaView>
         );
@@ -482,7 +570,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 >
                     <Text style={styles.backButtonText}>←</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>All Income</Text>
+                <Text style={styles.title}>All Incomes</Text>
                 <View style={styles.placeholder} />
             </View>
 
@@ -520,40 +608,47 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 />
 
                 {/* Add Income Button */}
-                <View style={styles.addExpenseSection}>
+                <View style={styles.addIncomeSection}>
                     <TouchableOpacity 
-                        style={styles.addExpenseButton}
-                        onPress={() => setAddModalVisible(true)}
+                        style={styles.addIncomeButton}
+                        onPress={() => {
+                            // Set today's day as default when opening add modal
+                            const today = new Date();
+                            setAddFormData(prev => ({ ...prev, day: today.getDate().toString() }));
+                            setAddModalVisible(true);
+                        }}
                     >
-                        <Text style={styles.addExpenseButtonText}>+ Add Income for {formatMonthYear(localCurrentDate)}</Text>
+                        <Text style={styles.addIncomeButtonText}>+ Add Income for {formatMonthYear(localCurrentDate)}</Text>
                     </TouchableOpacity>
                 </View>
 
                 {isLoadingIncomes ? (
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#10b981" />
-                        <Text style={styles.loadingText}>Loading income...</Text>
+                        <ActivityIndicator size="large" color="#3b82f6" />
+                        <Text style={styles.loadingText}>Loading incomes...</Text>
                     </View>
                 ) : filteredIncomes.length > 0 ? (
                     <>
-                        {/* Total Earned */}
-                        <TotalEarned 
-                            totalIncome={totalIncome}
+                        {/* Total Income */}
+                        <TotalSpent 
+                            totalIncomes={totalIncomes}
                         />
 
                         {/* Chart and Analytics Section */}
                         <View style={styles.analyticsSection}>
-                            <Text style={styles.sectionTitle}>Income by Category</Text>
+                            <Text style={styles.sectionTitle}>Income Breakdown</Text>
+                            
                             <View style={styles.chartContainer}>
                                 <PieChart
                                     data={chartData}
                                     width={Dimensions.get('window').width - 40}
-                                    height={220}
+                                    height={200}
                                     chartConfig={{
-                                        backgroundColor: '#ffffff',
-                                        backgroundGradientFrom: '#ffffff',
-                                        backgroundGradientTo: '#ffffff',
+                                        backgroundColor: 'transparent',
+                                        backgroundGradientFrom: 'transparent',
+                                        backgroundGradientTo: 'transparent',
                                         color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                                        labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                                     }}
                                     accessor="population"
                                     backgroundColor="transparent"
@@ -563,20 +658,31 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                                 />
                             </View>
 
-                            <CategoryLegend 
-                                categories={categoryData}
-                                getCategoryIcon={getCategoryIcon}
-                            />
+                            <View style={styles.categoriesContainer}>
+                                {categoryData.map((category, index) => (
+                                    <View key={category.name} style={styles.categoryItem}>
+                                        <View style={styles.categoryLeft}>
+                                            <View style={[styles.colorDot, { backgroundColor: category.color }]} />
+                                            <Text style={styles.categoryEmojiIcon}>{getLocalCategoryIcon(category.id)}</Text>
+                                            <Text style={styles.categoryName}>{category.name}</Text>
+                                        </View>
+                                        <View style={styles.categoryRight}>
+                                            <Text style={[styles.categoryAmount, { color: '#10b981' }]}>+{parseFloat(category.legendLabel.replace('-', '')).toFixed(2)}</Text>
+                                            <Text style={styles.categoryPercentage}>{category.percentage}%</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
 
-                        {/* Income List */}
+                        {/* Incomes List */}
                         <View style={styles.transactionsSection}>
-                            <Text style={styles.sectionTitle}>Income Entries</Text>
-                            {filteredIncomes.map((item) => (
+                            <Text style={styles.sectionTitle}>All Incomes This Month</Text>
+                            {filteredIncomes.map((item: any) => (
                                 <IncomeItem
                                     key={item.id}
                                     item={item}
-                                    getCategoryIcon={getCategoryIcon}
+                                    getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
                                     formatDate={formatDateDisplay}
                                     onEdit={handleEditIncome}
                                     onDelete={handleDeleteIncome}
@@ -587,9 +693,9 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                     </>
                 ) : (
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyStateIcon}>💰</Text>
-                        <Text style={styles.emptyStateText}>No income found for this month</Text>
-                        <Text style={styles.emptyStateSubtext}>Try selecting a different month or add some income</Text>
+                        <Text style={styles.emptyStateIcon}>📊</Text>
+                        <Text style={styles.emptyStateText}>No incomes found for this month</Text>
+                        <Text style={styles.emptyStateSubtext}>Try selecting a different month or add some incomes</Text>
                     </View>
                 )}
             </ScrollView>
@@ -605,22 +711,19 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                     <View style={styles.editModalContainer}>
                         <View style={styles.editModalHeader}>
                             <Text style={styles.editModalTitle}>Edit Income</Text>
-                            <TouchableOpacity 
-                                style={styles.editModalCloseButton}
-                                onPress={cancelEdit}
-                            >
+                            <TouchableOpacity onPress={cancelEdit} style={styles.editModalCloseButton}>
                                 <Text style={styles.editModalCloseText}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.editFormRow}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Amount</Text>
+                                <Text style={styles.inputLabel}>Cost</Text>
                                 <TextInput
-                                    style={styles.amountInput}
+                                    style={styles.costInput}
                                     placeholder="0.00"
-                                    value={editFormData.amount}
-                                    onChangeText={(value) => updateEditFormField('amount', value)}
+                                    value={editFormData.cost}
+                                    onChangeText={(text) => updateEditFormField('cost', text)}
                                     keyboardType="numeric"
                                     placeholderTextColor="#94a3b8"
                                 />
@@ -629,9 +732,8 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                                 <Text style={styles.inputLabel}>Notes</Text>
                                 <TextInput
                                     style={styles.notesInput}
-                                    placeholder="Enter description"
                                     value={editFormData.notes}
-                                    onChangeText={(value) => updateEditFormField('notes', value)}
+                                    onChangeText={(text) => updateEditFormField('notes', text)}
                                     placeholderTextColor="#94a3b8"
                                 />
                             </View>
@@ -662,16 +764,16 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                         </View>
 
                         <View style={styles.categorySection}>
-                            <Text style={styles.inputLabel}>Category</Text>
-                            <Text style={styles.helperText}>Select a category for this income</Text>
+                            <Text style={styles.inputLabel}>Select Category</Text>
+                            <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {categories.map((category) => (
+                                {enabledCategories.map((category) => (
                                     <CategoryChip
                                         key={category.id}
                                         category={category.name}
                                         isSelected={editFormData.category === category.id}
                                         onPress={() => handleEditFormCategorySelect(category.id)}
-                                        getCategoryIcon={getCategoryIcon}
+                                        getCategoryIcon={() => getLocalCategoryIcon(category.id)}
                                     />
                                 ))}
                             </ScrollView>
@@ -706,22 +808,19 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                     <View style={styles.editModalContainer}>
                         <View style={styles.editModalHeader}>
                             <Text style={styles.editModalTitle}>Add Income for {formatMonthYear(localCurrentDate)}</Text>
-                            <TouchableOpacity 
-                                style={styles.editModalCloseButton}
-                                onPress={cancelAdd}
-                            >
+                            <TouchableOpacity onPress={cancelAdd} style={styles.editModalCloseButton}>
                                 <Text style={styles.editModalCloseText}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.editFormRow}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Amount</Text>
+                                <Text style={styles.inputLabel}>Cost</Text>
                                 <TextInput
-                                    style={styles.amountInput}
+                                    style={styles.costInput}
                                     placeholder="0.00"
-                                    value={addFormData.amount}
-                                    onChangeText={(value) => updateAddFormField('amount', value)}
+                                    value={addFormData.cost}
+                                    onChangeText={(text) => updateAddFormField('cost', text)}
                                     keyboardType="numeric"
                                     placeholderTextColor="#94a3b8"
                                 />
@@ -730,9 +829,8 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                                 <Text style={styles.inputLabel}>Notes</Text>
                                 <TextInput
                                     style={styles.notesInput}
-                                    placeholder="Enter description"
                                     value={addFormData.notes}
-                                    onChangeText={(value) => updateAddFormField('notes', value)}
+                                    onChangeText={(text) => updateAddFormField('notes', text)}
                                     placeholderTextColor="#94a3b8"
                                 />
                             </View>
@@ -763,18 +861,24 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                         </View>
 
                         <View style={styles.categorySection}>
-                            <Text style={styles.inputLabel}>Category</Text>
-                            <Text style={styles.helperText}>Select a category for this income</Text>
+                            <Text style={styles.inputLabel}>Select Category</Text>
+                            <Text style={styles.helperText}>Slide to see more categories</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {categories.map((category) => (
-                                    <CategoryChip
-                                        key={category.id}
-                                        category={category.name}
-                                        isSelected={addFormData.category === category.id}
-                                        onPress={() => handleAddFormCategorySelect(category.id)}
-                                        getCategoryIcon={getCategoryIcon}
-                                    />
-                                ))}
+                                {enabledCategories.length === 0 ? (
+                                    <View style={{ justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                                        <Text style={{ color: '#64748b', fontSize: 14 }}>No categories available. Please check your internet connection or try again later.</Text>
+                                    </View>
+                                ) : (
+                                    enabledCategories.map((category) => (
+                                        <CategoryChip
+                                            key={category.id}
+                                            category={category.name}
+                                            isSelected={addFormData.category === category.id}
+                                            onPress={() => handleAddFormCategorySelect(category.id)}
+                                            getCategoryIcon={() => getLocalCategoryIcon(category.id)}
+                                        />
+                                    ))
+                                )}
                             </ScrollView>
                         </View>
 
@@ -810,7 +914,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#10b981',
+        backgroundColor: '#10b981', // green
     },
     backButton: {
         padding: 8,
@@ -879,7 +983,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         opacity: 0.7,
     },
-    // Total Earned Styles
+    // Total Spent Styles
     totalContainer: {
         backgroundColor: 'white',
         marginHorizontal: 16,
@@ -971,7 +1075,7 @@ const styles = StyleSheet.create({
     categoryAmount: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#059669',
+        color: '#dc2626',
     },
     categoryPercentage: {
         fontSize: 12,
@@ -1064,7 +1168,7 @@ const styles = StyleSheet.create({
         marginVertical: 2,
     },
     pickerItemSelected: {
-        backgroundColor: '#10b981',
+        backgroundColor: '#3b82f6',
     },
     pickerItemText: {
         fontSize: 16,
@@ -1099,7 +1203,7 @@ const styles = StyleSheet.create({
     },
     pickerButtonConfirmText: {
         fontSize: 16,
-        color: '#10b981',
+        color: '#3b82f6',
         fontWeight: '600',
     },
     // Edit Modal Styles
@@ -1163,7 +1267,7 @@ const styles = StyleSheet.create({
         color: '#374151',
         marginBottom: 8,
     },
-    amountInput: {
+    costInput: {
         borderWidth: 1,
         borderColor: '#e2e8f0',
         borderRadius: 12,
@@ -1185,27 +1289,30 @@ const styles = StyleSheet.create({
     },
     daySection: {
         paddingHorizontal: 20,
-        paddingTop: 12,
+        marginBottom: 20,
     },
     dayScroll: {
         marginBottom: 12,
     },
     dayChip: {
-        backgroundColor: '#f8fafc',
-        borderRadius: 16,
+        paddingHorizontal: 16,
         paddingVertical: 8,
-        paddingHorizontal: 12,
         marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: '#f8fafc',
         borderWidth: 1,
         borderColor: '#e2e8f0',
+        minWidth: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     dayChipSelected: {
-        backgroundColor: '#10b981',
-        borderColor: '#10b981',
+        backgroundColor: '#3b82f6',
+        borderColor: '#3b82f6',
     },
     dayChipText: {
         fontSize: 14,
-        color: '#374151',
+        color: '#64748b',
         fontWeight: '500',
     },
     dayChipTextSelected: {
@@ -1248,7 +1355,7 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 12,
         borderRadius: 12,
-        backgroundColor: '#10b981',
+        backgroundColor: '#3b82f6',
         alignItems: 'center',
     },
     editUpdateButtonText: {
@@ -1256,12 +1363,12 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
     },
-    // Add Expense Section Styles
-    addExpenseSection: {
+    // Add Income Section Styles
+    addIncomeSection: {
         paddingHorizontal: 20,
         paddingVertical: 12,
     },
-    addExpenseButton: {
+    addIncomeButton: {
         backgroundColor: '#f8fafc',
         paddingVertical: 12,
         paddingHorizontal: 16,
@@ -1271,7 +1378,7 @@ const styles = StyleSheet.create({
         borderColor: '#e2e8f0',
         borderStyle: 'dashed',
     },
-    addExpenseButtonText: {
+    addIncomeButtonText: {
         fontSize: 14,
         color: '#64748b',
         fontWeight: '500',

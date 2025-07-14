@@ -4,7 +4,7 @@ import { PieChart } from 'react-native-chart-kit';
 import { ExpenseItem, CategoryChip } from '../../components';
 import { useAuthStore, useExpenseStore } from '../../store';
 import { formatCostInput } from '../../utils/costUtils';
-import { formatDate, createDateInTimezone, parseDateComponents } from '../../utils/dateUtils';
+import { formatDate, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 
 // Constants
@@ -187,7 +187,6 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         addExpense,
         updateExpense,
         deleteExpense,
-        getCategoryIcon,
     } = useExpenseStore();
     
     const [localCurrentDate, setLocalCurrentDate] = useState(new Date());

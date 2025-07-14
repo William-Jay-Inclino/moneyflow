@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { incomeApi, categoryApi } from '../services/api';
 import { parseCostToNumber } from '../utils/costUtils';
-import { formatDate, formatTime, formatISODate } from '../utils/dateUtils';
+import { formatTime, formatISODate } from '../utils/dateUtils';
 import { useCashFlowStore } from './cashFlowStore';
 
 export interface Income {
@@ -14,10 +14,10 @@ export interface Income {
     time: string;
 }
 
-export interface IncomeCategory {
+export interface Category {
     id: string;
     name: string;
-    type: 'expense' | 'income';
+    type: 'income' | 'expense';
     color: string;
     icon: string;
     userId: string;
@@ -32,381 +32,313 @@ interface MonthlyIncomeCache {
 }
 
 interface IncomeStore {
-    // Cached incomes by month (key: "YYYY-MM")
     monthlyCache: MonthlyIncomeCache;
-    
-    // Shared categories (filtered for income type)
-    categories: IncomeCategory[];
+    categories: Category[];
     isLoadingCategories: boolean;
-    
-    // Current month for IncomeScreen (always current date)
     currentMonth: number;
     currentYear: number;
-    
-    // Actions
     loadIncomesForMonth: (userId: string, year: number, month: number) => Promise<void>;
     loadCategories: (userId: string) => Promise<void>;
     addIncome: (userId: string, income: { category_id: number; amount: string; notes?: string; income_date?: string }) => Promise<Income>;
     updateIncome: (userId: string, incomeId: string, updates: { category_id?: number; amount?: string; notes?: string; income_date?: string }) => Promise<void>;
     deleteIncome: (userId: string, incomeId: string) => Promise<void>;
     updateCurrentDate: () => void;
-    
-    // Getters for specific months
     getIncomesForMonth: (year: number, month: number) => Income[];
     getCurrentMonthIncomes: () => Income[];
     getRecentIncomes: (limit?: number) => Income[];
     getTotalForMonth: (year: number, month: number) => number;
     getCurrentMonthTotal: () => number;
-    getCategoryIcon: (categoryName: string) => string;
+    getCategoryIcon: (categoryId: string) => string;
     isLoadingMonth: (year: number, month: number) => boolean;
-    
-    // Helper functions
-    transformCategoryData: (data: any[], userId: string) => IncomeCategory[];
+    transformCategoryData: (data: any[], userId: string) => Category[];
     getMonthKey: (year: number, month: number) => string;
 }
 
 export const useIncomeStore = create<IncomeStore>((set, get) => {
-    // Initialize with current month/year
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
     return {
-        // Initial state
         monthlyCache: {},
         categories: [],
         isLoadingCategories: false,
         currentMonth,
         currentYear,
 
-        // Helper functions
         getMonthKey: (year: number, month: number) => `${year}-${month.toString().padStart(2, '0')}`,
 
-        transformCategoryData: (data: any[], userId: string): IncomeCategory[] => {
+        transformCategoryData: (data: any[], userId: string): Category[] => {
             return data.map((item: any) => {
                 const category = item.category || item;
                 return {
                     id: (item.id || item.category_id || category.id)?.toString() || '',
                     name: category.name || item.name || 'Unknown Category',
                     type: 'income' as const,
-                    color: category.color || item.color || '#10b981',
+                    color: category.color || item.color || '#22c55e',
                     icon: category.icon || item.icon || '💰',
                     userId: userId || ''
                 };
             });
         },
 
-        // Categories
-        loadCategories: async (userId: string) => {
-            if (!userId) return;
-            
-            set({ isLoadingCategories: true });
-            
+        loadCategories: async (_userId: string) => {
             try {
-                // Use the shared category system with income type filtering
-                const data = await categoryApi.getUserCategories(userId, 'INCOME');
-                
-                const categories = get().transformCategoryData(data, userId);
-                
-                set({ categories, isLoadingCategories: false });
+                set({ isLoadingCategories: true });
+                let categoryData: any[] = [];
+                const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+                const stored = await AsyncStorage.getItem('global_income_categories');
+                if (stored) {
+                    categoryData = JSON.parse(stored);
+                }
+                if (!categoryData.length) {
+                    const response: any = await categoryApi.getAllCategories('INCOME');
+                    categoryData = Array.isArray(response) ? response : response?.data || [];
+                    await AsyncStorage.setItem('global_income_categories', JSON.stringify(categoryData));
+                }
+                const transformedCategories = get().transformCategoryData(categoryData, '');
+                set({ categories: transformedCategories });
             } catch (error) {
-                console.error('Error loading income categories:', error);
+                console.error('Error loading categories:', error);
+                set({ categories: [] });
+            } finally {
                 set({ isLoadingCategories: false });
-                throw error;
             }
         },
 
-        // Current date management
-        updateCurrentDate: () => {
-            const now = new Date();
-            const currentMonth = now.getMonth() + 1;
-            const currentYear = now.getFullYear();
-            set({ currentMonth, currentYear });
-        },
-
-        // Month-specific loading
         loadIncomesForMonth: async (userId: string, year: number, month: number) => {
             if (!userId) return;
-            
-            const { monthlyCache, getMonthKey } = get();
-            const monthKey = getMonthKey(year, month);
-            
-            // Check if already loading or recently loaded
-            const cached = monthlyCache[monthKey];
-            if (cached?.isLoading) return;
-            
-            // Set loading state
-            set({
-                monthlyCache: {
-                    ...monthlyCache,
-                    [monthKey]: {
-                        incomes: cached?.incomes || [],
-                        isLoading: true,
-                        lastLoaded: cached?.lastLoaded || 0
-                    }
-                }
-            });
-
+            const monthKey = get().getMonthKey(year, month);
             try {
-                const data = await incomeApi.getIncome(userId, year, month);
-                
-                // Transform API data to match our Income interface
-                const incomes: Income[] = data.map((item: any) => ({
-                    id: item.id,
-                    amount: typeof item.amount === 'string' ? parseCostToNumber(item.amount) : item.amount,
-                    description: item.notes || item.description || '',
-                    category: item.category?.name || item.category_name || 'Other',
-                    categoryId: (item.category?.id || item.category_id)?.toString() || '',
-                    date: formatISODate(item.income_date || item.date),
-                    time: formatTime(item.created_at || item.income_date || item.date || new Date().toISOString())
-                }));
-
-                // Update cache
-                set({
+                set(state => ({
                     monthlyCache: {
-                        ...get().monthlyCache,
+                        ...state.monthlyCache,
                         [monthKey]: {
-                            incomes,
+                            incomes: state.monthlyCache[monthKey]?.incomes || [],
+                            isLoading: true,
+                            lastLoaded: Date.now()
+                        }
+                    }
+                }));
+                const data = await incomeApi.getIncome(userId, year, month);
+                const formattedIncomes = data.map((income: any) => ({
+                    id: income.id,
+                    amount: parseCostToNumber(income.amount),
+                    description: income.notes || 'No description',
+                    category: income.category?.category?.name || 'Other',
+                    categoryId: (income.category?.category?.id || income.category?.category_id || income.category_id)?.toString() || '',
+                    date: formatISODate(new Date(income.income_date || income.created_at)),
+                    time: formatTime(income.created_at)
+                }));
+                const sortedIncomes = formattedIncomes.sort((a: Income, b: Income) => 
+                    new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+                set(state => ({
+                    monthlyCache: {
+                        ...state.monthlyCache,
+                        [monthKey]: {
+                            incomes: sortedIncomes,
                             isLoading: false,
                             lastLoaded: Date.now()
                         }
                     }
-                });
+                }));
             } catch (error) {
-                console.error(`Error loading incomes for ${month}/${year}:`, error);
-                
-                // Set error state
-                set({
+                console.error('Error loading incomes:', error);
+                set(state => ({
                     monthlyCache: {
-                        ...get().monthlyCache,
+                        ...state.monthlyCache,
                         [monthKey]: {
-                            incomes: cached?.incomes || [],
+                            incomes: [],
                             isLoading: false,
-                            lastLoaded: cached?.lastLoaded || 0
+                            lastLoaded: Date.now()
                         }
                     }
-                });
-                throw error;
+                }));
             }
         },
 
-        // CRUD operations
-        addIncome: async (userId: string, incomeData: { category_id: number; amount: string; notes?: string; income_date?: string }) => {
-            if (!userId) throw new Error('User ID is required');
-            
-            try {
-                const response = await incomeApi.addIncome(userId, incomeData);
-                
-                // Transform response to Income format
-                const incomeDate = response.income_date || incomeData.income_date || new Date().toISOString();
-                const incomeDateObj = new Date(incomeDate);
-                
-                const newIncome: Income = {
-                    id: response.id,
-                    amount: typeof response.amount === 'string' ? parseCostToNumber(response.amount) : response.amount,
-                    description: response.notes || incomeData.notes || '',
-                    category: response.category?.name || 'Other',
-                    categoryId: (response.category?.id || response.category_id || incomeData.category_id)?.toString() || '',
-                    date: formatISODate(incomeDateObj),
-                    time: formatTime(response.created_at || incomeDate)
-                };
-
-                // Add to appropriate month cache using the original date
-                const year = incomeDateObj.getFullYear();
-                const month = incomeDateObj.getMonth() + 1;
-                const monthKey = get().getMonthKey(year, month);
-                
-                const { monthlyCache } = get();
-                const cached = monthlyCache[monthKey];
-                
-                if (cached) {
-                    set({
-                        monthlyCache: {
-                            ...monthlyCache,
-                            [monthKey]: {
-                                ...cached,
-                                incomes: [newIncome, ...cached.incomes]
-                            }
-                        }
-                    });
-                } else {
-                    // If no cache exists for this month, create it
-                    set({
-                        monthlyCache: {
-                            ...monthlyCache,
-                            [monthKey]: {
-                                incomes: [newIncome],
-                                isLoading: false,
-                                lastLoaded: Date.now()
-                            }
-                        }
-                    });
-                }
-                
-                // Notify cash flow store to refresh the affected year
-                try {
-                    useCashFlowStore.getState().notifyAmountChange(userId, year);
-                } catch (error) {
-                    console.warn('Failed to refresh cash flow for year', year, error);
-                }
-                
-                return newIncome;
-            } catch (error) {
-                console.error('Error adding income:', error);
-                throw error;
+        addIncome: async (userId: string, income: { category_id: number; amount: string; notes?: string; income_date?: string }) => {
+            const newIncome = await incomeApi.createIncome(userId, income);
+            const formattedIncome: Income = {
+                id: newIncome.id,
+                amount: parseCostToNumber(newIncome.amount),
+                description: newIncome.notes || 'No description',
+                category: 'Unknown',
+                categoryId: income.category_id.toString(),
+                date: formatISODate(new Date(newIncome.income_date || newIncome.created_at)),
+                time: formatTime(newIncome.created_at)
+            };
+            const categoryObj = get().categories.find(cat => cat.id === income.category_id.toString());
+            if (categoryObj) {
+                formattedIncome.category = categoryObj.name;
             }
+            const incomeDate = new Date(newIncome.income_date || newIncome.created_at);
+            const incomeYear = incomeDate.getFullYear();
+            const incomeMonth = incomeDate.getMonth() + 1;
+            const monthKey = get().getMonthKey(incomeYear, incomeMonth);
+            set(state => ({
+                monthlyCache: {
+                    ...state.monthlyCache,
+                    [monthKey]: {
+                        incomes: [formattedIncome, ...(state.monthlyCache[monthKey]?.incomes || [])],
+                        isLoading: false,
+                        lastLoaded: Date.now()
+                    }
+                }
+            }));
+            try {
+                useCashFlowStore.getState().notifyAmountChange(userId, incomeYear);
+            } catch (error) {
+                console.warn('Failed to refresh cash flow for year', incomeYear, error);
+            }
+            return formattedIncome;
         },
 
         updateIncome: async (userId: string, incomeId: string, updates: { category_id?: number; amount?: string; notes?: string; income_date?: string }) => {
-            if (!userId) throw new Error('User ID is required');
-            
-            try {
-                const response = await incomeApi.updateIncome(userId, incomeId, updates);
-                
-                // Transform response to Income format
-                const updatedIncome: Income = {
-                    id: response.id,
-                    amount: typeof response.amount === 'string' ? parseCostToNumber(response.amount) : response.amount,
-                    description: response.notes || updates.notes || '',
-                    category: response.category?.name || 'Other',
-                    categoryId: (response.category?.id || response.category_id || updates.category_id)?.toString() || '',
-                    date: formatISODate(response.income_date || updates.income_date || new Date().toISOString()),
-                    time: formatTime(response.created_at || response.income_date || new Date().toISOString())
-                };
-
-                // Update in all relevant month caches
-                const { monthlyCache } = get();
-                const updatedCache = { ...monthlyCache };
-                
-                Object.keys(updatedCache).forEach(monthKey => {
-                    const cached = updatedCache[monthKey];
-                    const incomeIndex = cached.incomes.findIndex(income => income.id === incomeId);
-                    
-                    if (incomeIndex !== -1) {
-                        updatedCache[monthKey] = {
-                            ...cached,
-                            incomes: [
-                                ...cached.incomes.slice(0, incomeIndex),
-                                updatedIncome,
-                                ...cached.incomes.slice(incomeIndex + 1)
-                            ]
-                        };
-                    }
-                });
-                
-                set({ monthlyCache: updatedCache });
-                
-                // Notify cash flow store to refresh the affected year
-                try {
-                    const year = new Date(updatedIncome.date).getFullYear();
-                    useCashFlowStore.getState().notifyAmountChange(userId, year);
-                } catch (error) {
-                    console.warn('Failed to refresh cash flow after income update', error);
+            const updatedIncome = await incomeApi.updateIncome(userId, incomeId, updates);
+            let categoryName = 'Unknown';
+            if (updates.category_id) {
+                const categoryObj = get().categories.find(cat => cat.id === updates.category_id!.toString());
+                if (categoryObj) {
+                    categoryName = categoryObj.name;
                 }
+            }
+            const updatedDate = updates.income_date ? formatISODate(new Date(updates.income_date)) : null;
+            const updatedTime = updatedIncome.created_at ? formatTime(updatedIncome.created_at) : null;
+            set(state => {
+                const newCache = { ...state.monthlyCache };
+                for (const monthKey of Object.keys(newCache)) {
+                    const monthData = newCache[monthKey];
+                    const incomeIndex = monthData.incomes.findIndex(inc => inc.id === incomeId);
+                    if (incomeIndex !== -1) {
+                        const currentIncome = monthData.incomes[incomeIndex];
+                        const updatedIncomeObj: Income = {
+                            id: currentIncome.id,
+                            amount: updates.amount ? parseCostToNumber(updates.amount) : currentIncome.amount,
+                            description: updates.notes !== undefined ? updates.notes : currentIncome.description,
+                            category: updates.category_id ? categoryName : currentIncome.category,
+                            categoryId: updates.category_id ? updates.category_id.toString() : currentIncome.categoryId,
+                            date: updatedDate || currentIncome.date,
+                            time: updatedTime || currentIncome.time
+                        };
+                        const updatedIncomes = [...monthData.incomes];
+                        updatedIncomes.splice(incomeIndex, 1);
+                        newCache[monthKey] = {
+                            ...monthData,
+                            incomes: updatedIncomes
+                        };
+                        let targetMonthKey: string;
+                        if (updates.income_date) {
+                            const incomeDate = new Date(updates.income_date);
+                            const incomeYear = incomeDate.getFullYear();
+                            const incomeMonth = incomeDate.getMonth() + 1;
+                            targetMonthKey = get().getMonthKey(incomeYear, incomeMonth);
+                        } else {
+                            targetMonthKey = monthKey;
+                        }
+                        if (!newCache[targetMonthKey]) {
+                            newCache[targetMonthKey] = {
+                                incomes: [],
+                                isLoading: false,
+                                lastLoaded: Date.now()
+                            };
+                        }
+                        newCache[targetMonthKey] = {
+                            ...newCache[targetMonthKey],
+                            incomes: [updatedIncomeObj, ...newCache[targetMonthKey].incomes]
+                        };
+                        newCache[targetMonthKey].incomes.sort((a, b) => 
+                            new Date(b.date).getTime() - new Date(a.date).getTime()
+                        );
+                        break;
+                    }
+                }
+                return { monthlyCache: newCache };
+            });
+            try {
+                const currentYear = new Date().getFullYear();
+                const targetYear = updates.income_date ? new Date(updates.income_date).getFullYear() : currentYear;
+                useCashFlowStore.getState().notifyAmountChange(userId, targetYear);
             } catch (error) {
-                console.error('Error updating income:', error);
-                throw error;
+                console.warn('Failed to refresh cash flow after income update', error);
             }
         },
 
         deleteIncome: async (userId: string, incomeId: string) => {
-            if (!userId) throw new Error('User ID is required');
-            
-            try {
-                // Find the income to get the year before deletion
-                const { monthlyCache } = get();
-                let incomeYear: number | null = null;
-                
-                for (const monthKey of Object.keys(monthlyCache)) {
-                    const income = monthlyCache[monthKey].incomes.find(inc => inc.id === incomeId);
-                    if (income) {
-                        incomeYear = new Date(income.date).getFullYear();
-                        break;
-                    }
+            const { monthlyCache } = get();
+            let incomeYear: number | null = null;
+            for (const monthKey of Object.keys(monthlyCache)) {
+                const income = monthlyCache[monthKey].incomes.find(inc => inc.id === incomeId);
+                if (income) {
+                    incomeYear = new Date(income.date).getFullYear();
+                    break;
                 }
-                
-                await incomeApi.deleteIncome(userId, incomeId);
-                
-                // Remove from all month caches
-                const updatedCache = { ...monthlyCache };
-                
-                Object.keys(updatedCache).forEach(monthKey => {
-                    const cached = updatedCache[monthKey];
-                    updatedCache[monthKey] = {
-                        ...cached,
-                        incomes: cached.incomes.filter(income => income.id !== incomeId)
+            }
+            await incomeApi.deleteIncome(userId, incomeId);
+            set(state => {
+                const newCache = { ...state.monthlyCache };
+                Object.keys(newCache).forEach(monthKey => {
+                    const monthData = newCache[monthKey];
+                    newCache[monthKey] = {
+                        ...monthData,
+                        incomes: monthData.incomes.filter(income => income.id !== incomeId)
                     };
                 });
-                
-                set({ monthlyCache: updatedCache });
-                
-                // Notify cash flow store to refresh the affected year
-                if (incomeYear) {
-                    try {
-                        useCashFlowStore.getState().notifyAmountChange(userId, incomeYear);
-                    } catch (error) {
-                        console.warn('Failed to refresh cash flow after income deletion', error);
-                    }
+                return { monthlyCache: newCache };
+            });
+            if (incomeYear) {
+                try {
+                    useCashFlowStore.getState().notifyAmountChange(userId, incomeYear);
+                } catch (error) {
+                    console.warn('Failed to refresh cash flow after income deletion', error);
                 }
-            } catch (error) {
-                console.error('Error deleting income:', error);
-                throw error;
             }
         },
 
-        // Getters
         getIncomesForMonth: (year: number, month: number) => {
-            const { monthlyCache, getMonthKey } = get();
-            const monthKey = getMonthKey(year, month);
-            return monthlyCache[monthKey]?.incomes || [];
+            const monthKey = get().getMonthKey(year, month);
+            return get().monthlyCache[monthKey]?.incomes || [];
         },
 
         getCurrentMonthIncomes: () => {
-            const { currentYear, currentMonth, getIncomesForMonth } = get();
-            return getIncomesForMonth(currentYear, currentMonth);
+            const { currentYear, currentMonth } = get();
+            return get().getIncomesForMonth(currentYear, currentMonth);
         },
 
         getRecentIncomes: (limit: number = 10) => {
-            const { getCurrentMonthIncomes } = get();
-            const incomes = getCurrentMonthIncomes();
-            
-            // Sort by date (newest first) and take the limit
-            return incomes
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, limit);
+            const currentIncomes = get().getCurrentMonthIncomes();
+            return currentIncomes.slice(0, limit);
         },
 
         getTotalForMonth: (year: number, month: number) => {
-            const { getIncomesForMonth } = get();
-            const incomes = getIncomesForMonth(year, month);
-            return incomes.reduce((total, income) => total + income.amount, 0);
+            const incomes = get().getIncomesForMonth(year, month);
+            return incomes.reduce((sum: number, income: Income) => sum + income.amount, 0);
         },
 
         getCurrentMonthTotal: () => {
-            const { currentYear, currentMonth, getTotalForMonth } = get();
-            return getTotalForMonth(currentYear, currentMonth);
+            const { currentYear, currentMonth } = get();
+            return get().getTotalForMonth(currentYear, currentMonth);
         },
 
         isLoadingMonth: (year: number, month: number) => {
-            const { monthlyCache, getMonthKey } = get();
-            const monthKey = getMonthKey(year, month);
-            return monthlyCache[monthKey]?.isLoading || false;
+            const monthKey = get().getMonthKey(year, month);
+            return get().monthlyCache[monthKey]?.isLoading || false;
         },
 
-        getCategoryIcon: (categoryName: string) => {
-            switch (categoryName.toLowerCase()) {
-                case 'salary': return '💼';
-                case 'freelance': return '💻';
-                case 'investment': case 'investments': return '📈';
-                case 'business': return '🏢';
-                case 'bonus': return '🎁';
-                case 'rewards': case 'reward': return '🏆';
-                case 'rental': return '🏠';
-                case 'dividend': case 'dividends': return '💎';
-                case 'gift': return '🎁';
-                case 'refund': return '💸';
-                default: return '💰';
-            }
+        getCategoryIcon: (categoryId: string) => {
+            const category = get().categories.find(cat => cat.id === categoryId);
+            return category?.icon || '💰';
         },
+
+        updateCurrentDate: () => {
+            const now = new Date();
+            const newMonth = now.getMonth() + 1;
+            const newYear = now.getFullYear();
+            const { currentMonth, currentYear } = get();
+            if (newMonth !== currentMonth || newYear !== currentYear) {
+                set({ currentMonth: newMonth, currentYear: newYear });
+            }
+        }
     };
 });

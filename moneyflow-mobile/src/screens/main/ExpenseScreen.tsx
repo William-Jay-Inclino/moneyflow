@@ -723,8 +723,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 </View>
 
                 <View style={styles.categorySection}>
-                    <Text style={styles.inputLabel}>Select Category</Text>
-                    <Text style={styles.helperText}>Slide to see more categories</Text>
+                    <Text style={styles.inputLabel}>Category</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                         {categories.length > 0 ? categories.map((category) => (
                             <CategoryChip

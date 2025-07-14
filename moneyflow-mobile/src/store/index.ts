@@ -1,4 +1,3 @@
 export * from './authStore';
-export * from './transactionStore';
 export * from './expenseStore';
 export * from './incomeStore';

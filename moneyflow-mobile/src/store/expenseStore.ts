@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { transactionApi, categoryApi } from '../services/api';
+import { expenseApi, categoryApi } from '../services/api';
 import { parseCostToNumber } from '../utils/costUtils';
-import { formatDate, formatTime, formatISODate } from '../utils/dateUtils';
+import { formatTime, formatISODate } from '../utils/dateUtils';
 import { useCashFlowStore } from './cashFlowStore';
 
 export interface Expense {
@@ -143,7 +143,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                     }
                 }));
 
-                const data = await transactionApi.getExpenses(userId, year, month);
+                const data = await expenseApi.getExpenses(userId, year, month);
                 const formattedExpenses = data.map((expense: any) => ({
                     id: expense.id,
                     amount: parseCostToNumber(expense.cost),
@@ -188,7 +188,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
 
         // Add expense
         addExpense: async (userId: string, expense: { category_id: number; cost: string; notes?: string; expense_date?: string }) => {
-            const newExpense = await transactionApi.createExpense(userId, expense);
+            const newExpense = await expenseApi.createExpense(userId, expense);
             
             const formattedExpense: Expense = {
                 id: newExpense.id,
@@ -235,7 +235,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
 
         // Update expense
         updateExpense: async (userId: string, expenseId: string, updates: { category_id?: number; cost?: string; notes?: string; expense_date?: string }) => {
-            const updatedExpense = await transactionApi.updateExpense(userId, expenseId, updates);
+            const updatedExpense = await expenseApi.updateExpense(userId, expenseId, updates);
             
             // Find category name if category_id is provided
             let categoryName = 'Unknown';
@@ -344,7 +344,7 @@ export const useExpenseStore = create<ExpenseStore>((set, get) => {
                 }
             }
             
-            await transactionApi.deleteExpense(userId, expenseId);
+            await expenseApi.deleteExpense(userId, expenseId);
             
             // Remove from all month caches
             set(state => {

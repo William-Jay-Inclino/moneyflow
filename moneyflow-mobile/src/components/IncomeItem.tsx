@@ -68,13 +68,7 @@ export const IncomeItem = memo<IncomeItemProps>(({
         const dateObj = new Date(isoString);
         const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
         const dd = String(dateObj.getDate()).padStart(2, '0');
-        let hours = dateObj.getHours();
-        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        const hh = String(hours).padStart(2, '0');
-        return `${mm}/${dd} ${hh}:${minutes} ${ampm}`;
+        return `${mm}/${dd}`;
     };
 
     return (
