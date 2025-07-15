@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import { ExpenseItem, CategoryChip } from '../../components';
+import { ExpenseItem } from '../../components';
 import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
-import { formatDate, parseDateComponents } from '../../utils/dateUtils';
+import { parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 import { useAuthStore } from '@/store/authStore';
 import { useExpenseStore } from '@/store/expenseStore';
+import { CategoryChipGrid } from '@/components/CategoryChip';
 
 // Constants
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
@@ -674,7 +675,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
                         {/* Expenses List */}
                         <View style={styles.transactionsSection}>
-                            <Text style={styles.sectionTitle}>All Expenses This Month</Text>
+                            <Text style={styles.sectionTitle}>All Expenses</Text>
                             {filteredExpenses
                                 .slice()
                                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -697,7 +698,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 ) : (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyStateIcon}>📊</Text>
-                        <Text style={styles.emptyStateText}>No expenses found for this month</Text>
+                        <Text style={styles.emptyStateText}>No expenses found</Text>
                         <Text style={styles.emptyStateSubtext}>Try selecting a different month or add some expenses</Text>
                     </View>
                 )}
@@ -768,18 +769,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Select Category</Text>
-                            <Text style={styles.helperText}>Slide to see more categories</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {enabledCategories.map((category) => (
-                                    <CategoryChip
-                                        key={category.id}
-                                        category={category.name}
-                                        isSelected={editFormData.category === category.id}
-                                        onPress={() => handleEditFormCategorySelect(category.id)}
-                                        getCategoryIcon={() => getLocalCategoryIcon(category.id)}
-                                    />
-                                ))}
-                            </ScrollView>
+
+                            <CategoryChipGrid
+                                categories={enabledCategories}
+                                selectedCategory={editFormData.category}
+                                onPress={handleEditFormCategorySelect}
+                                getCategoryIcon={getLocalCategoryIcon}
+                                color="#3b82f6"
+                            />
                         </View>
 
                         <View style={styles.editModalButtons}>
@@ -865,24 +862,14 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
 
                         <View style={styles.categorySection}>
                             <Text style={styles.inputLabel}>Select Category</Text>
-                            <Text style={styles.helperText}>Slide to see more categories</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                                {enabledCategories.length === 0 ? (
-                                    <View style={{ justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-                                        <Text style={{ color: '#64748b', fontSize: 14 }}>No categories available. Please check your internet connection or try again later.</Text>
-                                    </View>
-                                ) : (
-                                    enabledCategories.map((category) => (
-                                        <CategoryChip
-                                            key={category.id}
-                                            category={category.name}
-                                            isSelected={addFormData.category === category.id}
-                                            onPress={() => handleAddFormCategorySelect(category.id)}
-                                            getCategoryIcon={() => getLocalCategoryIcon(category.id)}
-                                        />
-                                    ))
-                                )}
-                            </ScrollView>
+
+                            <CategoryChipGrid
+                                categories={enabledCategories}
+                                selectedCategory={addFormData.category}
+                                onPress={handleAddFormCategorySelect}
+                                getCategoryIcon={getLocalCategoryIcon}
+                                color="#3b82f6"
+                            />
                         </View>
 
                         <View style={styles.editModalButtons}>

@@ -6,7 +6,7 @@ A modern React Native application for expense tracking and financial management.
 
 - 🔐 User authentication (Login/Register)
 - 💰 Income and expense tracking
-- 📊 Financial dashboard with overview
+- 📊 Cash flow summary
 - 🏷️ Category management
 - 📱 Modern UI with React Native Paper
 - 🎨 Beautiful Material Design 3

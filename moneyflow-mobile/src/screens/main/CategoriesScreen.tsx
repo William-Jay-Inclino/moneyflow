@@ -200,7 +200,7 @@ const CategoriesScreen = () => {
                 <MainScreenHeader
                     title="Manage Categories"
                     subtitle="Select which categories you want to use"
-                    color="#14b8a6" // modern teal
+                    color="#f59e0b" 
                 />
                 <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
                     <Text style={{color: '#b45309', fontSize: 13, textAlign: 'center', fontWeight: '500'}}>
@@ -218,7 +218,7 @@ const CategoriesScreen = () => {
                 <MainScreenHeader
                     title="Manage Categories"
                     subtitle="Loading your categories..."
-                    color="#14b8a6"
+                    color="#f59e0b"
                 />
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#3b82f6" />
@@ -235,7 +235,7 @@ const CategoriesScreen = () => {
                 <MainScreenHeader
                     title="Manage Categories"
                     subtitle="Something went wrong"
-                    color="#14b8a6"
+                    color="#f59e0b"
                 />
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{error}</Text>
@@ -255,7 +255,7 @@ const CategoriesScreen = () => {
             <MainScreenHeader
                 title="Manage Categories"
                 subtitle="Select which categories you want to use"
-                color="#14b8a6"
+                color="#f59e0b"
             />
             <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Income Categories Section */}

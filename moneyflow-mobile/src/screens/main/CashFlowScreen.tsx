@@ -254,7 +254,7 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
             <MainScreenHeader
                 title="Cash Flow"
                 subtitle="Track your financial overview"
-                color="#6366f1"
+                color="#10b981"
             />
             {!isOnline && (
                 <View style={{backgroundColor: '#fef3c7', padding: 8, borderRadius: 8, margin: 16}}>
@@ -266,7 +266,7 @@ export const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) =>
             {isOnline ? (
                 isLoading ? (
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#6366f1" />
+                        <ActivityIndicator size="large" color="#10b981" />
                         <Text style={styles.loadingText}>Loading cash flow data...</Text>
                     </View>
                 ) : (
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
         paddingTop: 50,
         paddingHorizontal: 24,
         paddingBottom: 32,
-        backgroundColor: '#6366f1',
+        backgroundColor: '#10b981',
     },
     title: {
         fontSize: 28,
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     currentMonthRow: {
         backgroundColor: '#f0f9ff',
         borderLeftWidth: 4,
-        borderLeftColor: '#6366f1',
+        borderLeftColor: '#10b981',
     },
     monthColumn: {
         flex: 0.9,
@@ -537,14 +537,14 @@ const styles = StyleSheet.create({
         color: '#1e293b',
     },
     currentMonthText: {
-        color: '#6366f1',
+        color: '#10b981',
         fontWeight: '700',
     },
     currentIndicator: {
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#6366f1',
+        backgroundColor: '#10b981',
     },
     incomeAmount: {
         fontSize: 13,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
         marginVertical: 2,
     },
     pickerItemSelected: {
-        backgroundColor: '#6366f1',
+        backgroundColor: '#10b981',
     },
     pickerItemText: {
         fontSize: 16,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     },
     pickerButtonConfirmText: {
         fontSize: 16,
-        color: '#6366f1',
+        color: '#10b981',
         fontWeight: '600',
     },
     loadingContainer: {
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     retryButton: {
-        backgroundColor: '#6366f1',
+        backgroundColor: '#10b981',
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 8,
