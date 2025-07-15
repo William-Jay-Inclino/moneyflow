@@ -183,6 +183,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
         addExpense,
         updateExpense,
         deleteExpense,
+        getCategoryIcon,
     } = useExpenseStore();
     
     const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
@@ -528,7 +529,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 name: cat?.name || 'Unknown',
                 icon: cat?.icon || '💳',
                 color: cat?.color || colors[index % colors.length],
-                legendLabel: `-${formatNumberWithComma(amount)}`,
+                legendLabel: `-${amount}`,
                 percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : '0',
             };
         });
@@ -681,8 +682,11 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                                 .map((item: any) => (
                                     <ExpenseItem
                                         key={item.id}
-                                        item={item}
-                                        getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
+                                        item={{
+                                            ...item,
+                                            cost: item.amount,
+                                        }}
+                                        getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                         formatDate={formatDateDisplay}
                                         onEdit={handleEditExpense}
                                         onDelete={handleDeleteExpense}

@@ -190,6 +190,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
         addIncome,
         updateIncome,
         deleteIncome,
+        getCategoryIcon,
     } = useIncomeStore();
     
     const [localCurrentDate, setLocalCurrentDate] = useState(new Date());
@@ -525,7 +526,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 name: cat?.name || 'Unknown',
                 icon: cat?.icon || '💳',
                 color: cat?.color || colors[index % colors.length],
-                legendLabel: `+${formatNumberWithComma(amount)}`,
+                legendLabel: `+${amount}`,
                 percentage: totalIncomes > 0 ? ((amount / totalIncomes) * 100).toFixed(0) : '0',
             };
         });
@@ -686,8 +687,11 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             {filteredIncomes.map((item: any) => (
                                 <IncomeItem
                                     key={item.id}
-                                    item={item}
-                                    getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
+                                    item={{
+                                    ...item,
+                                        amount: item.amount,
+                                    }}
+                                    getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                     formatDate={formatDateDisplay}
                                     onEdit={handleEditIncome}
                                     onDelete={handleDeleteIncome}
