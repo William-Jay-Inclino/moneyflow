@@ -47,40 +47,30 @@ export const CategoryChipGrid: React.FC<CategoryChipGridProps> = ({
     onPress,
     getCategoryIcon,
     color = '#3b82f6',
-}) => {
-    // Display all chips in a compact grid, 3 rows, no sliding
-    const rowCount = 3;
-    const perRow = Math.ceil(categories.length / rowCount);
-    const rows = Array.from({ length: rowCount }, (_, i) =>
-        categories.slice(i * perRow, (i + 1) * perRow)
-    );
-
-    return (
-        <View style={gridStyles.gridContainer}>
-            {rows.map((row, rowIdx) => (
-                <View key={rowIdx} style={gridStyles.row}>
-                    {row.map(cat => (
-                        <CategoryChip
-                            key={cat.id}
-                            category={cat.name}
-                            isSelected={selectedCategory === cat.id}
-                            onPress={() => onPress(cat.id)}
-                            getCategoryIcon={() => getCategoryIcon(cat.id)}
-                            color={color}
-                        />
-                    ))}
-                </View>
+}) => (
+    <View style={gridStyles.gridContainer}>
+        <View style={gridStyles.row}>
+            {categories.map(cat => (
+                <CategoryChip
+                    key={cat.id}
+                    category={cat.name}
+                    isSelected={selectedCategory === cat.id}
+                    onPress={() => onPress(cat.id)}
+                    getCategoryIcon={() => getCategoryIcon(cat.id)}
+                    color={color}
+                />
             ))}
         </View>
-    );
-};
+    </View>
+);
 
 const styles = StyleSheet.create({
     categoryChip: {
         paddingHorizontal: 7,
         paddingVertical: 3,
         borderRadius: 12,
-        marginRight: 4,
+        marginRight: 6,
+        marginBottom: 12,
         backgroundColor: '#f8fafc',
         borderWidth: 1,
         borderColor: '#e2e8f0',
@@ -110,6 +100,7 @@ const gridStyles = StyleSheet.create({
     },
     row: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         marginBottom: 4,
     },
 });

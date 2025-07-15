@@ -860,7 +860,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 key={item.id}
                                 item={{
                                     ...item,
-                                    amount: item.amount,
+                                    cost: item.amount,
                                 }}
                                 getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                 formatDate={formatDateForDisplay}
