@@ -12,7 +12,8 @@ import {
 } from '@/types';
 
 // const API_BASE_URL = API_URL || 'https://jaytechsolutions.cloud/moneyflow/api'; 
-const API_BASE_URL = 'http://120.28.62.117/moneyflow/api'; 
+// const API_BASE_URL = 'http://120.28.62.117/moneyflow/api'; 
+const API_BASE_URL = 'https://jaytechsolutions.cloud/moneyflow/api'; 
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
 
