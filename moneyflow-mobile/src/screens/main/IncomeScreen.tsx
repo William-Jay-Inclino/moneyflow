@@ -132,7 +132,6 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
     const isLoadingIncomes = isLoadingMonth(currentYear, currentMonth);
     
     // Get categories and recent incomes from store (will update when data changes)
-    const [enabledCategoryIds, setEnabledCategoryIds] = useState<string[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const onlineIncomes = useIncomeStore(state => state.getRecentIncomes(RECENT_INCOMES_LIMIT));
     const currentMonthTotal = useIncomeStore(state => state.getCurrentMonthTotal());
@@ -582,10 +581,8 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
             const enabledIds = enabledIdsRaw ? JSON.parse(enabledIdsRaw) : [];
             if (stored) {
                 setCategories(JSON.parse(stored).filter((cat: Category) => enabledIds.includes(cat.id)));
-                setEnabledCategoryIds(enabledIds);
             } else {
                 setCategories([]);
-                setEnabledCategoryIds([]);
             }
         } catch (error) {
             setCategories([]);

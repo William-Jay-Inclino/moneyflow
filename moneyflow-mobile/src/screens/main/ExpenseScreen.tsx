@@ -116,7 +116,6 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
     const isLoadingExpenses = isLoadingMonth(currentYear, currentMonth);
     
     // Get categories and recent expenses from store (will update when data changes)
-    const [enabledCategoryIds, setEnabledCategoryIds] = useState<string[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const onlineExpenses = useExpenseStore(state => state.getRecentExpenses(RECENT_EXPENSES_LIMIT));
     const currentMonthTotal = useExpenseStore(state => state.getCurrentMonthTotal());

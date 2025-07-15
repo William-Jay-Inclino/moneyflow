@@ -48,17 +48,28 @@ export const CategoryChipGrid: React.FC<CategoryChipGridProps> = ({
     getCategoryIcon,
     color = '#3b82f6',
 }) => {
+    // Display all chips in a compact grid, 3 rows, no sliding
+    const rowCount = 3;
+    const perRow = Math.ceil(categories.length / rowCount);
+    const rows = Array.from({ length: rowCount }, (_, i) =>
+        categories.slice(i * perRow, (i + 1) * perRow)
+    );
+
     return (
         <View style={gridStyles.gridContainer}>
-            {categories.map((cat) => (
-                <CategoryChip
-                    key={cat.id}
-                    category={cat.name}
-                    isSelected={selectedCategory === cat.id}
-                    onPress={() => onPress(cat.id)}
-                    getCategoryIcon={() => getCategoryIcon(cat.id)}
-                    color={color}
-                />
+            {rows.map((row, rowIdx) => (
+                <View key={rowIdx} style={gridStyles.row}>
+                    {row.map(cat => (
+                        <CategoryChip
+                            key={cat.id}
+                            category={cat.name}
+                            isSelected={selectedCategory === cat.id}
+                            onPress={() => onPress(cat.id)}
+                            getCategoryIcon={() => getCategoryIcon(cat.id)}
+                            color={color}
+                        />
+                    ))}
+                </View>
             ))}
         </View>
     );
@@ -66,23 +77,23 @@ export const CategoryChipGrid: React.FC<CategoryChipGridProps> = ({
 
 const styles = StyleSheet.create({
     categoryChip: {
-        paddingHorizontal: 10,       // increased from 7
-        paddingVertical: 6,          // increased from 3
-        borderRadius: 16,            // slightly more rounded
-        marginRight: 6,              // more spacing between chips
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderRadius: 12,
+        marginRight: 4,
         backgroundColor: '#f8fafc',
         borderWidth: 1,
         borderColor: '#e2e8f0',
         flexDirection: 'row',
         alignItems: 'center',
-        minWidth: 60,                // wider min width
-        height: 30,                  // taller chip height
+        minWidth: 44,
+        height: 22,
     },
     categoryChipSelected: {
-        // backgroundColor and borderColor handled inline
+        // Dynamic color will be applied inline
     },
     categoryChipText: {
-        fontSize: 12,                // increased from 10
+        fontSize: 10,
         color: '#64748b',
         fontWeight: '500',
         textAlign: 'center',
@@ -93,11 +104,12 @@ const styles = StyleSheet.create({
     },
 });
 
-
 const gridStyles = StyleSheet.create({
     gridContainer: {
+        flexDirection: 'column',
+    },
+    row: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8, // requires React Native >= 0.71
+        marginBottom: 4,
     },
 });

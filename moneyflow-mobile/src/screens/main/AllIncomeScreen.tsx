@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import { IncomeItem, CategoryChip } from '../../components';
+import { IncomeItem } from '../../components';
 import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
 import { parseDateComponents } from '../../utils/dateUtils';
 import { validateIncomeForm } from '../../utils/formValidation';
 import { useAuthStore } from '@/store/authStore';
 import { useIncomeStore } from '@/store/incomeStore';
 import { CategoryChipGrid } from '@/components/CategoryChip';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Constants
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
@@ -206,8 +207,6 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
     useEffect(() => {
         const loadCategoriesFromStorage = async () => {
             try {
-                const stored = await import('@react-native-async-storage/async-storage');
-                const AsyncStorage = stored.default;
                 const raw = await AsyncStorage.getItem('global_income_categories');
                 if (raw) {
                     setLocalCategories(JSON.parse(raw));

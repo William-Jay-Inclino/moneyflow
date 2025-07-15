@@ -8,6 +8,7 @@ import { validateExpenseForm } from '../../utils/formValidation';
 import { useAuthStore } from '@/store/authStore';
 import { useExpenseStore } from '@/store/expenseStore';
 import { CategoryChipGrid } from '@/components/CategoryChip';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Constants
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
@@ -199,8 +200,6 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
     useEffect(() => {
         const loadCategoriesFromStorage = async () => {
             try {
-                const stored = await import('@react-native-async-storage/async-storage');
-                const AsyncStorage = stored.default;
                 const raw = await AsyncStorage.getItem('global_expense_categories');
                 if (raw) {
                     setLocalCategories(JSON.parse(raw));
