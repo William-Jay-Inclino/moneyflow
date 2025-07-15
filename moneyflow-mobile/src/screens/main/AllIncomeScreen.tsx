@@ -686,10 +686,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             {filteredIncomes.map((item: any) => (
                                 <IncomeItem
                                     key={item.id}
-                                    item={{
-                                        ...item,
-                                        amount: formatNumberWithComma(item.amount),
-                                    }}
+                                    item={item}
                                     getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
                                     formatDate={formatDateDisplay}
                                     onEdit={handleEditIncome}

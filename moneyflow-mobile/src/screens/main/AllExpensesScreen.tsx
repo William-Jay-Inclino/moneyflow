@@ -681,10 +681,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                                 .map((item: any) => (
                                     <ExpenseItem
                                         key={item.id}
-                                        item={{
-                                            ...item,
-                                            cost: formatNumberWithComma(item.cost),
-                                        }}
+                                        item={item}
                                         getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
                                         formatDate={formatDateDisplay}
                                         onEdit={handleEditExpense}

@@ -5,7 +5,7 @@ import { formatNumberWithComma } from '../utils/costUtils';
 interface ExpenseItemProps {
     item: {
         id: string;
-        amount: number;
+        cost: number;
         description: string;
         category: string;
         categoryId: string;
@@ -86,7 +86,7 @@ export const ExpenseItem = memo<ExpenseItemProps>(({
                         </TouchableOpacity>
                     )}
                     <View style={[styles.expenseAmountContainer, editable && { paddingRight: 40 }]}>
-                        <Text style={styles.expenseAmount}>-{formatNumberWithComma(item.amount)}</Text>
+                        <Text style={styles.expenseAmount}>-{formatNumberWithComma(item.cost)}</Text>
                     </View>
                 </View>
             </View>
