@@ -1,5 +1,6 @@
 import React, { useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import { formatNumberWithComma } from '../utils/costUtils';
 
 interface IncomeItemProps {
     item: {
@@ -68,7 +69,7 @@ export const IncomeItem = memo<IncomeItemProps>(({
             <View style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                     <View style={styles.iconContainer}>
-                        <Text style={styles.categoryIcon}>{getCategoryIcon(item.category || item.categoryName || 'Other')}</Text>
+                        <Text style={styles.categoryIcon}>{getCategoryIcon(item.category)}</Text>
                     </View>
                     <View style={styles.transactionInfo}>
                         <Text style={styles.transactionDescription}>{item.description}</Text>
@@ -86,7 +87,7 @@ export const IncomeItem = memo<IncomeItemProps>(({
                         </TouchableOpacity>
                     )}
                     <View style={[styles.incomeAmountContainer, editable && { paddingRight: 40 }]}>
-                        <Text style={styles.incomeAmount}>+{item.amount.toFixed(2)}</Text>
+                        <Text style={styles.incomeAmount}>+{formatNumberWithComma(item.amount)}</Text>
                     </View>
                 </View>
             </View>

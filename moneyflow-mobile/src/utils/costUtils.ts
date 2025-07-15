@@ -55,3 +55,13 @@ export const isValidCost = (cost: string): boolean => {
     const parsed = parseFloat(cost.trim());
     return !isNaN(parsed) && parsed > 0;
 };
+
+/**
+ * Formats a number with comma as thousands separator and fixed decimals
+ * Example: 1234567.89 => "1,234,567.89"
+ */
+export const formatNumberWithComma = (value: number | string, decimals: number = 2): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '0.00';
+    return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};

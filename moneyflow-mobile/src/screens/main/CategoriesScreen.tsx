@@ -1,10 +1,10 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
-import { useAuthStore } from '../../store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { categoryApi } from '../../services';
 import { MainScreenHeader } from '../../components/MainScreenHeader';
+import { useAuthStore } from '@/store/authStore';
 
 interface Category {
     id: string;

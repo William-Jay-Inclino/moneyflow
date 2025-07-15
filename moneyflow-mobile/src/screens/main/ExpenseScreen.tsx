@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { ExpenseItem, CategoryChip } from '../../components';
-import { useAuthStore, useExpenseStore } from '../../store';
-import { formatCostInput } from '../../utils/costUtils';
+import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
 import { parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 import { MainScreenHeader } from '@/components/MainScreenHeader';
+import { useAuthStore } from '@/store/authStore';
+import { useExpenseStore } from '@/store/expenseStore';
+import { CategoryChipGrid } from '@/components/CategoryChip';
 
 // Offline storage keys
 const STORAGE_KEYS = {
@@ -725,24 +727,22 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                 </View>
 
                 <View style={styles.categorySection}>
-                    <Text style={styles.inputLabel}>Category</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                        {categories.length > 0 ? categories.map((category) => (
-                            <CategoryChip
-                                key={category.id}
-                                category={category.name}
-                                isSelected={selectedCategory === category.id}
-                                onPress={() => setSelectedCategory(category.id)}
-                                getCategoryIcon={() => getCategoryIcon(category.id)}
-                                color="#3b82f6"
-                            />
-                        )) : (
-                            <View style={styles.loadingCategoriesContainer}>
-                                <ActivityIndicator size="small" color="#3b82f6" />
-                                <Text style={styles.loadingCategoriesText}>Loading categories...</Text>
-                            </View>
-                        )}
-                    </ScrollView>
+                    <Text style={styles.inputLabel}>Select Category</Text>
+
+                    {categories.length > 0 ? (
+                        <CategoryChipGrid
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            onPress={setSelectedCategory}
+                            getCategoryIcon={getCategoryIcon}
+                            color="#3b82f6"
+                        />
+                        ) : (
+                        <View style={styles.loadingCategoriesContainer}>
+                            <ActivityIndicator size="small" color="#3b82f6" />
+                            <Text style={styles.loadingCategoriesText}>Loading categories...</Text>
+                        </View>
+                    )}
                 </View>
 
 
@@ -837,7 +837,7 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                                 <Text style={styles.syncingTotalText}>Syncing...</Text>
                             </View>
                         ) : (
-                            <Text style={styles.summaryAmount}>-{combinedTotal.toFixed(2)}</Text>
+                            <Text style={styles.summaryAmount}>-{formatNumberWithComma(combinedTotal)}</Text>
                         )}
                     </View>
 
@@ -859,7 +859,10 @@ export const ExpenseScreen = ({ navigation }: { navigation: any }) => {
                         combinedExpenses.map((item) => (
                             <ExpenseItem
                                 key={item.id}
-                                item={item}
+                                item={{
+                                    ...item,
+                                    amount: item.amount,
+                                }}
                                 getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                 formatDate={formatDateForDisplay}
                                 onEdit={handleEditExpense}

@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Modal, ActivityIndicator } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useCashFlowStore } from '../../store/cashFlowStore';
-import { cashFlowApi } from '../../services/api';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { MainScreenHeader } from '@/components/MainScreenHeader';
+import { formatNumberWithComma } from '../../utils/costUtils';
 
 // Year Picker Component
 const YearPicker = memo(({ 
@@ -108,11 +108,11 @@ const MonthlyTableRow = memo(({
         </View>
         
         <View style={[styles.amountColumn, styles.amountCell]}>
-            <Text style={styles.incomeAmount}>+{income.toLocaleString()}</Text>
+            <Text style={styles.incomeAmount}>+{formatNumberWithComma(income)}</Text>
         </View>
         
         <View style={[styles.amountColumn, styles.amountCell]}>
-            <Text style={styles.expenseAmount}>-{expense.toLocaleString()}</Text>
+            <Text style={styles.expenseAmount}>-{formatNumberWithComma(expense)}</Text>
         </View>
         
         <View style={[styles.amountColumn, styles.amountCell]}>
@@ -120,7 +120,7 @@ const MonthlyTableRow = memo(({
                 styles.cashFlowAmount, 
                 cashFlow > 0 ? styles.positiveCashFlow : cashFlow < 0 ? styles.negativeCashFlow : styles.neutralCashFlow
             ]}>
-                {cashFlow > 0 ? '+' : ''}{cashFlow.toLocaleString()}
+                {cashFlow > 0 ? '+' : ''}{formatNumberWithComma(cashFlow)}
             </Text>
         </View>
     </View>
@@ -144,12 +144,12 @@ const YearSummary = memo(({
         <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Total Income</Text>
-                <Text style={styles.summaryIncomeAmount}>+{totalIncome.toLocaleString()}</Text>
+                <Text style={styles.summaryIncomeAmount}>+{formatNumberWithComma(totalIncome)}</Text>
             </View>
             
             <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Total Expense</Text>
-                <Text style={styles.summaryExpenseAmount}>-{totalExpense.toLocaleString()}</Text>
+                <Text style={styles.summaryExpenseAmount}>-{formatNumberWithComma(totalExpense)}</Text>
             </View>
             
             <View style={styles.summaryItem}>
@@ -158,7 +158,7 @@ const YearSummary = memo(({
                     styles.summaryCashFlowAmount,
                     totalCashFlow > 0 ? styles.positiveCashFlow : totalCashFlow < 0 ? styles.negativeCashFlow : styles.neutralCashFlow
                 ]}>
-                    {totalCashFlow > 0 ? '+' : ''}{totalCashFlow.toLocaleString()}
+                    {totalCashFlow > 0 ? '+' : ''}{formatNumberWithComma(totalCashFlow)}
                 </Text>
             </View>
         </View>

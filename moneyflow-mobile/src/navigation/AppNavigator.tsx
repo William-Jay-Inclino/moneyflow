@@ -2,22 +2,20 @@ import React, { useEffect } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
-import { useAuthStore } from '../store';
 import { tokenUtils } from '../utils/tokenUtils';
 
 // Auth Screens
 import { LoginScreen, SignupScreen, EmailVerificationScreen } from '../screens/auth';
 
 // Main Screens
-import { HomeScreen } from '../screens/main/HomeScreen';
 import { ExpenseScreen } from '../screens/main/ExpenseScreen';
 import { AllExpensesScreen } from '../screens/main/AllExpensesScreen';
 import { AllIncomeScreen } from '../screens/main/AllIncomeScreen';
 import { CashFlowScreen } from '../screens/main/CashFlowScreen';
 import { IncomeScreen } from '../screens/main/IncomeScreen';
-// import TestCategoriesScreen from '../screens/main/TestCategoriesScreen';
 import CategoriesScreen from '../screens/main/CategoriesScreen';
 import { AccountScreen } from '../screens/main/AccountScreen';
+import { useAuthStore } from '@/store/authStore';
 
 const AuthStack = createStackNavigator();
 const MainTab = createBottomTabNavigator();

@@ -2,10 +2,11 @@ import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { ExpenseItem, CategoryChip } from '../../components';
-import { useAuthStore, useExpenseStore } from '../../store';
-import { formatCostInput } from '../../utils/costUtils';
+import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
 import { formatDate, parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
+import { useAuthStore } from '@/store/authStore';
+import { useExpenseStore } from '@/store/expenseStore';
 
 // Constants
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
@@ -126,7 +127,10 @@ const CategoryLegend = memo(({
 }) => (
     <View style={styles.categoriesContainer}>
         {categories.map((category, index) => (
-            <View key={category.name} style={styles.categoryItem}>
+            <View 
+                key={`${category.id || 'unknown'}-${category.name}-${index}`} // ensure unique key
+                style={styles.categoryItem}
+            >
                 <View style={styles.categoryLeft}>
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                     <Text style={styles.categoryEmojiIcon}>{getCategoryIcon(category.id)}</Text>
@@ -148,24 +152,14 @@ const TotalSpent = memo(({
     totalExpenses: number
 }) => (
     <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Total Spent This Month</Text>
-        <Text style={styles.totalAmount}>{totalExpenses.toFixed(2)}</Text>
+        <Text style={styles.totalLabel}>Total Spent</Text>
+        <Text style={styles.totalAmount}>{formatNumberWithComma(totalExpenses)}</Text>
     </View>
 ));
 
 interface AllExpensesScreenProps {
     navigation: any;
 }
-
-interface Expense {
-    id: string;
-    amount: number;
-    description: string;
-    category: string;
-    date: string;
-    time: string;
-}
-
 interface Category {
     id: string;
     name: string;
@@ -534,7 +528,7 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                 name: cat?.name || 'Unknown',
                 icon: cat?.icon || '💳',
                 color: cat?.color || colors[index % colors.length],
-                legendLabel: `-${amount.toFixed(2)}`,
+                legendLabel: `-${formatNumberWithComma(amount)}`,
                 percentage: totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(0) : '0',
             };
         });
@@ -681,17 +675,23 @@ export const AllExpensesScreen: React.FC<AllExpensesScreenProps> = ({ navigation
                         {/* Expenses List */}
                         <View style={styles.transactionsSection}>
                             <Text style={styles.sectionTitle}>All Expenses This Month</Text>
-                            {filteredExpenses.map((item: any) => (
-                                <ExpenseItem
-                                    key={item.id}
-                                    item={item}
-                                    getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
-                                    formatDate={formatDateDisplay}
-                                    onEdit={handleEditExpense}
-                                    onDelete={handleDeleteExpense}
-                                    editable={true}
-                                />
-                            ))}
+                            {filteredExpenses
+                                .slice()
+                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                .map((item: any) => (
+                                    <ExpenseItem
+                                        key={item.id}
+                                        item={{
+                                            ...item,
+                                            cost: formatNumberWithComma(item.cost),
+                                        }}
+                                        getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
+                                        formatDate={formatDateDisplay}
+                                        onEdit={handleEditExpense}
+                                        onDelete={handleDeleteExpense}
+                                        editable={true}
+                                    />
+                                ))}
                         </View>
                     </>
                 ) : (

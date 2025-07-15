@@ -41,6 +41,10 @@ const categoryDefaults = [
   { name: 'Taxes', type: CategoryType.EXPENSE, color: '#98D8C8', icon: '📋', is_default: false },
   { name: 'Gifts & Donations', type: CategoryType.EXPENSE, color: '#F8C471', icon: '🎁', is_default: false },
   { name: 'Other Expenses', type: CategoryType.EXPENSE, color: '#D5DBDB', icon: '📦', is_default: false },
+  { name: 'Funding / Goals', type: CategoryType.EXPENSE, color: '#F4A261', icon: '🪙', is_default: false },
+  { name: 'Car Expenses', type: CategoryType.EXPENSE, color: '#FFA07A', icon: '🚗', is_default: false },
+  { name: 'Motor Expenses', type: CategoryType.EXPENSE, color: '#FFB347', icon: '🏍️', is_default: false },
+  { name: 'Possessions', type: CategoryType.EXPENSE, color: '#C39BD3', icon: '🧰', is_default: false },
 ];
 
 async function main() {

@@ -1,18 +1,30 @@
+
+
+// Use Asia/Manila timezone for all formatting
+const TIMEZONE = 'Asia/Manila';
+
 /**
- * Utility functions for date formatting
+ * Parses ISO date string or Date object to Date (local time)
  */
-
-import { format, parseISO } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
-import { getTimezone } from './config';
+const parseDate = (date: string | Date): Date => {
+    if (typeof date === 'string') {
+        // Try to parse ISO string
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) return d;
+    }
+    if (date instanceof Date) return date;
+    return new Date();
+};
 
 /**
- * Formats a date string to MM/DD format using the configured timezone
+ * Formats a date string to MM/DD format in Asia/Manila timezone
  */
 export const formatDate = (dateString: string): string => {
     try {
-        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
-        return formatInTimeZone(date, getTimezone(), 'MM/dd');
+        const date = parseDate(dateString);
+        // Convert to Asia/Manila time
+        const options: Intl.DateTimeFormatOptions = { timeZone: TIMEZONE, month: '2-digit', day: '2-digit' };
+        return date.toLocaleDateString('en-US', options);
     } catch (error) {
         console.warn('Error formatting date:', error);
         // Fallback to simple format
@@ -24,29 +36,34 @@ export const formatDate = (dateString: string): string => {
 };
 
 /**
- * Formats a date to a time string in 12-hour format using the configured timezone
+ * Formats a date to a time string in 12-hour format in Asia/Manila timezone
  */
 export const formatTime = (dateString: string): string => {
     try {
-        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
-        return formatInTimeZone(date, getTimezone(), 'h:mm a');
+        const date = parseDate(dateString);
+        const options: Intl.DateTimeFormatOptions = { timeZone: TIMEZONE, hour: 'numeric', minute: '2-digit', hour12: true };
+        return date.toLocaleTimeString('en-US', options);
     } catch (error) {
         console.warn('Error formatting time:', error);
-        // Fallback to simple format
         const date = new Date(dateString);
         return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     }
 };
 
 /**
- * Formats a date to ISO date string (YYYY-MM-DD) in the configured timezone
+ * Formats a date to ISO date string (YYYY-MM-DD) in Asia/Manila timezone
  */
 export const formatISODate = (date: Date): string => {
     try {
-        return formatInTimeZone(date, getTimezone(), 'yyyy-MM-dd');
+        // Get year, month, day in Asia/Manila
+        const options: Intl.DateTimeFormatOptions = { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' };
+        const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(date);
+        const year = parts.find(p => p.type === 'year')?.value || '';
+        const month = parts.find(p => p.type === 'month')?.value || '';
+        const day = parts.find(p => p.type === 'day')?.value || '';
+        return `${year}-${month}-${day}`;
     } catch (error) {
         console.warn('Error formatting ISO date:', error);
-        // Fallback to simple format
         return date.toISOString().split('T')[0];
     }
 };
@@ -56,8 +73,9 @@ export const formatISODate = (date: Date): string => {
  */
 export const formatFullDate = (dateString: string): string => {
     try {
-        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
-        return formatInTimeZone(date, getTimezone(), 'MMM dd, yyyy');
+        const date = parseDate(dateString);
+        const options: Intl.DateTimeFormatOptions = { timeZone: TIMEZONE, year: 'numeric', month: 'short', day: '2-digit' };
+        return date.toLocaleDateString('en-US', options);
     } catch (error) {
         console.warn('Error formatting full date:', error);
         const date = new Date(dateString);
@@ -74,8 +92,17 @@ export const formatFullDate = (dateString: string): string => {
  */
 export const formatDateTime = (dateString: string): string => {
     try {
-        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
-        return formatInTimeZone(date, getTimezone(), 'MMM dd, yyyy h:mm a');
+        const date = parseDate(dateString);
+        const options: Intl.DateTimeFormatOptions = { 
+            timeZone: TIMEZONE, 
+            year: 'numeric', 
+            month: 'short', 
+            day: '2-digit',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        };
+        return date.toLocaleString('en-US', options);
     } catch (error) {
         console.warn('Error formatting datetime:', error);
         const date = new Date(dateString);
@@ -90,34 +117,32 @@ export const formatDateTime = (dateString: string): string => {
 };
 
 /**
- * Gets the current date in the configured timezone
+ * Gets the current date in Asia/Manila timezone
  */
 export const getCurrentDate = (): Date => {
+    // Returns local JS Date, but formatting will use Asia/Manila
     return new Date();
 };
 
 /**
- * Gets the current date formatted as ISO string in the configured timezone
+ * Gets the current date formatted as ISO string in Asia/Manila timezone
  */
 export const getCurrentISODate = (): string => {
     return formatISODate(new Date());
 };
 
 /**
- * Creates a date in the configured timezone with specific year, month, and day
+ * Creates a date in Asia/Manila timezone with specific year, month, and day
  * Returns the date as ISO string format that the backend expects
  */
 export const createDateInTimezone = (year: number, month: number, day: number): string => {
     try {
-        // Create date string in ISO format with Asia/Manila timezone
-        const monthStr = String(month + 1).padStart(2, '0'); // month is 0-indexed
-        const dayStr = String(day).padStart(2, '0');
-        
-        // Return YYYY-MM-DD format - backend will handle timezone conversion
-        return `${year}-${monthStr}-${dayStr}`;
+        // month is 0-indexed
+        const date = new Date(Date.UTC(year, month, day));
+        // Format as YYYY-MM-DD in Asia/Manila
+        return formatISODate(date);
     } catch (error) {
         console.warn('Error creating date in timezone:', error);
-        // Fallback
         const monthStr = String(month + 1).padStart(2, '0');
         const dayStr = String(day).padStart(2, '0');
         return `${year}-${monthStr}-${dayStr}`;
@@ -125,7 +150,7 @@ export const createDateInTimezone = (year: number, month: number, day: number): 
 };
 
 /**
- * Creates a date in the configured timezone using just the day (current month/year)
+ * Creates a date in Asia/Manila timezone using just the day (current month/year)
  */
 export const createTodayWithDay = (day: number): string => {
     const now = new Date();
@@ -133,25 +158,19 @@ export const createTodayWithDay = (day: number): string => {
 };
 
 /**
- * Parses a date string and extracts day, month, year in the configured timezone
+ * Parses a date string and extracts day, month, year in Asia/Manila timezone
  */
 export const parseDateComponents = (dateString: string): { day: number; month: number; year: number } => {
     try {
-        const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
-        
-        // Get components in the configured timezone
-        const dayStr = formatInTimeZone(date, getTimezone(), 'dd');
-        const monthStr = formatInTimeZone(date, getTimezone(), 'MM');
-        const yearStr = formatInTimeZone(date, getTimezone(), 'yyyy');
-        
-        return {
-            day: parseInt(dayStr, 10),
-            month: parseInt(monthStr, 10) - 1, // Convert to 0-indexed
-            year: parseInt(yearStr, 10)
-        };
+        const date = parseDate(dateString);
+        const options: Intl.DateTimeFormatOptions = { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' };
+        const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(date);
+        const year = parseInt(parts.find(p => p.type === 'year')?.value || '', 10);
+        const month = parseInt(parts.find(p => p.type === 'month')?.value || '', 10) - 1; // 0-indexed
+        const day = parseInt(parts.find(p => p.type === 'day')?.value || '', 10);
+        return { day, month, year };
     } catch (error) {
         console.warn('Error parsing date components:', error);
-        // Fallback to simple parsing
         const date = new Date(dateString);
         return {
             day: date.getDate(),

@@ -13,10 +13,10 @@ import {
     ActivityIndicator,
     Dimensions
 } from 'react-native';
-import { useAuthStore } from '../../store';
 import { useUserAccounts } from '../../hooks/useUserAccounts';
 import type { UserAccount } from '@/types';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { useAuthStore } from '@/store/authStore';
 
 // Simple helper to format currency without symbol
 const formatBalance = (amount: any): string => {

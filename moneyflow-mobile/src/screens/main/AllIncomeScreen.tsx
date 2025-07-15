@@ -2,10 +2,11 @@ import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Modal, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { IncomeItem, CategoryChip } from '../../components';
-import { useAuthStore, useIncomeStore } from '../../store';
-import { formatCostInput } from '../../utils/costUtils';
-import { formatDate, parseDateComponents } from '../../utils/dateUtils';
+import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
+import { parseDateComponents } from '../../utils/dateUtils';
 import { validateIncomeForm } from '../../utils/formValidation';
+import { useAuthStore } from '@/store/authStore';
+import { useIncomeStore } from '@/store/incomeStore';
 
 // Constants
 const CHART_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
@@ -148,8 +149,8 @@ const TotalSpent = memo(({
     totalIncomes: number
 }) => (
     <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Total Income This Month</Text>
-        <Text style={[styles.totalAmount, { color: '#22c55e' }]}>+{totalIncomes.toFixed(2)}</Text>
+        <Text style={styles.totalLabel}>Total Income</Text>
+        <Text style={[styles.totalAmount, { color: '#22c55e' }]}>+{formatNumberWithComma(totalIncomes)}</Text>
     </View>
 ));
 
@@ -524,7 +525,7 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                 name: cat?.name || 'Unknown',
                 icon: cat?.icon || '💳',
                 color: cat?.color || colors[index % colors.length],
-                legendLabel: `-${amount.toFixed(2)}`,
+                legendLabel: `+${formatNumberWithComma(amount)}`,
                 percentage: totalIncomes > 0 ? ((amount / totalIncomes) * 100).toFixed(0) : '0',
             };
         });
@@ -685,7 +686,10 @@ export const AllIncomeScreen: React.FC<AllIncomeScreenProps> = ({ navigation }) 
                             {filteredIncomes.map((item: any) => (
                                 <IncomeItem
                                     key={item.id}
-                                    item={item}
+                                    item={{
+                                        ...item,
+                                        amount: formatNumberWithComma(item.amount),
+                                    }}
                                     getCategoryIcon={() => getLocalCategoryIcon(item.categoryId)}
                                     formatDate={formatDateDisplay}
                                     onEdit={handleEditIncome}

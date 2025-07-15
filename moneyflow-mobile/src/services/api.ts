@@ -1,6 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '@env';
+
 import {
     ApiResponse,
     LoginRequest,
@@ -11,8 +11,8 @@ import {
     Category,
 } from '@/types';
 
-// Use the API_URL from environment variables
-const API_BASE_URL = API_URL || 'https://jaytechsolutions.cloud/moneyflow/api'; 
+// const API_BASE_URL = API_URL || 'https://jaytechsolutions.cloud/moneyflow/api'; 
+const API_BASE_URL = 'http://120.28.62.117/moneyflow/api'; 
 
 console.log('API_BASE_URL configured as:', API_BASE_URL);
 

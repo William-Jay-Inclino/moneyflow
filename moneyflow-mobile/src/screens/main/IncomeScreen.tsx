@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuthStore } from '../../store/authStore';
 import { useIncomeStore } from '../../store/incomeStore';
-import { formatCostInput } from '../../utils/costUtils';
-import { parseDateComponents, formatDate } from '../../utils/dateUtils';
+import { formatCostInput, formatNumberWithComma } from '../../utils/costUtils';
+import { parseDateComponents } from '../../utils/dateUtils';
 import { validateExpenseForm } from '../../utils/formValidation';
 import { IncomeItem } from '../../components/IncomeItem';
-import { CategoryChip } from '../../components/CategoryChip';
+import { CategoryChip, CategoryChipGrid } from '../../components/CategoryChip';
 import { MainScreenHeader } from '@/components/MainScreenHeader';
 
 // Offline storage keys
@@ -648,18 +648,22 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                     </View>
                 </View>
                 <View style={styles.categorySection}>
-                    <Text style={styles.inputLabel}>Category</Text>
-                    <ScrollView horizontal style={styles.categoryScroll}>
-                        {categories.map(cat => (
-                            <CategoryChip
-                                key={cat.id}
-                                category={cat.name}
-                                isSelected={selectedCategory === cat.id}
-                                getCategoryIcon={() => getCategoryIcon(cat.id)}
-                                onPress={() => setSelectedCategory(cat.id)}
-                            />
-                        ))}
-                    </ScrollView>
+                    <Text style={styles.inputLabel}>Select Category</Text>
+
+                    {categories.length > 0 ? (
+                        <CategoryChipGrid
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            onPress={setSelectedCategory}
+                            getCategoryIcon={getCategoryIcon}
+                            color="#3b82f6"
+                        />
+                        ) : (
+                        <View style={styles.loadingCategoriesContainer}>
+                            <ActivityIndicator size="small" color="#3b82f6" />
+                            <Text style={styles.loadingCategoriesText}>Loading categories...</Text>
+                        </View>
+                    )}
                 </View>
                 <TouchableOpacity 
                     style={[
@@ -740,11 +744,11 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         <Text style={styles.summaryLabel}>Total Income This Month</Text>
                         {isSyncing ? (
                             <View style={styles.syncingTotalContainer}>
-                                <ActivityIndicator size="small" color="#3b82f6" />
+                                <ActivityIndicator size="small" color="#22c55e" />
                                 <Text style={styles.syncingTotalText}>Syncing...</Text>
                             </View>
                         ) : (
-                            <Text style={styles.summaryAmount}>+{combinedTotal.toFixed(2)}</Text>
+                            <Text style={styles.summaryAmount}>+{formatNumberWithComma(combinedTotal)}</Text>
                         )}
                     </View>
 
@@ -759,14 +763,17 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
 
                     {isLoadingIncomes ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#3b82f6" />
-                            <Text style={styles.loadingText}>Loading income...</Text>
+                            <ActivityIndicator size="large" color="#22c55e" />
+                            <Text style={styles.loadingText}>Loading incomes...</Text>
                         </View>
                     ) : combinedIncomes.length > 0 ? (
                         combinedIncomes.map((item) => (
                             <IncomeItem
                                 key={item.id}
-                                item={item}
+                                item={{
+                                    ...item,
+                                    amount: item.amount,
+                                }}
                                 getCategoryIcon={() => getCategoryIcon(item.categoryId)}
                                 formatDate={formatDateForDisplay}
                                 onEdit={handleEditIncome}
@@ -776,7 +783,7 @@ export const IncomeScreen = ({ navigation }: { navigation: any }) => {
                         ))
                     ) : (
                         <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>No income found</Text>
+                            <Text style={styles.emptyText}>No incomes found</Text>
                             <Text style={styles.emptySubtext}>Add your first income above</Text>
                         </View>
                     )}
