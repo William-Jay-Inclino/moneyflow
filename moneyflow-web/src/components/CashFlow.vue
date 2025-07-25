@@ -1,5 +1,5 @@
 <template>
-    <div class="mt-2">
+    <div>
         <div class="bg-white rounded-2xl p-6">
             <div class="overflow-x-auto">
                 <table class="min-w-full rounded-xl">
@@ -56,7 +56,7 @@ import Spinner from './loaders/Spinner.vue';
 import { useGlobalStore } from '../global.store';
 import { onMounted } from 'vue';
 import { cashFlowApi } from '../api';
-import { formatAmount } from '../helpers';
+import { formatAmount, get_auth_user_in_local_storage } from '../helpers';
 import { timezone } from '../config';
 
 
@@ -70,15 +70,26 @@ function monthName(monthNum: number) {
 
 onMounted( async() => {
 
-    if(!store.is_authenticated) return;
+    const auth_user = get_auth_user_in_local_storage()
+
+    if(!auth_user) {
+        console.error("User is not authenticated. Cannot fetch cash flow data.");
+        return;
+    }
 
     store.is_loading_cash_flow = true;
-    const res = await cashFlowApi.getCashFlowByYear(store.auth_user!.user_id, store.year_selected, timezone);
+    const res = await cashFlowApi.getCashFlowByYear(auth_user.user_id, store.year_selected, timezone);
     store.is_loading_cash_flow = false;
     console.log('res', res);
     if (res) {
         store.set_cash_flow_data(res);
     }
+
+    const res2 = await cashFlowApi.getCashFlowYearSummary(auth_user.user_id, store.year_selected);
+    if(res2) {
+        store.set_cash_flow_year_summary(res2) 
+    }
+
 });
 
 function viewDetails(row: any) {

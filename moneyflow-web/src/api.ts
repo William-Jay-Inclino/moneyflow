@@ -1,7 +1,8 @@
 import axios from 'axios';
 import type { Category, User } from './types';
-import { AUTH_KEY } from './config';
 import type { CashFlowData } from './global.store';
+import { get_auth_user_in_local_storage } from './helpers';
+import { AUTH_KEY } from './config';
 
 const API_URL = import.meta.env.VITE_API_URL
 console.log('API_URL', API_URL);
@@ -19,10 +20,10 @@ const api = axios.create({
 api.interceptors.request.use(
     async config => {
         try {
-            const token = localStorage.getItem(AUTH_KEY);
+            const auth_user = get_auth_user_in_local_storage()
             
-            if (token && config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
+            if (auth_user && auth_user.token && config.headers) {
+                config.headers.Authorization = `Bearer ${auth_user.token}`;
             }
             
             // Simple logging

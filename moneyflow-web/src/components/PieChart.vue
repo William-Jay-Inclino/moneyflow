@@ -1,15 +1,15 @@
 <template>
     <div class="w-full bg-white rounded-xl p-2 shadow flex flex-col items-center">
-        <div class="w-full h-48 flex items-center justify-center">
+        <div class="w-full flex items-center justify-center" style="height: 300px; max-width: 300px;">
             <Pie :data="chartData" :options="chartOptions" />
         </div>
         <ul class="mt-2 w-full">
-            <li v-for="(item, i) in data" :key="item.category" class="flex justify-between items-center py-1 text-sm">
+            <li v-for="(item, i) in displayData" :key="item.category" class="flex justify-between items-center py-1 text-sm">
                 <span class="flex items-center">
-                    <span :style="{background: colors[i]}" class="inline-block w-3 h-3 rounded-full mr-2"></span>
+                    <span :style="{background: colors[i % colors.length]}" class="inline-block w-3 h-3 rounded-full mr-2"></span>
                     {{ item.category }}
                 </span>
-                <span class="font-semibold">{{ item.amount }}</span>
+                <span class="font-semibold" :class="{'text-green-500': item.type === 'INCOME', 'text-red-500': item.type === 'EXPENSE'}">{{ item.amount }}</span>
             </li>
         </ul>
     </div>
@@ -17,7 +17,8 @@
 
 <script setup lang="ts">
 import { Pie } from 'vue-chartjs'
-
+import { computed } from 'vue'
+import type { Category } from '../types'
 import {
     Chart as ChartJS,
     Title,
@@ -29,13 +30,10 @@ import type { ChartOptions, ChartData } from 'chart.js'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement)
 
-const data = [
-    { category: 'Food', amount: 300 },
-    { category: 'Transport', amount: 120 },
-    { category: 'Shopping', amount: 200 },
-    { category: 'Bills', amount: 150 },
-    { category: 'Other', amount: 80 }
-]
+// Accept categories as a prop
+const props = defineProps<{
+    categories?: Category[]
+}>()
 
 const colors = [
     '#3b82f6', // blue-500
@@ -45,16 +43,25 @@ const colors = [
     '#a78bfa'  // purple-400
 ]
 
-const chartData: ChartData<'pie'> = {
-    labels: data.map(d => d.category),
+// Prepare display data for chart and list
+const displayData = computed(() =>
+    (props.categories ?? []).map(cat => ({
+        category: cat.name,
+        amount: cat.amount,
+        type: cat.type,
+    }))
+)
+
+const chartData = computed<ChartData<'pie'>>(() => ({
+    labels: displayData.value.map(d => d.category),
     datasets: [
         {
-            data: data.map(d => d.amount),
+            data: displayData.value.map(d => d.amount),
             backgroundColor: colors,
             borderWidth: 0
         }
     ]
-}
+}))
 
 const chartOptions: ChartOptions<'pie'> = {
     responsive: true,

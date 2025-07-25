@@ -1,4 +1,9 @@
 
+export interface AuthUser {
+    user_id: string 
+    email: string
+    token: string
+}
 
 export interface User {
     id: string;
@@ -8,9 +13,8 @@ export interface User {
 export interface Category {
     id: string;
     name: string;
-    icon: string;
-    color: string;
-    type: 'income' | 'expense';
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
 }
 
 

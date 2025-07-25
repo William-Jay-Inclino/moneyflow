@@ -2,14 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { computed } from 'vue'
 import { AUTH_KEY } from './config'
-import type { Category } from './types'
+import type { AuthUser, Category } from './types'
 
-
-interface AuthUser {
-    user_id: string 
-    email: string
-    token: string
-}
 
 interface CFMonth {
     month: number
@@ -18,6 +12,14 @@ interface CFMonth {
     totalExpense: number
     netCashFlow: number
 }
+
+interface CFYearSummary {
+    totalIncome: number
+    totalExpense: number
+    incomeCategories: Category[]
+    expenseCategories: Category[]
+}
+
 export interface CashFlowData {
     months: CFMonth[]
     year: number
@@ -32,9 +34,8 @@ export interface CashFlowData {
 export const useGlobalStore = defineStore('global', () => {
 
     const auth_user = ref<AuthUser>()
-
     const is_loading_cash_flow = ref(false)
-
+    const is_authenticated = ref(false)
     const current_year = ref(new Date().getFullYear())
     const year_selected = ref(current_year.value)
 
@@ -49,12 +50,12 @@ export const useGlobalStore = defineStore('global', () => {
     })
 
     const cash_flow_data = ref<CashFlowData>()
-
-    const is_authenticated = computed(() => !!auth_user.value && !!auth_user.value.token)
+    const cash_flow_year_summary = ref<CFYearSummary>()
 
     function set_auth_user(user: AuthUser) {
+        console.log('set_auth_user', user);
         auth_user.value = {...user}
-        localStorage.setItem(AUTH_KEY, user.token)
+        localStorage.setItem(AUTH_KEY, JSON.stringify(user))
     }
 
     function set_income_whole_year(amount: number, categories: Category[]) {
@@ -71,6 +72,10 @@ export const useGlobalStore = defineStore('global', () => {
         cash_flow_data.value = data   
     }
 
+    function set_cash_flow_year_summary(summary: CFYearSummary) {
+        cash_flow_year_summary.value = summary
+    }
+
     return {
         auth_user,
         current_year,
@@ -78,10 +83,12 @@ export const useGlobalStore = defineStore('global', () => {
         income_whole_year,  
         expense_whole_year,
         cash_flow_data,
+        cash_flow_year_summary,
         set_auth_user,
         set_income_whole_year,
         set_expense_whole_year,
         set_cash_flow_data,
+        set_cash_flow_year_summary,
         is_authenticated,
         is_loading_cash_flow,
     }

@@ -48,6 +48,7 @@ async function onLogin() {
     is_logging_in.value = false
 
     if(res.user && res.accessToken) {
+        store.is_authenticated = true
         store.set_auth_user({
             user_id: res.user.id,
             email: res.user.email,
