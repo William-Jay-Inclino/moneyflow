@@ -2,6 +2,20 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CashFlowResponse, MonthlyCashFlow, YearSummary } from './types';
+import { startOfYear, endOfYear } from 'date-fns';
+
+export interface CFYearSummary {
+    totalIncome: number;
+    totalExpense: number;
+    incomeCategories: Category[];
+    expenseCategories: Category[];
+}
+
+interface Category {
+    name: string;
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
+}
 
 @Injectable()
 export class CashFlowService {
@@ -13,20 +27,20 @@ export class CashFlowService {
     ];
 
     private getYearDateRange(year: number, timezone?: string) {
-        // Default to UTC if no timezone provided
-        const tz = timezone || 'UTC';
-        
+        // Use date-fns for accurate date boundaries
         try {
-            // Create start and end of year in the specified timezone
-            const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-            const endOfYear = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-            
-            return { startOfYear, endOfYear };
+            // If timezone is needed, you can use date-fns-tz, but for now, use UTC dates
+            const start = startOfYear(new Date(Date.UTC(year, 0, 1)));
+            const end = endOfYear(new Date(Date.UTC(year, 0, 1)));
+            // endOfYear returns Dec 31, 23:59:59.999, so add 1 ms to get exclusive upper bound
+            const endExclusive = new Date(end.getTime() + 1);
+            return { startOfYear: start, endOfYear: endExclusive };
         } catch (error) {
-            console.warn('Invalid timezone provided, falling back to UTC:', timezone);
-            const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-            const endOfYear = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-            return { startOfYear, endOfYear };
+            console.warn('Invalid year provided, falling back to UTC:', year);
+            const start = startOfYear(new Date(Date.UTC(year, 0, 1)));
+            const end = endOfYear(new Date(Date.UTC(year, 0, 1)));
+            const endExclusive = new Date(end.getTime() + 1);
+            return { startOfYear: start, endOfYear: endExclusive };
         }
     }
 
@@ -139,5 +153,79 @@ export class CashFlowService {
             console.error('❌ Error in getCashFlowByYear:', error);
             throw new BadRequestException('Failed to retrieve cash flow data');
         }
+    }
+
+    async getCashFlowYearSummary(userId: string, year: number): Promise<CFYearSummary> {
+        const { startOfYear, endOfYear } = this.getYearDateRange(year);
+
+        // Aggregate total income and by category
+        const incomeAgg = await this.prisma.userIncome.groupBy({
+            by: ['category_id'],
+            where: {
+                user_id: userId,
+                income_date: {
+                    gte: startOfYear,
+                    lt: endOfYear,
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        });
+
+        // Aggregate total expense and by category
+        const expenseAgg = await this.prisma.userExpense.groupBy({
+            by: ['category_id'],
+            where: {
+                user_id: userId,
+                expense_date: {
+                    gte: startOfYear,
+                    lt: endOfYear,
+                },
+            },
+            _sum: {
+                cost: true,
+            },
+        });
+
+        // Fetch category details for all involved category_ids
+        const incomeCategoryIds = incomeAgg.map(i => i.category_id);
+        const expenseCategoryIds = expenseAgg.map(e => e.category_id);
+        const allCategoryIds = Array.from(new Set([...incomeCategoryIds, ...expenseCategoryIds]));
+
+        const categories = await this.prisma.category.findMany({
+            where: { id: { in: allCategoryIds } },
+        });
+
+        // Map category_id to details
+        const categoryMap = new Map<number, { name: string; type: 'INCOME' | 'EXPENSE' }>();
+        categories.forEach(cat => {
+            categoryMap.set(cat.id, { name: cat.name, type: cat.type });
+        });
+
+        // Build incomeCategories
+        const incomeCategories: Category[] = incomeAgg.map(i => ({
+            name: categoryMap.get(i.category_id)?.name ?? 'Unknown',
+            amount: Math.round(this.decimalToNumber(i._sum.amount) * 100) / 100,
+            type: 'INCOME',
+        }));
+
+        // Build expenseCategories
+        const expenseCategories: Category[] = expenseAgg.map(e => ({
+            name: categoryMap.get(e.category_id)?.name ?? 'Unknown',
+            amount: Math.round(this.decimalToNumber(e._sum.cost) * 100) / 100,
+            type: 'EXPENSE',
+        }));
+
+        // Calculate totals
+        const totalIncome = incomeCategories.reduce((sum, c) => sum + c.amount, 0);
+        const totalExpense = expenseCategories.reduce((sum, c) => sum + c.amount, 0);
+
+        return {
+            totalIncome: Math.round(totalIncome * 100) / 100,
+            totalExpense: Math.round(totalExpense * 100) / 100,
+            incomeCategories,
+            expenseCategories,
+        };
     }
 }

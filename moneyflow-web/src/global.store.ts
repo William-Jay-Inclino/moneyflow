@@ -1,12 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { computed } from 'vue'
+import { AUTH_KEY } from './config'
+import type { Category } from './types'
 
-interface Category {
-    name: string,
-    amount: number
+
+interface AuthUser {
+    user_id: string 
+    email: string
+    token: string
 }
 
+interface CFMonth {
+    month: number
+    monthName: string
+    totalIncome: number
+    totalExpense: number
+    netCashFlow: number
+}
+export interface CashFlowData {
+    months: CFMonth[]
+    year: number
+    yearSummary: {
+        totalCashFlow: number
+        totalIncome: number 
+        totalExpense: number
+    }
+}
+
+
 export const useGlobalStore = defineStore('global', () => {
+
+    const auth_user = ref<AuthUser>()
+
+    const is_loading_cash_flow = ref(false)
 
     const current_year = ref(new Date().getFullYear())
     const year_selected = ref(current_year.value)
@@ -21,68 +48,14 @@ export const useGlobalStore = defineStore('global', () => {
         categories: [] as Category[]
     })
 
-    const cash_flow_data = ref({
-        'Jan': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Feb': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Mar': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Apr': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'May': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Jun': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Jul': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Aug': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Sep': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Oct': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Nov': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-        'Dec': {
-            income: 0,
-            expense: 0,
-            cash_flow: 0
-        },
-    })
+    const cash_flow_data = ref<CashFlowData>()
+
+    const is_authenticated = computed(() => !!auth_user.value && !!auth_user.value.token)
+
+    function set_auth_user(user: AuthUser) {
+        auth_user.value = {...user}
+        localStorage.setItem(AUTH_KEY, user.token)
+    }
 
     function set_income_whole_year(amount: number, categories: Category[]) {
         income_whole_year.value.total_amount = amount
@@ -94,21 +67,22 @@ export const useGlobalStore = defineStore('global', () => {
         expense_whole_year.value.categories = categories
     }
 
-    function set_cash_flow_data_for_year(newData: typeof cash_flow_data.value) {
-        for (const month in newData) {
-            if (cash_flow_data.value[month as keyof typeof cash_flow_data.value]) {
-                cash_flow_data.value[month as keyof typeof cash_flow_data.value] = { ...newData[month as keyof typeof cash_flow_data.value] };
-            }
-        }
+    function set_cash_flow_data(data: CashFlowData) {
+        cash_flow_data.value = data   
     }
 
     return {
+        auth_user,
+        current_year,
         year_selected,      
         income_whole_year,  
         expense_whole_year,
         cash_flow_data,
+        set_auth_user,
         set_income_whole_year,
         set_expense_whole_year,
-        set_cash_flow_data_for_year,
+        set_cash_flow_data,
+        is_authenticated,
+        is_loading_cash_flow,
     }
 })

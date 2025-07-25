@@ -12,28 +12,38 @@
                             <th class="px-8 py-4 text-left font-semibold rounded-tr-xl">Details</th>
                         </tr>
                     </thead>
-                    <tbody>
+
+                    <tbody v-if="store.cash_flow_data && !store.is_loading_cash_flow">
                         <tr
-                            v-for="row in rows"
-                            :key="row.month"
+                            v-for="item in store.cash_flow_data.months"
+                            :key="item.month"
                             class="even:bg-gray-50 odd:bg-white transition hover:bg-blue-50"
                         >
-                            <td class="px-8 py-4 text-gray-700">{{ row.month }}</td>
-                            <td class="px-8 py-4 text-green-600 font-semibold">{{ row.income }}</td>
-                            <td class="px-8 py-4 text-red-500 font-semibold">{{ row.expense }}</td>
+                            <td class="px-8 py-4 text-gray-700">{{ monthName(item.month) }}</td>
+                            <td class="px-8 py-4 text-green-600 font-semibold">{{ formatAmount(item.totalIncome) }}</td>
+                            <td class="px-8 py-4 text-red-500 font-semibold">{{ formatAmount(item.totalExpense) }}</td>
                             <td
                                 class="px-8 py-4 font-bold"
-                                :class="row.cashFlow >= 0 ? 'text-green-700' : 'text-red-700'"
+                                :class="item.netCashFlow >= 0 ? 'text-green-700' : 'text-red-500'"
                             >
-                                {{ row.cashFlow }}
+                                {{ formatAmount(item.netCashFlow) }}
                             </td>
                             <td class="px-8 py-4">
-                                <LightBtn @click="viewDetails(row)">
+                                <LightBtn @click="viewDetails(item)">
                                     View
                                 </LightBtn>
                             </td>
                         </tr>
                     </tbody>
+
+                    <tbody v-else>
+                        <tr>
+                            <td colspan="5" class="text-center py-8">
+                                <Spinner />
+                            </td>
+                        </tr>
+                    </tbody>
+
                 </table>
             </div>
         </div>
@@ -42,28 +52,37 @@
 
 <script setup lang="ts">
 import LightBtn from './buttons/light-btn.vue';
-
-import { storeToRefs } from 'pinia';
+import Spinner from './loaders/Spinner.vue';
 import { useGlobalStore } from '../global.store';
+import { onMounted } from 'vue';
+import { cashFlowApi } from '../api';
+import { formatAmount } from '../helpers';
+import { timezone } from '../config';
 
-type Month = 'Jan' | 'Feb' | 'Mar' | 'Apr' | 'May' | 'Jun' | 'Jul' | 'Aug' | 'Sep' | 'Oct' | 'Nov' | 'Dec';
-const months: Month[] = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-];
 
-const globalStore = useGlobalStore();
-const { cash_flow_data } = storeToRefs(globalStore);
+const store = useGlobalStore();
 
-const rows = months.map((month) => ({
-    month,
-    income: cash_flow_data.value[month].income,
-    expense: cash_flow_data.value[month].expense,
-    cashFlow: cash_flow_data.value[month].cash_flow
-}));
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function viewDetails(row: { month: string; income: number; expense: number; cashFlow: number }) {
-    // Implement your details logic here
-    alert(`Viewing details for ${row.month}`);
+function monthName(monthNum: number) {
+    return monthNames[monthNum - 1] || monthNum;
 }
+
+onMounted( async() => {
+
+    if(!store.is_authenticated) return;
+
+    store.is_loading_cash_flow = true;
+    const res = await cashFlowApi.getCashFlowByYear(store.auth_user!.user_id, store.year_selected, timezone);
+    store.is_loading_cash_flow = false;
+    console.log('res', res);
+    if (res) {
+        store.set_cash_flow_data(res);
+    }
+});
+
+function viewDetails(row: any) {
+    console.log('Viewing details for:', row);
+}
+
 </script>
