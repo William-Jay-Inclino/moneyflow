@@ -1,5 +1,15 @@
 <template>
     <div>
+        <div class="rounded-2xl p-6 mb-4 bg-gradient-to-r from-blue-100 to-green-100 shadow flex flex-col items-center justify-center">
+            <div class="text-lg font-semibold text-blue-800 mb-2 tracking-wide flex items-center gap-2">
+                <BanknotesIcon class="w-6 h-6 text-green-500" />
+                Total Cash Flow
+            </div>
+            <div class="text-3xl font-bold text-green-700 mb-1">
+                {{ formatAmount(store.cash_flow_data?.yearSummary.totalCashFlow ?? 0) }}
+            </div>
+            <div class="text-sm text-gray-500">for {{ store.year_selected }}</div>
+        </div>
         <div class="bg-white rounded-2xl p-6">
             <div class="overflow-x-auto">
                 <table class="min-w-full rounded-xl">
@@ -59,6 +69,7 @@ import { cashFlowApi } from '../api';
 import { formatAmount, get_auth_user_in_local_storage } from '../helpers';
 import { timezone } from '../config';
 import type { AuthUser } from '../types';
+import { BanknotesIcon } from '@heroicons/vue/24/outline';
 
 
 const store = useGlobalStore();
