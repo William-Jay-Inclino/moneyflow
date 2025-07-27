@@ -88,6 +88,7 @@ export const authApi = {
 export const expenseApi = {
     getExpenses: async (userId: string, year: number, month: number): Promise<any[]> => {
         const response = await api.get(`/users/${userId}/expenses?year=${year}&month=${month}`);
+        console.log('response expense', response.data);
         return response.data;
     },
 };
@@ -95,6 +96,7 @@ export const expenseApi = {
 export const incomeApi = {
     getIncome: async (userId: string, year: number, month: number): Promise<any[]> => {
         const response = await api.get(`/users/${userId}/income?year=${year}&month=${month}`);
+        console.log('response income', response.data);
         return response.data;
     },
 };

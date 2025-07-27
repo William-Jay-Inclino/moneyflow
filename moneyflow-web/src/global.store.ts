@@ -37,6 +37,12 @@ export const useGlobalStore = defineStore('global', () => {
     const is_authenticated = ref(false)
     const current_year = ref(new Date().getFullYear())
     const year_selected = ref(current_year.value)
+    const show_cash_flow_details = ref(false)
+    const selected_cash_flow = ref({
+        user_id: auth_user.value?.user_id || '',
+        year: current_year.value,
+        month: 0,
+    })
 
     const income_whole_year = ref({
         total_amount: 0,
@@ -90,5 +96,7 @@ export const useGlobalStore = defineStore('global', () => {
         set_cash_flow_year_summary,
         is_authenticated,
         is_loading_cash_flow,
+        show_cash_flow_details,
+        selected_cash_flow
     }
 })

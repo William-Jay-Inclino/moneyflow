@@ -29,7 +29,7 @@
                                 {{ formatAmount(item.netCashFlow) }}
                             </td>
                             <td class="px-8 py-4">
-                                <LightBtn @click="viewDetails(item)">
+                                <LightBtn @click="viewDetails(item.month)">
                                     View
                                 </LightBtn>
                             </td>
@@ -54,15 +54,16 @@
 import LightBtn from './buttons/light-btn.vue';
 import Spinner from './loaders/Spinner.vue';
 import { useGlobalStore } from '../global.store';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { cashFlowApi } from '../api';
 import { formatAmount, get_auth_user_in_local_storage } from '../helpers';
 import { timezone } from '../config';
+import type { AuthUser } from '../types';
 
 
 const store = useGlobalStore();
-
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const auth_user = ref<AuthUser | null>(null);
 
 function monthName(monthNum: number) {
     return monthNames[monthNum - 1] || monthNum;
@@ -70,30 +71,34 @@ function monthName(monthNum: number) {
 
 onMounted( async() => {
 
-    const auth_user = get_auth_user_in_local_storage()
+    const _auth_user = get_auth_user_in_local_storage()
 
-    if(!auth_user) {
+    if(!_auth_user) {
         console.error("User is not authenticated. Cannot fetch cash flow data.");
         return;
     }
 
+    auth_user.value = _auth_user;
+
     store.is_loading_cash_flow = true;
-    const res = await cashFlowApi.getCashFlowByYear(auth_user.user_id, store.year_selected, timezone);
+    const res = await cashFlowApi.getCashFlowByYear(_auth_user.user_id, store.year_selected, timezone);
     store.is_loading_cash_flow = false;
     console.log('res', res);
     if (res) {
         store.set_cash_flow_data(res);
     }
 
-    const res2 = await cashFlowApi.getCashFlowYearSummary(auth_user.user_id, store.year_selected);
+    const res2 = await cashFlowApi.getCashFlowYearSummary(_auth_user.user_id, store.year_selected);
     if(res2) {
         store.set_cash_flow_year_summary(res2) 
     }
 
 });
 
-function viewDetails(row: any) {
-    console.log('Viewing details for:', row);
+function viewDetails(month: number) {
+    store.selected_cash_flow.month = month;
+    store.show_cash_flow_details = true;
+    store.selected_cash_flow.user_id = auth_user.value?.user_id || '';
 }
 
 </script>
