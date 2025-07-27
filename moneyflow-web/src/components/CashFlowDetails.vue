@@ -1,21 +1,20 @@
-
 <template>
-    <div class="mb-2">
+    <div class="mb-2" style="width: 1000px; margin: 0 auto;">
         <button @click="on_back" class="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100 transition text-blue-700 w-auto">
             <ArrowLeftIcon class="w-5 h-5" />
             <span class="text-sm">Back</span>
         </button>
     </div>
 
-    <div class="flex flex-row gap-8 w-full">
-        <div class="flex-1 flex flex-col items-center">
+    <div class="flex flex-row gap-8" style="width: 1000px; margin: 0 auto;">
+        <div style="width: 480px; display: flex; flex-direction: column; align-items: center;">
             <span class="mb-2 text-sm text-gray-600">
                 <span class="font-medium">Total Income for {{ current_date }}: </span>
                 <span class="text-green-600 font-bold text-xl">+{{ formatAmount(total_income) }}</span>
             </span>
             <PieChart :categories="income_categories" />
         </div>
-        <div class="flex-1 flex flex-col items-center">
+        <div style="width: 480px; display: flex; flex-direction: column; align-items: center;">
             <span class="mb-2 text-sm text-gray-600">
                 <span class="font-medium">Total Expense for {{ current_date }}: </span>
                 <span class="text-red-600 font-bold text-xl">-{{ formatAmount(total_expense) }}</span>
@@ -24,14 +23,14 @@
         </div>
     </div>
 
-    <div class="bg-white w-full p-6">
+    <div class="bg-white p-6" style="width: 1000px; margin: 24px auto 0;">
         <div class="flex items-center mb-4">
-            <h2 class="flex-1 text-2xl font-bold text-gray-800 text-center">Income and Expense Details</h2>
+            <h2 class="text-2xl font-bold text-gray-800 text-center" style="flex-grow: 1;">Income and Expense Details</h2>
         </div>
-        <div class="flex flex-col md:flex-row gap-8">
-            <div class="flex-1">
+        <div class="flex flex-row gap-8" style="width: 1000px;">
+            <div style="width: 480px;">
                 <h3 class="text-xl font-semibold text-green-600 mb-4 text-center">Income</h3>
-                <div class="overflow-x-auto">
+                <div style="overflow-x: auto;">
                     <table class="min-w-full bg-white rounded-xl">
                         <thead>
                             <tr class="bg-gradient-to-r from-green-100 to-green-50">
@@ -47,15 +46,15 @@
                                 <td class="px-4 py-2 text-green-700 font-semibold">{{ formatAmount(income.amount) }}</td>
                             </tr>
                             <tr v-if="income_list.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400">No income records found.</td>
+                                <td colspan="3" class="px-4 py-6 text-center text-gray-400">No income records found.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="flex-1">
+            <div style="width: 480px;">
                 <h3 class="text-xl font-semibold text-red-500 mb-4 text-center">Expense</h3>
-                <div class="overflow-x-auto">
+                <div style="overflow-x: auto;">
                     <table class="min-w-full bg-white rounded-xl">
                         <thead>
                             <tr class="bg-gradient-to-r from-red-100 to-red-50">
@@ -71,7 +70,7 @@
                                 <td class="px-4 py-2 text-red-700 font-semibold">{{ formatAmount(expense.amount) }}</td>
                             </tr>
                             <tr v-if="expense_list.length === 0">
-                                <td colspan="4" class="px-4 py-6 text-center text-gray-400">No expense records found.</td>
+                                <td colspan="3" class="px-4 py-6 text-center text-gray-400">No expense records found.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -80,6 +79,7 @@
         </div>
     </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue';
