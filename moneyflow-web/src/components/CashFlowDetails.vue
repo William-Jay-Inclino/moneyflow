@@ -7,20 +7,8 @@
     </div>
 
     <div class="flex flex-row gap-8" style="width: 1000px; margin: 0 auto;">
-        <div style="width: 480px; display: flex; flex-direction: column; align-items: center;">
-            <span class="mb-2 text-sm text-gray-600">
-                <span class="font-medium">Total Income for {{ current_date }}: </span>
-                <span class="text-green-600 font-bold text-xl">+{{ formatAmount(total_income) }}</span>
-            </span>
-            <PieChart :categories="income_categories" />
-        </div>
-        <div style="width: 480px; display: flex; flex-direction: column; align-items: center;">
-            <span class="mb-2 text-sm text-gray-600">
-                <span class="font-medium">Total Expense for {{ current_date }}: </span>
-                <span class="text-red-600 font-bold text-xl">-{{ formatAmount(total_expense) }}</span>
-            </span>
-            <PieChart :categories="expense_categories" />
-        </div>
+        <PieChart :categories="income_categories" />
+        <PieChart :categories="expense_categories" />
     </div>
 
     <div class="bg-white p-6" style="width: 1000px; margin: 24px auto 0;">

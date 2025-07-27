@@ -24,20 +24,15 @@
             <div class="flex gap-8">
                 <!-- Income -->
                 <div class="w-[380px] flex flex-col items-center">
-                    <span class="mb-2 font-semibold text-green-700">
-                        Income Whole Year: +{{ store.income_whole_year.total_amount }}
-                    </span>
                     <PieChart :categories="store.cash_flow_year_summary?.incomeCategories" />
                 </div>
 
                 <!-- Expense -->
                 <div class="w-[380px] flex flex-col items-center">
-                    <span class="mb-2 font-semibold text-red-600">
-                        Expense Whole Year: -{{ store.expense_whole_year.total_amount }}
-                    </span>
                     <PieChart :categories="store.cash_flow_year_summary?.expenseCategories" />
                 </div>
             </div>
+
         </div>
     </div>
 </template>
@@ -49,6 +44,7 @@
     import { useGlobalStore } from '../global.store'
     import { AUTH_KEY } from '../config'
     import { PowerIcon } from '@heroicons/vue/24/outline'
+    import { formatAmount } from '../helpers'
 
     const store = useGlobalStore()
 
