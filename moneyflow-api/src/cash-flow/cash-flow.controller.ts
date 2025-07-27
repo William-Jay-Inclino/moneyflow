@@ -99,6 +99,7 @@ export class CashFlowController {
                         type: 'object',
                         properties: {
                             name: { type: 'string' },
+                            color: { type: 'string' },
                             amount: { type: 'number' },
                             type: { type: 'string', enum: ['INCOME'] },
                         },
@@ -110,6 +111,7 @@ export class CashFlowController {
                         type: 'object',
                         properties: {
                             name: { type: 'string' },
+                            color: { type: 'string' },
                             amount: { type: 'number' },
                             type: { type: 'string', enum: ['EXPENSE'] },
                         },

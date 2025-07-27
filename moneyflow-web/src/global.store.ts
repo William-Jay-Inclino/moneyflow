@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { computed } from 'vue'
 import { AUTH_KEY } from './config'
 import type { AuthUser, Category } from './types'
 
