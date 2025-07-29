@@ -1,11 +1,11 @@
 <template>
     <div>
         <div class="soft-card summary-card text-center mb-3">
-            <div class="summary-label text-muted">Total Expenses</div>
+            <div class="summary-label text-muted">Total Expense</div>
             <div class="summary-amount text-soft-danger fw-bold fs-2">- 100.00 </div>
         </div>
         <div class="d-flex justify-content-between align-items-center section-header px-2 mb-2">
-            <span class="section-title fw-semibold">Expense Details</span>
+            <span class="section-title fw-semibold">Details</span>
         </div>
         <div v-if="isLoading" class="loading-container text-center py-4">
             <span>Loading expenses...</span>
@@ -20,7 +20,7 @@
                 <div class="expense-date-absolute">
                     {{ formatDate(item.expense_date) }}
                 </div>
-                <div class="expense-info flex-grow-1 d-flex align-items-center">
+                <div class="expense-info flex-grow-1 d-flex align-items-center me-3">
                     <span class="expense-list-icon me-3">🍔</span>
                     <div class="flex-grow-1">
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <!-- 3 dots menu -->
-                <div class="dropdown">
+                <div class="dropdown dropup">
                     <button
                         class="btn expense-menu-btn dropdown-toggle expense-menu-dots dropdown-toggle-no-caret"
                         type="button"

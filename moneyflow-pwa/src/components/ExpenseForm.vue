@@ -43,7 +43,7 @@
                 </span>
             </div>
         </div>
-        <div class="mb-3" v-if="showDay">
+        <div class="mb-3">
             <label class="form-label input-label">Day</label>
             <input
                 style="width: 20%;"
@@ -51,6 +51,7 @@
                 min="1"
                 max="31"
                 type="number"
+                v-model="day"
                 :disabled="isLoading"
                 required
             />
@@ -70,17 +71,11 @@
 <script setup>
 import { ref } from 'vue';
 
-const props = defineProps({
-    showDay: {
-        type: Boolean,
-        default: false
-    }
-});
-
 const isLoading = ref(false);
 const notes = ref('');
 const cost = ref('');
 const selectedCategory = ref('');
+const day = ref(new Date().getDate());
 const categories = ref([
     { id: '1', name: 'Food', icon: '🍔' },
     { id: '2', name: 'Transport', icon: '🚌' },
@@ -100,6 +95,7 @@ function handleAddExpense() {
     notes.value = '';
     cost.value = '';
     selectedCategory.value = '';
+    day.value = new Date().getDate();
 }
 </script>
 
