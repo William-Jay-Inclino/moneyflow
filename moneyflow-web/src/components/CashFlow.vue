@@ -8,7 +8,15 @@
             <div class="text-3xl font-bold text-green-700 mb-1">
                 {{ formatAmount(store.cash_flow_data?.yearSummary.totalCashFlow ?? 0) }}
             </div>
-            <div class="text-sm text-gray-500">for {{ store.year_selected }}</div>
+            <div class="flex flex-col sm:flex-row gap-2 items-center justify-center mt-2">
+                <span class="text-sm text-blue-700">
+                    Avg Income: <span class="font-semibold text-green-600">{{ formatAmount(avgIncome) }}</span>
+                </span>
+                <span class="text-sm text-blue-700">
+                    Avg Expense: <span class="font-semibold text-red-500">{{ formatAmount(avgExpense) }}</span>
+                </span>
+            </div>
+            <div class="text-sm text-gray-500 mt-1">for {{ store.year_selected }}</div>
         </div>
         <div class="bg-white rounded-2xl p-6">
             <div class="overflow-x-auto">
@@ -72,9 +80,28 @@ import type { AuthUser } from '../types';
 import { BanknotesIcon } from '@heroicons/vue/24/outline';
 
 
+
 const store = useGlobalStore();
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const auth_user = ref<AuthUser | null>(null);
+
+import { computed } from 'vue';
+
+const avgIncome = computed(() => {
+    const months = store.cash_flow_data?.months || [];
+    const incomeMonths = months.filter(m => m.totalIncome > 0);
+    if (incomeMonths.length === 0) return 0;
+    const total = incomeMonths.reduce((acc, m) => acc + m.totalIncome, 0);
+    return total / incomeMonths.length;
+});
+
+const avgExpense = computed(() => {
+    const months = store.cash_flow_data?.months || [];
+    const expenseMonths = months.filter(m => m.totalExpense > 0);
+    if (expenseMonths.length === 0) return 0;
+    const total = expenseMonths.reduce((acc, m) => acc + m.totalExpense, 0);
+    return total / expenseMonths.length;
+});
 
 function monthName(monthNum: number) {
     return monthNames[monthNum - 1] || monthNum;

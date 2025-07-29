@@ -68,12 +68,14 @@ const props = defineProps<{
 }>()
 
 const displayData = computed(() =>
-    (props.categories ?? []).map(cat => ({
-        category: cat.name,
-        color: cat.color,
-        amount: cat.amount,
-        type: cat.type,
-    }))
+    (props.categories ?? [])
+        .map(cat => ({
+            category: cat.name,
+            color: cat.color,
+            amount: cat.amount,
+            type: cat.type,
+        }))
+        .sort((a, b) => b.amount - a.amount)
 )
 
 const totalIncome = computed(() =>
