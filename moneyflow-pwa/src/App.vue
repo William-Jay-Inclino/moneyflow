@@ -4,7 +4,7 @@
 
         <Header :title="layoutStore.header.title" :subtitle="layoutStore.header.subtitle" :color="layoutStore.header.color"/>
 
-        <main class="flex-fill container py-3">
+        <main class="flex-fill container py-3 mb-5">
             
             <Expense />
 

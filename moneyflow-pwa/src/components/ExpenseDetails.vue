@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <!-- 3 dots menu -->
-                <div class="dropdown dropup">
+                <div class="dropdown">
                     <button
                         class="btn expense-menu-btn dropdown-toggle expense-menu-dots dropdown-toggle-no-caret"
                         type="button"

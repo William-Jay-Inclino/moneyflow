@@ -43,8 +43,5 @@ function handleAddExpense() {
     console.log('adding');
 }
 
-function handleDateChange(newDate: { year: number, month: number }) {
-    console.log('Selected date:', newDate);
-}
 
 </script>
