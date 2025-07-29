@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "moneyflow-pwa",
       script: "serve",
-      args: "-s dist -l 0.0.0.0:5000",
+      args: "-s dist -l 0.0.0.0:6000",
     },
   ],
 };
