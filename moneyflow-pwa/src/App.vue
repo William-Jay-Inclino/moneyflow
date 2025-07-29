@@ -2,7 +2,7 @@
 <template>
     <div class="app-container d-flex flex-column min-vh-100 bg-light">
 
-        <Header title="Expense" subtitle="Quick and easy expense tracking"/>
+        <Header :title="layoutStore.header.title" :subtitle="layoutStore.header.subtitle" :color="layoutStore.header.color"/>
 
         <main class="flex-fill container py-3">
             
@@ -22,6 +22,10 @@
     import MenuItems from './components/MenuItems.vue'
     import Expense from './components/Expense.vue';
     import Header from './components/Header.vue';
+    import { useLayoutStore } from './stores/layout.store';
+
+    const layoutStore = useLayoutStore();
+
 </script>
 
 

@@ -2,31 +2,31 @@
     <nav class="moneyflow-tabbar">
         <ul class="tabbar-list">
             <li class="tabbar-item">
-                <a class="tabbar-link" href="#">
+                <a @click="onClickTab('expense')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Expense">💸</span>
                     <span class="tabbar-label">Expense</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a class="tabbar-link" href="#">
+                <a @click="onClickTab('income')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Income">💰</span>
                     <span class="tabbar-label">Income</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a class="tabbar-link" href="#">
+                <a @click="onClickTab('cashflow')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Cash Flow">📊</span>
                     <span class="tabbar-label">Cash Flow</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a class="tabbar-link" href="#">
+                <a @click="onClickTab('categories')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Categories">📂</span>
                     <span class="tabbar-label">Categories</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a class="tabbar-link" href="#">
+                <a @click="onClickTab('accounts')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Accounts">🏦</span>
                     <span class="tabbar-label">Accounts</span>
                 </a>
@@ -35,6 +35,51 @@
     </nav>
 </template>
 
+<script setup lang="ts">
+
+import { useLayoutStore } from '../stores/layout.store';
+
+type Tab = 'expense' | 'income' | 'cashflow' | 'categories' | 'accounts';
+
+const layoutStore = useLayoutStore();
+
+function onClickTab(tab: Tab) {
+    
+    if(tab === 'expense') {
+        layoutStore.setHeader({
+            title: 'Expense',
+            subtitle: 'Quick and easy expense tracking',
+            color: '#3b82f6'
+        });
+    } else if(tab === 'income') {
+        layoutStore.setHeader({
+            title: 'Income',
+            subtitle: 'Track your earnings effortlessly',
+            color: '#15803d'
+        });
+    } else if(tab === 'cashflow') {
+        layoutStore.setHeader({
+            title: 'Cash Flow',
+            subtitle: 'Monitor your cash flow effectively',
+            color: '#14b8a6'
+        });
+    } else if(tab === 'categories') {
+        layoutStore.setHeader({
+            title: 'Categories',
+            subtitle: 'Organize your finances by categories',
+            color: '#f59e0b'
+        });
+    } else if(tab === 'accounts') {
+        layoutStore.setHeader({
+            title: 'Accounts',
+            subtitle: 'Manage your financial accounts',
+            color: '#6366f1'
+        });
+    }
+
+}
+
+</script>
 
 <style scoped>
 ul.nav.flex-nowrap {

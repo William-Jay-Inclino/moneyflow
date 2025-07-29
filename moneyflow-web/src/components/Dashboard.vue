@@ -44,7 +44,6 @@
     import { useGlobalStore } from '../global.store'
     import { AUTH_KEY } from '../config'
     import { PowerIcon } from '@heroicons/vue/24/outline'
-    import { formatAmount } from '../helpers'
 
     const store = useGlobalStore()
 
