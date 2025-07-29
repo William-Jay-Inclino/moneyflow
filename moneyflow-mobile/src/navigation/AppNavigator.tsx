@@ -9,7 +9,6 @@ import { tokenUtils } from '../utils/tokenUtils';
 import { LoginScreen, SignupScreen, EmailVerificationScreen } from '../screens/auth';
 
 // Main Screens
-import { HomeScreen } from '../screens/main/HomeScreen';
 import { ExpenseScreen } from '../screens/main/ExpenseScreen';
 import { AllExpensesScreen } from '../screens/main/AllExpensesScreen';
 import { AllIncomeScreen } from '../screens/main/AllIncomeScreen';
