@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import type { Expense } from "../types"
+import type { Category, Expense } from "../types"
 import { ref } from "vue"
 
 export const useExpenseStore = defineStore('expense', () => {
@@ -7,24 +7,39 @@ export const useExpenseStore = defineStore('expense', () => {
     const expenses = ref<Expense[]>([])
     const selectedYear = ref<number>(new Date().getFullYear())
     const selectedMonth = ref<number>(new Date().getMonth() + 1) 
+    const formData = ref({
+        amount: '',
+        notes: '',
+        category: undefined as Category | undefined,
+        day: new Date().getDate(),
+    })
 
-    const setExpenses = (newExpenses: Expense[]) => {
+    function setExpenses(newExpenses: Expense[]) {
         expenses.value = newExpenses
     }
 
-    const addExpense = (expense: Expense) => {
+    function addExpense(expense: Expense) {
         expenses.value.unshift({...expense})
     }
 
-    const updateExpense = (expense: Expense) => {
+    function updateExpense(expense: Expense) {
         const index = expenses.value.findIndex(exp => exp.id === expense.id)
         if (index !== -1) {
             expenses.value[index] = {...expense}
         }
     }
 
-    const deleteExpense = (expenseId: string) => {
+    function deleteExpense(expenseId: string) {
         expenses.value = expenses.value.filter(exp => exp.id !== expenseId)
+    }
+
+    function resetFormData() {
+        formData.value = {
+            amount: '',
+            notes: '',
+            category: undefined,
+            day: new Date().getDate(),
+        }
     }
 
     return {
@@ -35,6 +50,8 @@ export const useExpenseStore = defineStore('expense', () => {
         deleteExpense,
         selectedYear,
         selectedMonth,
+        formData,
+        resetFormData,
     }
 
 })

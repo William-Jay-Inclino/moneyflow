@@ -3,6 +3,7 @@ export interface Expense {
     cost: string;
     notes: string;
     expense_date: string;
+    category?: Category;
 }
 
 export interface Income {
@@ -10,6 +11,7 @@ export interface Income {
     amount: string;
     notes: string;
     income_date: string;
+    category?: Category;
 }
 
 export interface AuthUser {

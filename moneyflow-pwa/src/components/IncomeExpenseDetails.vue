@@ -21,7 +21,7 @@
                     {{ formatDate(item.date) }}
                 </div>
                 <div class="expense-info flex-grow-1 d-flex align-items-center me-3">
-                    <span class="expense-list-icon me-3">🍔</span>
+                    <span class="expense-list-icon me-3"> {{ item.icon || '💵' }} </span>
                     <div class="flex-grow-1">
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
                             <span class="expense-notes fw-semibold">{{ item.notes || 'No notes' }}</span>
@@ -41,7 +41,7 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm expense-menu-dropdown-modern">
                         <li>
-                            <a class="dropdown-item" href="#">
+                            <a @click="onEdit(item.id)" class="dropdown-item" href="#">
                                 Edit
                             </a>
                         </li>
@@ -71,6 +71,7 @@ interface Item {
     amount: string;
     notes: string;
     date: string;
+    icon?: string;
 }
 
 const emit = defineEmits(['edit', 'delete']);
@@ -93,7 +94,11 @@ function onDelete(itemId: string) {
     if (!confirmed) return;
 
     emit('delete', { id: itemId });
-    
+
+}
+
+function onEdit(itemId: string) {
+    emit('edit', { id: itemId });
 }
 
 </script>
@@ -108,5 +113,10 @@ function onDelete(itemId: string) {
     left: 0.5rem;
     font-size: 0.7rem;
     color: #6c757d;
+}
+/* Make the icon bigger */
+.expense-list-icon {
+    font-size: 2rem;
+    line-height: 1;
 }
 </style>

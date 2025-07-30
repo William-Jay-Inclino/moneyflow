@@ -1,5 +1,5 @@
 <template>
-    <form class="soft-card p-3 mb-3 quick-add-form" @submit.prevent="handleAdd">
+    <form class="soft-card p-3 mb-3 quick-add-form" @submit.prevent="handleSubmit">
         <div class="row g-2 mb-3">
             <div class="col-4">
                 <label class="form-label input-label">Amount</label>
@@ -8,7 +8,7 @@
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    v-model="amount"
+                    v-model="expenseStore.formData.amount"
                     :disabled="isLoading"
                     required
                 />
@@ -18,7 +18,7 @@
                 <input
                     class="form-control notes-input"
                     type="text"
-                    v-model="notes"
+                    v-model="expenseStore.formData.notes"
                     :disabled="isLoading"
                     required
                 />
@@ -32,9 +32,9 @@
                     :key="category.id"
                     type="button"
                     class="btn btn-soft px-1 py-1 category-chip"
-                    :class="{ active: selectedCategory?.id === category.id }"
+                    :class="{ active: expenseStore.formData.category?.id === category.id }"
                     style="min-width: 0; font-size: 0.88rem; line-height: 1.05; height: 26px; border-radius: 10px; padding: 2px 7px;"
-                    @click="selectedCategory = category"
+                    @click="expenseStore.formData.category = category"
                 >
                     <span class="category-icon me-1" style="font-size: 1rem;">{{ category.icon }}</span>
                     <span>{{ category.name }}</span>
@@ -52,7 +52,7 @@
                 min="1"
                 max="31"
                 type="number"
-                v-model="day"
+                v-model="expenseStore.formData.day"
                 :disabled="isLoading"
                 required
             />
@@ -62,34 +62,41 @@
             :disabled="isLoading || categories.length === 0"
             type="submit"
         >
-            <span v-if="isLoading">Adding...</span>
+            <span v-if="isLoading">{{ isEditMode ? 'Updating...' : 'Adding...' }}</span>
             <span v-else-if="categories.length === 0">Loading...</span>
-            <span v-else>+ Add {{ type === 'expense' ? 'Expense' : 'Income' }}</span>
+            <span v-else>{{ isEditMode ? 'Update' : 'Add' }} {{ type === 'expense' ? 'Expense' : 'Income' }}</span>
+        </button>
+        <button
+            v-if="isEditMode"
+            class="btn btn-outline-secondary w-100 mt-2"
+            type="button"
+            @click="handleCancel"
+            :disabled="isLoading"
+        >
+            Cancel
         </button>
     </form>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import type { Category } from '../types';
 import { useCategoryStore } from '../stores/category.store';
+import { useExpenseStore } from '../stores/expense.store';
 
 const props = defineProps<{
     type: 'expense' | 'income';
+    isEditMode?: boolean;
     isLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
-    (e: 'add', payload: { notes: string; amount: string; category: Category; day: number }): void;
-    (e: 'update'): void;
+    (e: 'submit', payload: { notes: string; amount: string; category: Category; day: number }): void;
+    (e: 'cancel'): void;
 }>();
 
+const expenseStore = useExpenseStore();
 const categoryStore = useCategoryStore();
-
-const notes = ref('');
-const amount = ref('');
-const selectedCategory = ref<Category>();
-const day = ref(new Date().getDate());
 
 const categories = computed(() => {
     return props.type === 'expense'
@@ -97,28 +104,25 @@ const categories = computed(() => {
         : categoryStore.incomeCategories;
 });
 
-function handleAdd() {
+function handleSubmit() {
 
-    if(selectedCategory.value === undefined) {
+    if(expenseStore.formData.category === undefined) {
         alert('Please select a category');
         return;
     }
 
-    emit('add', {
-        notes: notes.value,
-        amount: amount.value.toString(),
-        category: selectedCategory.value,
-        day: day.value
+    emit('submit', {
+        notes: expenseStore.formData.notes,
+        amount: expenseStore.formData.amount.toString(),
+        category: expenseStore.formData.category,
+        day: expenseStore.formData.day
     });
 
-    resetForm();
+    expenseStore.resetFormData();
 }
 
-function resetForm() {
-    notes.value = '';
-    amount.value = '';
-    selectedCategory.value = undefined;
-    day.value = new Date().getDate();
+function handleCancel() {
+    emit('cancel');
 }
 
 </script>

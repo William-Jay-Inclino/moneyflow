@@ -1,5 +1,6 @@
 import type { AuthUser } from "../types";
 import { AUTH_KEY } from "./config";
+import { toZonedTime, format } from 'date-fns-tz';
 
 export function formatDate(dateString: string) {
     const dateObj = new Date(dateString);
@@ -8,6 +9,11 @@ export function formatDate(dateString: string) {
     return `${month} ${day}`;
 }
 
+export function convertToDateString(year: number, month: number, day: number): string {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    const manilaTime = toZonedTime(date, 'Asia/Manila');
+    return format(manilaTime, 'yyyy-MM-dd', { timeZone: 'Asia/Manila' });
+}
 
 export function deepClone<T>(obj: T): T {
     return JSON.parse(JSON.stringify(obj));

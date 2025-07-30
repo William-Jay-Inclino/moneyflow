@@ -53,7 +53,7 @@ function onClickTab(tab: Tab) {
         });
     } else if(tab === 'income') {
         layoutStore.setHeader({
-            title: 'AddIncome',
+            title: 'Add Income',
             subtitle: 'Track your earnings effortlessly',
             color: '#15803d'
         });
