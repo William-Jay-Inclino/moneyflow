@@ -93,7 +93,7 @@ async function handleSignup() {
     }
     isLoading.value = true;
     try {
-        const { user, accessToken } = await authApi.register({
+        const { user } = await authApi.register({
             email: email.value.trim().toLowerCase(),
             password: password.value
         });
