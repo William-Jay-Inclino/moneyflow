@@ -106,7 +106,7 @@ function handleAdd() {
 
     emit('add', {
         notes: notes.value,
-        amount: amount.value,
+        amount: amount.value.toString(),
         category: selectedCategory.value,
         day: day.value
     });

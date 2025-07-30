@@ -47,13 +47,13 @@ function onClickTab(tab: Tab) {
     
     if(tab === 'expense') {
         layoutStore.setHeader({
-            title: 'Expense',
+            title: 'Add Expense',
             subtitle: 'Quick and easy expense tracking',
             color: '#3b82f6'
         });
     } else if(tab === 'income') {
         layoutStore.setHeader({
-            title: 'Income',
+            title: 'AddIncome',
             subtitle: 'Track your earnings effortlessly',
             color: '#15803d'
         });

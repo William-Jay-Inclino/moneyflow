@@ -4,7 +4,7 @@ import { ref } from "vue"
 export const useLayoutStore = defineStore('layout', () => {
 
     const header = ref({
-        title: 'Expense',
+        title: 'Add Expense',
         subtitle: 'Quick and easy expense tracking',
         color: '#3b82f6'
     })

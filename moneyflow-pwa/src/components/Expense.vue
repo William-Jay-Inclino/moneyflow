@@ -14,7 +14,13 @@
             </button>
         </div>
 
-        <ExpenseDetails v-if="showExpenseDetails" :items="expense_items" :isLoading="isLoadingExpenses" type="expense"/>
+        <ExpenseDetails 
+            v-if="showExpenseDetails" 
+            :items="expense_items" 
+            :isLoading="isLoadingExpenses"
+            @delete="handleDeleteExpense" 
+            type="expense"
+        />
 
         <div v-if="showExpenseDetails" class="toggle-section text-center mb-3">
             <button class="btn btn-soft toggle-button" @click="showExpenseDetails = false">
@@ -68,8 +74,59 @@ const expense_items = computed(() => {
     }));
 });
 
-function handleAddExpense(payload: { notes: string; amount: string; category: Category; day: number }) {
-    console.log('adding', payload);
+async function handleAddExpense(payload: { notes: string; amount: string; category: Category; day: number }) {
+    const year = expenseStore.selectedYear;
+    const month = expenseStore.selectedMonth;
+    const date = new Date(year, month - 1, payload.day);
+    const dateString = date.toISOString().split('T')[0];
+
+    if (!authUser.value) {
+        console.error('No authenticated user found');
+        return;
+    }
+
+    isSavingExpense.value = true;
+    const created = await expenseApi.createExpense(authUser.value.user_id, {
+        category_id: payload.category.id,
+        cost: payload.amount,
+        notes: payload.notes,
+        expense_date: dateString
+    });
+    isSavingExpense.value = false;
+
+    if(created) {
+        expenseStore.addExpense({
+            id: created.id,
+            cost: created.cost,
+            notes: created.notes,
+            expense_date: created.expense_date
+        });
+        alert('Expense added successfully!');
+    } else {
+        alert('Failed to add expense. Please try again.');
+    }
+
+}
+
+async function handleDeleteExpense(payload: { id: string }) {
+    console.log('payload', payload);
+    if (!authUser.value) {
+        console.error('No authenticated user found');
+        return;
+    }
+
+    const id = payload.id;
+
+    isLoadingExpenses.value = true;
+    const deleted = await expenseApi.deleteExpense(authUser.value.user_id, id);
+    isLoadingExpenses.value = false;
+
+    if (deleted) {
+        expenseStore.deleteExpense(id);
+        alert('Expense deleted successfully!');
+    } else {
+        alert('Failed to delete expense. Please try again.');
+    }
 }
 
 async function handleUpdateDate(payload: { year: number, month: number}) {

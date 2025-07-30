@@ -127,8 +127,10 @@ export const expenseApi = {
         const response = await api.patch(`/users/${userId}/expenses/${expenseId}`, data);
         return response.data;
     },
-    deleteExpense: async (userId: string, expenseId: string): Promise<void> => {
-        await api.delete(`/users/${userId}/expenses/${expenseId}`);
+    deleteExpense: async (userId: string, expenseId: string): Promise<any> => {
+        const res = await api.delete(`/users/${userId}/expenses/${expenseId}`);
+        console.log('res', res);
+        return res
     },
 };
 

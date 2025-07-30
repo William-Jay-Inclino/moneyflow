@@ -46,7 +46,7 @@
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item text-danger" href="#">
+                            <a @click="onDelete(item.id)" class="dropdown-item text-danger" href="#">
                                 Delete
                             </a>
                         </li>
@@ -73,6 +73,8 @@ interface Item {
     date: string;
 }
 
+const emit = defineEmits(['edit', 'delete']);
+
 const props = defineProps<{
     items: Item[],
     isLoading: boolean,
@@ -84,6 +86,15 @@ const total = computed(() => {
         return sum + parseFloat(item.amount);
     }, 0);
 });
+
+function onDelete(itemId: string) {
+
+    const confirmed = window.confirm('Are you sure you want to delete this item?');
+    if (!confirmed) return;
+
+    emit('delete', { id: itemId });
+    
+}
 
 </script>
 
