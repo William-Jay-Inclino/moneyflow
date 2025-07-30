@@ -5,6 +5,8 @@ import { ref } from "vue"
 export const useExpenseStore = defineStore('expense', () => {
 
     const expenses = ref<Expense[]>([])
+    const selectedYear = ref<number>(new Date().getFullYear())
+    const selectedMonth = ref<number>(new Date().getMonth() + 1) 
 
     const setExpenses = (newExpenses: Expense[]) => {
         expenses.value = newExpenses
@@ -31,6 +33,8 @@ export const useExpenseStore = defineStore('expense', () => {
         addExpense,
         updateExpense,
         deleteExpense,
+        selectedYear,
+        selectedMonth,
     }
 
 })

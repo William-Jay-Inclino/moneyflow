@@ -9,12 +9,12 @@
                     <span>Select Month & Year</span>
                 </div>
                 <div class="modal-selects">
-                    <select v-model="selectedMonth" class="date-select month-select" @change="emitChange">
+                    <select v-model="selectedMonth" class="date-select month-select">
                         <option v-for="(month, idx) in months" :key="month" :value="idx + 1">
                             {{ month }}
                         </option>
                     </select>
-                    <select v-model="selectedYear" class="date-select year-select" @change="emitChange">
+                    <select v-model="selectedYear" class="date-select year-select">
                         <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                     </select>
                 </div>
@@ -33,7 +33,7 @@ import { ref, computed, watch, defineProps, defineEmits } from 'vue';
 const props = defineProps<{
     modelValue?: { year: number, month: number }
 }>();
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update']);
 
 const now = new Date();
 const currentYear = now.getFullYear();
@@ -70,7 +70,7 @@ watch(() => props.modelValue, (val) => {
 });
 
 function emitChange() {
-    emit('update:modelValue', { year: selectedYear.value, month: selectedMonth.value });
+    emit('update', { year: selectedYear.value, month: selectedMonth.value });
 }
 </script>
 

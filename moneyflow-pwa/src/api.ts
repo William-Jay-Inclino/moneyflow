@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CashFlowData, Category, User } from './types';
+import type { CashFlowData, Category, Expense, User } from './types';
 import { get_auth_user_in_local_storage } from './utils/helpers';
 import { AUTH_KEY } from './utils/config';
 
@@ -104,7 +104,7 @@ export const authApi = {
 }
 
 export const expenseApi = {
-    getExpenses: async (userId: string, year: number, month: number): Promise<any[]> => {
+    getExpenses: async (userId: string, year: number, month: number): Promise<Expense[]> => {
         const response = await api.get(`/users/${userId}/expenses?year=${year}&month=${month}`);
         console.log('response expense', response.data);
         return response.data;

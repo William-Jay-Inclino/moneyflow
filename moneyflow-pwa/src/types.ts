@@ -1,8 +1,15 @@
 export interface Expense {
     id: string;
-    cost: number;
+    cost: string;
     notes: string;
     expense_date: string;
+}
+
+export interface Income {
+    id: string;
+    amount: string;
+    notes: string;
+    income_date: string;
 }
 
 export interface AuthUser {

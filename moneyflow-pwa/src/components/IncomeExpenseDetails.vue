@@ -1,31 +1,31 @@
 <template>
     <div>
         <div class="soft-card summary-card text-center mb-3">
-            <div class="summary-label text-muted">Total Expense</div>
-            <div class="summary-amount text-soft-danger fw-bold fs-2">- 100.00 </div>
+            <div class="summary-label text-muted">Total {{ type === 'expense' ? 'Expense' : 'Income' }}</div>
+            <div class="summary-amount text-soft-danger fw-bold fs-2">{{ type === 'expense' ? '-' : '+' }} {{ formatAmount(total) }} </div>
         </div>
         <div class="d-flex justify-content-between align-items-center section-header px-2 mb-2">
             <span class="section-title fw-semibold">Details</span>
         </div>
         <div v-if="isLoading" class="loading-container text-center py-4">
-            <span>Loading expenses...</span>
+            <span>Loading please wait...</span>
         </div>
-        <div v-else-if="expenses.length > 0">
+        <div v-else-if="items.length > 0">
             <div
-                v-for="item in expenses"
+                v-for="item in items"
                 :key="item.id"
                 class="expense-item-modern d-flex align-items-center justify-content-between mb-2 position-relative"
             >
                 <!-- Date at top left, absolutely positioned -->
                 <div class="expense-date-absolute">
-                    {{ formatDate(item.expense_date) }}
+                    {{ formatDate(item.date) }}
                 </div>
                 <div class="expense-info flex-grow-1 d-flex align-items-center me-3">
                     <span class="expense-list-icon me-3">🍔</span>
                     <div class="flex-grow-1">
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
                             <span class="expense-notes fw-semibold">{{ item.notes || 'No notes' }}</span>
-                            <span class="expense-amount-modern ms-2">-{{ item.cost.toFixed(2) }}</span>
+                            <span class="expense-amount-modern ms-2">-{{ formatAmount(item.amount) }}</span>
                         </div>
                     </div>
                 </div>
@@ -63,13 +63,27 @@
 
 
 <script setup lang="ts">
-import type { Expense } from '../types';
-import { formatDate } from '../utils/helpers';
+import { computed } from 'vue';
+import { formatDate, formatAmount } from '../utils/helpers';
+
+interface Item {
+    id: string;
+    amount: string;
+    notes: string;
+    date: string;
+}
 
 const props = defineProps<{
-    expenses: Expense[],
-    isLoading: boolean
+    items: Item[],
+    isLoading: boolean,
+    type: 'expense' | 'income'
 }>();
+
+const total = computed(() => {
+    return props.items.reduce((sum, item) => {
+        return sum + parseFloat(item.amount);
+    }, 0);
+});
 
 </script>
 
