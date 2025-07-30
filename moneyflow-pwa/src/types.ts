@@ -21,6 +21,7 @@ export interface Category {
     name: string;
     amount: number;
     color: string;
+    icon: string;
     type: 'INCOME' | 'EXPENSE';
 }
 
@@ -29,4 +30,31 @@ export interface ApiResponse<T> {
     success: boolean;
     data: T;
     message?: string;
+}
+
+
+export interface CashFlowData {
+    months: CFMonth[]
+    year: number
+    yearSummary: {
+        totalCashFlow: number
+        totalIncome: number 
+        totalExpense: number
+    }
+}
+
+export interface CFMonth {
+    month: number
+    monthName: string
+    totalIncome: number
+    totalExpense: number
+    netCashFlow: number
+}
+
+
+export interface CFYearSummary {
+    totalIncome: number
+    totalExpense: number
+    incomeCategories: Category[]
+    expenseCategories: Category[]
 }

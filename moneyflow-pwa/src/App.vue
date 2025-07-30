@@ -1,46 +1,51 @@
 
 <template>
-    <div class="app-container d-flex flex-column min-vh-100 bg-light">
+    <div>
 
-        <Header :title="layoutStore.header.title" :subtitle="layoutStore.header.subtitle" :color="layoutStore.header.color"/>
+        <div v-if="!authStore.isAuthenticated">
+            <Login v-if="route === 'login'" @signup="setRoute('signup')"/>
+            <Signup v-else-if="route === 'signup'" 
+                @login="setRoute('login')"
+                @email-verification="setRoute('email-verification')"
+            />
+            <EmailVerification v-else-if="route === 'email-verification'" 
+                :email="loginStore.pendingVerificationEmail"
+                :userId="loginStore.pendingVerificationUserId"
+                @signup="setRoute('signup')"
+                @login="setRoute('login')"
+            />
+        </div>
 
-        <main class="flex-fill container py-3 mb-5">
-            
-            <Expense />
-
-        </main>
-
-        <MenuItems />
-
+        <div v-else>
+            <Main />
+        </div>
+        
         <PWABadge />
     </div>
 </template>
 
 
-<script setup>
+<script setup lang="ts">
+    import { ref } from 'vue';
+    import Login from './components/Login.vue';
+    import Signup from './components/Signup.vue';
+    import EmailVerification from './components/EmailVerification.vue';
+    import Main from './components/Main.vue';
     import PWABadge from './components/PWABadge.vue'
-    import MenuItems from './components/MenuItems.vue'
-    import Expense from './components/Expense.vue';
-    import Header from './components/Header.vue';
-    import { useLayoutStore } from './stores/layout.store';
+    import { useAuthStore } from './stores/auth.store';
+    import { useLoginStore } from './stores/login.store';
 
-    const layoutStore = useLayoutStore();
+    const authStore = useAuthStore();
+    const loginStore = useLoginStore();
+
+    type route = 'login' | 'signup' | 'email-verification'
+
+    const route = ref<route>('login')
+
+    const setRoute = (newRoute: route) => {
+        route.value = newRoute;
+    };
 
 </script>
 
 
-<style scoped>
-    .app-container {
-        max-width: 480px;
-        margin: 0 auto;
-        background: #f8f9fa;
-    }
-    main {
-        padding-bottom: 70px; /* space for bottom nav */
-    }
-    @media (max-width: 480px) {
-        .app-container {
-            border-radius: 0;
-        }
-    }
-</style>

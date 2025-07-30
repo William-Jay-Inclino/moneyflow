@@ -5,7 +5,7 @@
             <DatePicker />
         </div>
 
-        <ExpenseForm @add-expense="handleAddExpense" />
+        <ExpenseForm type="expense" @add="handleAddExpense" :is-loading="isSavingExpense"/>
 
         <div v-if="!showExpenseDetails" class="toggle-section text-center mb-3">
             <button class="btn btn-soft toggle-button" @click="showExpenseDetails = true">
@@ -14,7 +14,7 @@
             </button>
         </div>
 
-        <ExpenseDetails v-if="showExpenseDetails" :expenses="expenses" :isLoading="isLoadingExpenses" />
+        <ExpenseDetails v-if="showExpenseDetails" :expenses="expenseStore.expenses" :isLoading="isLoadingExpenses" />
 
         <div v-if="showExpenseDetails" class="toggle-section text-center mb-3">
             <button class="btn btn-soft toggle-button" @click="showExpenseDetails = false">
@@ -27,20 +27,21 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import ExpenseForm from './ExpenseForm.vue';
-import type { Expense } from '../types';
-import ExpenseDetails from './ExpenseDetails.vue';
+import ExpenseForm from './IncomeExpenseForm.vue';
+import type { Category} from '../types';
+import ExpenseDetails from './IncomeExpenseDetails.vue';
 import DatePicker from './DatePicker.vue';
+import { useExpenseStore } from '../stores/expense.store';
 
+const expenseStore = useExpenseStore();
 const isLoadingExpenses = ref(false);
+const isSavingExpense = ref(false);
 const showExpenseDetails = ref(false);
 
-const expenses = ref<Expense[]>([
-    { id: '1', cost: 120, notes: 'Lunch', expense_date: new Date().toISOString() }
-]);
 
-function handleAddExpense() {
-    console.log('adding');
+
+function handleAddExpense(payload: { notes: string; amount: string; category: Category; day: number }) {
+    console.log('adding', payload);
 }
 
 

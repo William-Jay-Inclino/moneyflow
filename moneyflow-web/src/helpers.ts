@@ -17,21 +17,21 @@ export function formatAmount(num: number | string): string {
 }
 
 export function get_auth_user_in_local_storage(): AuthUser | null {
-        const user_local = localStorage.getItem(AUTH_KEY)
-        if (!user_local) return null;
-        try {
-            const user = JSON.parse(user_local)
-            if (
-                user &&
-                typeof user === 'object' &&
-                typeof user.user_id === 'string' &&
-                typeof user.email === 'string' &&
-                typeof user.token === 'string'
-            ) {
-                return user
-            }
-        } catch (e) {
-            console.warn('Failed to parse auth user from localStorage:', e)
+    const user_local = localStorage.getItem(AUTH_KEY)
+    if (!user_local) return null;
+    try {
+        const user = JSON.parse(user_local)
+        if (
+            user &&
+            typeof user === 'object' &&
+            typeof user.user_id === 'string' &&
+            typeof user.email === 'string' &&
+            typeof user.token === 'string'
+        ) {
+            return user
         }
-        return null
+    } catch (e) {
+        console.warn('Failed to parse auth user from localStorage:', e)
     }
+    return null
+}
