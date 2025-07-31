@@ -27,7 +27,7 @@
             </li>
             <li class="tabbar-item">
                 <a @click="logout()" class="tabbar-link text-soft-danger" href="#">
-                    <span class="tabbar-icon" aria-label="Logout">⏻</span>
+                    <span class="tabbar-icon" aria-label="Logout">🔒</span>
                     <span class="tabbar-label">Logout</span>
                 </a>
             </li>
