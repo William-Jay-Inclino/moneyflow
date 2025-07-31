@@ -19,12 +19,12 @@
                     <span class="tabbar-label">Cash Flow</span>
                 </a>
             </li>
-            <li class="tabbar-item">
+            <!-- <li class="tabbar-item">
                 <a @click="onClickTab('categories')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Categories">📂</span>
                     <span class="tabbar-label">Categories</span>
                 </a>
-            </li>
+            </li> -->
             <li class="tabbar-item">
                 <a @click="onClickTab('accounts')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Accounts">🏦</span>
@@ -51,30 +51,28 @@ function onClickTab(tab: Tab) {
             subtitle: 'Quick and easy expense tracking',
             color: '#3b82f6'
         });
+        layoutStore.setRoute('expense');
     } else if(tab === 'income') {
         layoutStore.setHeader({
             title: 'Add Income',
             subtitle: 'Track your earnings effortlessly',
             color: '#15803d'
         });
+        layoutStore.setRoute('income');
     } else if(tab === 'cashflow') {
         layoutStore.setHeader({
             title: 'Cash Flow',
             subtitle: 'Monitor your cash flow effectively',
             color: '#14b8a6'
         });
-    } else if(tab === 'categories') {
-        layoutStore.setHeader({
-            title: 'Categories',
-            subtitle: 'Organize your finances by categories',
-            color: '#f59e0b'
-        });
+        layoutStore.setRoute('cashflow');
     } else if(tab === 'accounts') {
         layoutStore.setHeader({
             title: 'Accounts',
             subtitle: 'Manage your financial accounts',
             color: '#6366f1'
         });
+        layoutStore.setRoute('accounts');
     }
 
 }
@@ -87,8 +85,9 @@ ul.nav.flex-nowrap {
 }
 .moneyflow-tabbar {
     position: fixed;
-    bottom: 0;
     left: 0;
+    right: 0;
+    bottom: 0;
     width: 100vw;
     background: #fff;
     border-top: 1px solid #e5e7eb;
@@ -98,6 +97,10 @@ ul.nav.flex-nowrap {
     height: 60px;
     display: flex;
     align-items: center;
+    /* Safe area for iOS */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Prevent scrolling content under the bar */
+    touch-action: none;
 }
 
 .tabbar-list {
@@ -144,5 +147,12 @@ ul.nav.flex-nowrap {
 .tabbar-label {
     font-size: 12px;
     font-weight: 600;
+}
+
+/* Prevent body scroll under the tabbar on mobile */
+@media (max-width: 600px) {
+    body {
+        padding-bottom: 60px !important;
+    }
 }
 </style>

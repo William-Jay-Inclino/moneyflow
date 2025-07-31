@@ -5,8 +5,9 @@
         <Header :title="layoutStore.header.title" :subtitle="layoutStore.header.subtitle" :color="layoutStore.header.color"/>
 
         <main class="flex-fill container py-3 mb-5">
-            
-            <Expense />
+
+            <Expense v-if="layoutStore.route === 'expense'" />
+            <CashFlow v-if="layoutStore.route === 'cashflow'" />
 
         </main>
 
@@ -20,6 +21,7 @@
     import MenuItems from './MenuItems.vue'
     import Expense from './Expense.vue';
     import Header from './Header.vue';
+    import CashFlow from './CashFlow.vue';
     import { useLayoutStore } from '../stores/layout.store';
 
     const layoutStore = useLayoutStore();

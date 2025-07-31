@@ -1,6 +1,8 @@
 import { defineStore } from "pinia"
 import { ref } from "vue"
 
+type Route = 'expense' | 'income' | 'cashflow' | 'accounts';
+
 export const useLayoutStore = defineStore('layout', () => {
 
     const header = ref({
@@ -8,6 +10,8 @@ export const useLayoutStore = defineStore('layout', () => {
         subtitle: 'Quick and easy expense tracking',
         color: '#3b82f6'
     })
+
+    const route = ref<Route>('expense')
 
     function setHeader(payload: { title: string, subtitle?: string, color?: string }) {
 
@@ -18,9 +22,15 @@ export const useLayoutStore = defineStore('layout', () => {
         header.value.color = color
     }
 
+    function setRoute(newRoute: Route) {
+        route.value = newRoute
+    }
+
     return {
         header,
-        setHeader
+        setHeader,
+        route,
+        setRoute
     }
 
 })
