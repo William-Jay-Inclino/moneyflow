@@ -141,6 +141,9 @@ export class AuthController {
     @Request() req: any,
     @Body() body: { oldPassword: string; newPassword: string }
   ): Promise<{ success: boolean; message: string }> {
-    return this.authService.changePassword(req.user.id, body.oldPassword, body.newPassword);
+    console.log('🔔 [AuthController] Change Password called with:', body);
+    const result = await this.authService.changePassword(req.user.id, body.oldPassword, body.newPassword);
+    console.log('✅ [AuthController] Change Password result:', result);
+    return result;
   }
 }

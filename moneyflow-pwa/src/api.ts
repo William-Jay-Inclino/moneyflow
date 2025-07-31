@@ -52,7 +52,8 @@ api.interceptors.response.use(
             // Clear token
             localStorage.removeItem(AUTH_KEY);
             
-            // TODO: Implement logout logic, e.g., redirect to login page
+            // reload the page
+            window.location.reload();
         }
         
         return Promise.reject(error);
