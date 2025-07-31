@@ -2,11 +2,13 @@ import type { AuthUser } from "../types";
 import { AUTH_KEY } from "./config";
 import { toZonedTime, format } from 'date-fns-tz';
 
-export function formatDate(dateString: string) {
+export function formatDate(dateString: string, withYear = false): string {
     const dateObj = new Date(dateString);
     const month = dateObj.toLocaleString('default', { month: 'long' });
     const day = String(dateObj.getDate()).padStart(2, '0');
-    return `${month} ${day}`;
+    const year = dateObj.getFullYear();
+
+    return withYear ? `${month} ${day}, ${year}` : `${month} ${day}`;
 }
 
 export function convertToDateString(year: number, month: number, day: number): string {

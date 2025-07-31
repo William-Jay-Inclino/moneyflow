@@ -34,6 +34,16 @@ export interface Category {
     type: 'INCOME' | 'EXPENSE';
 }
 
+export interface UserAccount {
+    id: string;
+    user_id: string;
+    name: string;
+    balance: number;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    user?: User
+}
 
 export interface ApiResponse<T> {
     success: boolean;

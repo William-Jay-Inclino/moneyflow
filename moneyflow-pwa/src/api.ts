@@ -222,3 +222,32 @@ export const cashFlowApi = {
     },
 
 };
+
+export const userAccountsApi = {
+    create: async (data: {
+        name: string;
+        balance?: number;
+        notes?: string;
+    }): Promise<any> => {
+        const response = await api.post('/user-accounts', data);
+        return response.data;
+    },
+
+    getAccounts: async (): Promise<any> => {
+        const response = await api.get(`/user-accounts?limit=100`);
+        return response.data;
+    },
+
+    update: async (id: string, data: {
+        name?: string;
+        balance?: number;
+        notes?: string;
+    }): Promise<any> => {
+        const response = await api.patch(`/user-accounts/${id}`, data);
+        return response.data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+        await api.delete(`/user-accounts/${id}`);
+    },
+};

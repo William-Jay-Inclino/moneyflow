@@ -9,6 +9,7 @@
             <Expense v-if="layoutStore.route === 'expense'" />
             <Income v-if="layoutStore.route === 'income'" />
             <CashFlow v-if="layoutStore.route === 'cashflow'" />
+            <Account v-if="layoutStore.route === 'accounts'" />
 
         </main>
 
@@ -24,6 +25,7 @@
     import Header from './Header.vue';
     import CashFlow from './CashFlow.vue';
     import Income from './Income.vue';
+    import Account from './Account.vue';
     import { useLayoutStore } from '../stores/layout.store';
 
     const layoutStore = useLayoutStore();
