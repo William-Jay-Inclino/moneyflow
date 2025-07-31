@@ -1,6 +1,9 @@
 import type { AuthUser } from "../types";
 import { AUTH_KEY } from "./config";
 import { toZonedTime, format } from 'date-fns-tz';
+import { useToast } from "vue-toastification";
+
+const toast = useToast();
 
 export function formatDate(dateString: string, withYear = false): string {
     const dateObj = new Date(dateString);
@@ -9,6 +12,16 @@ export function formatDate(dateString: string, withYear = false): string {
     const year = dateObj.getFullYear();
 
     return withYear ? `${month} ${day}, ${year}` : `${month} ${day}`;
+}
+
+export function formatShortDate(dateString: string): string {
+    const date = new Date(dateString);
+
+    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2); 
+
+    return `${month}/${day}/${year}`;
 }
 
 export function convertToDateString(year: number, month: number, day: number): string {
@@ -51,13 +64,10 @@ export function get_auth_user_in_local_storage(): AuthUser | null {
     return null
 }
 
-
 export function set_auth_user_in_local_storage(user: AuthUser) {
     console.log('set_auth_user', user);
     localStorage.setItem(AUTH_KEY, JSON.stringify(user))
 }
-
-
 
 export const parseCostToNumber = (cost: any): number => {
     if (cost === null || cost === undefined) return 0;
@@ -86,3 +96,11 @@ export const parseCostToNumber = (cost: any): number => {
     console.warn('Unexpected cost type:', typeof cost, cost);
     return 0;
 };
+
+export function showToast(message: string, type: 'success' | 'error' = 'success') {
+    if (type === 'success') {
+        toast.success(message);
+    } else {
+        toast.error(message);
+    }
+}

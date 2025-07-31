@@ -1,16 +1,23 @@
 <template>
     <div>
-        <div class="soft-card summary-card text-center mb-3">
-            <div class="summary-label text-muted">Total {{ type === 'expense' ? 'Expense' : 'Income' }}</div>
-            <div :class="{ 'text-soft-danger': type === 'expense', 'text-soft-success': type === 'income' }" class="summary-amount fw-bold fs-2">{{ type === 'expense' ? '-' : '+' }} {{ formatAmount(total) }} </div>
-        </div>
+
         <div class="d-flex justify-content-between align-items-center section-header px-2 mb-2">
-            <span class="section-title fw-semibold">Details</span>
+            <span class="section-title fw-semibold">Summary</span>
         </div>
+
+        <div class="mb-3">
+            <PieChart :categories="categories" />
+        </div>
+        
         <div v-if="isLoading" class="loading-container text-center py-4">
             <span>Loading please wait...</span>
         </div>
+        
         <div v-else-if="items.length > 0">
+            <div class="d-flex justify-content-between align-items-center section-header px-2 mb-2">
+                <span class="section-title fw-semibold">Items</span>
+            </div>
+
             <div
                 v-for="item in items"
                 :key="item.id"
@@ -87,9 +94,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatDate, formatAmount } from '../utils/helpers';
+import type { Category } from '../types';
+import PieChart from './PieChart.vue';
 
 interface Item {
     id: string;
+    category: Category;
     amount: string;
     notes: string;
     date: string;
@@ -104,19 +114,29 @@ const props = defineProps<{
     type: 'expense' | 'income'
 }>();
 
-const total = computed(() => {
-    return props.items.reduce((sum, item) => {
-        return sum + parseFloat(item.amount);
-    }, 0);
+const categories = computed(() => {
+    const categoryMap: Record<number, { id: number, name: string, icon: string, color: string, amount: number, type: 'INCOME' | 'EXPENSE' }> = {};
+
+    props.items.forEach(item => {
+        const catId = typeof item.category.id === 'string' ? parseInt(item.category.id) : item.category.id;
+        if (!categoryMap[catId]) {
+            categoryMap[catId] = {
+                id: catId,
+                name: item.category.name,
+                icon: item.category.icon,
+                color: item.category.color,
+                amount: 0,
+                type: props.type.toUpperCase() as 'INCOME' | 'EXPENSE'
+            };
+        }
+        categoryMap[catId].amount += parseFloat(item.amount);
+    });
+
+    return Object.values(categoryMap);
 });
 
 function onDelete(itemId: string) {
-
-    const confirmed = window.confirm('Are you sure you want to delete this item?');
-    if (!confirmed) return;
-
     emit('delete', { id: itemId });
-
 }
 
 function onEdit(itemId: string) {

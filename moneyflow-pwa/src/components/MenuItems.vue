@@ -19,16 +19,16 @@
                     <span class="tabbar-label">Cash Flow</span>
                 </a>
             </li>
-            <!-- <li class="tabbar-item">
-                <a @click="onClickTab('categories')" class="tabbar-link" href="#">
-                    <span class="tabbar-icon" aria-label="Categories">📂</span>
-                    <span class="tabbar-label">Categories</span>
-                </a>
-            </li> -->
             <li class="tabbar-item">
                 <a @click="onClickTab('accounts')" class="tabbar-link" href="#">
                     <span class="tabbar-icon" aria-label="Accounts">🏦</span>
                     <span class="tabbar-label">Accounts</span>
+                </a>
+            </li>
+            <li class="tabbar-item">
+                <a @click="logout()" class="tabbar-link text-soft-danger" href="#">
+                    <span class="tabbar-icon" aria-label="Logout">⏻</span>
+                    <span class="tabbar-label">Logout</span>
                 </a>
             </li>
         </ul>
@@ -38,10 +38,12 @@
 <script setup lang="ts">
 
 import { useLayoutStore } from '../stores/layout.store';
+import { useAuthStore } from '../stores/auth.store';
 
 type Tab = 'expense' | 'income' | 'cashflow' | 'categories' | 'accounts';
 
 const layoutStore = useLayoutStore();
+const authStore = useAuthStore();
 
 function onClickTab(tab: Tab) {
     
@@ -75,6 +77,10 @@ function onClickTab(tab: Tab) {
         layoutStore.setRoute('accounts');
     }
 
+}
+
+function logout() {
+    authStore.logout();
 }
 
 </script>

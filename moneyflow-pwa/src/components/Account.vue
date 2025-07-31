@@ -3,8 +3,8 @@
         <!-- Total Balance Card -->
         <div class="balance-card">
             <div class="balance-label">Total Balance</div>
-            <div class="balance-amount">0.00</div>
-            <div class="balance-subtext">0 accounts</div>
+            <div class="balance-amount text-soft-success">{{ formatAmount(totalBalance) }}</div>
+            <div class="balance-subtext">{{ accountStore.accounts.length }} accounts</div>
         </div>
 
         <!-- Add Account Button -->
@@ -23,33 +23,61 @@
         </div>
 
         <!-- Accounts List -->
-        <div v-for="account in accountStore.accounts" :key="account.id" class="account-card">
+        <div
+            v-for="account in sortedAccounts"
+            :key="account.id"
+            class="account-card"
+        >
             <div class="account-info">
                 <div class="account-name">{{ account.name }}</div>
-                <div class="account-date">Updated: {{ formatDate(account.updated_at, true) }}</div>
+                <div class="account-date">Updated: {{ formatShortDate(account.updated_at) }}</div>
             </div>
             <div class="account-actions">
                 <div class="balance-container">
                     <div class="account-balance">{{ formatAmount(account.balance) }}</div>
                 </div>
-                <button class="menu-btn">⋮</button>
+                <div class="dropdown">
+                    <button 
+                        class="menu-btn"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+                        ⋮
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#account_modal" href="#" @click.prevent="handleEdit(account)">
+                                Edit
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="#" @click.prevent="handleDelete(account)">
+                                Delete
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
-        <AccountFormModal @save="handleSave" />
+        <AccountFormModal @save="handleSave" :default-data="accountToEdit"/>
 
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useUserAccountStore } from '../stores/account.store';
 import { userAccountsApi } from '../api';
-import { formatAmount, formatDate } from '../utils/helpers';
+import { formatAmount, formatShortDate, showToast } from '../utils/helpers';
 import AccountFormModal from './AccountFormModal.vue';
+import type { UserAccount } from '../types';
+
 
 const accountStore = useUserAccountStore();
-
+const accountToEdit = ref<{ id: string; name: string; balance: number; notes?: string } | undefined>(undefined);
+const isSaving = ref(false);    
 
 onMounted(async () => {
     try {
@@ -60,20 +88,113 @@ onMounted(async () => {
     }
 });
 
+const isEditMode = computed(() => !!accountToEdit.value);
+const totalBalance = computed(() => {
+    return accountStore.accounts.reduce((sum, acc) => sum + (typeof acc.balance === 'number' ? acc.balance : Number(acc.balance) || 0), 0);
+});
 
-function handleSave(payload: {
+const sortedAccounts = computed(() =>
+    [...accountStore.accounts].sort((a, b) => {
+        const aBal = typeof a.balance === 'number' ? a.balance : Number(a.balance) || 0;
+        const bBal = typeof b.balance === 'number' ? b.balance : Number(b.balance) || 0;
+        return bBal - aBal;
+    })
+);
+
+async function handleSave(payload: {
     name: string;
     balance: number;
     notes?: string;
 }, closeBtn: HTMLButtonElement | null) {
     console.log('payload', payload);
+
+    if(isEditMode.value) {
+        await updateAccount(payload);
+        accountToEdit.value = undefined; 
+    } else {
+        await addAccount(payload);
+    }
+
     closeBtn?.click();
 }
+
+async function addAccount(payload: {
+    name: string;
+    balance: number;
+    notes?: string;
+}) {
+
+    isSaving.value = true;
+    const res = await userAccountsApi.create(payload);
+    isSaving.value = false;
+
+    if(res) {
+        accountStore.addAccount(res);
+        showToast('Account created successfully!', 'success');
+    } else {
+        console.error('Failed to create account:', res);
+    }
+
+}
+
+async function updateAccount(payload: {
+    name: string;
+    balance: number;
+    notes?: string;
+}) {
+
+    if(!accountToEdit.value || !accountToEdit.value.id) return;
+
+    isSaving.value = true;
+    const res = await userAccountsApi.update(accountToEdit.value.id, payload);
+    isSaving.value = false;
+
+    if(res) {
+        accountStore.updateAccount(res);
+        showToast('Account updated successfully!', 'success');
+    } else {
+        console.error('Failed to update account:', res);
+    }
+
+}
+
+function handleEdit(account: UserAccount) {
+    console.log('handleEdit', account);
+    accountToEdit.value = {
+        id: account.id,
+        name: account.name,
+        balance: typeof account.balance === 'number' ? account.balance : Number(account.balance),
+        notes: account.notes || ''
+    }
+}
+
+async function handleDelete(account: UserAccount) {
+    if (confirm(`Are you sure you want to delete ${account.name}?`)) {
+        console.log('Delete:', account);
+        
+        const res = await userAccountsApi.delete(account.id);
+        if (res) {
+            accountStore.removeAccount(account.id);
+            showToast('Account deleted successfully!', 'success');
+        } else {
+            showToast('Failed to delete account. Please try again.', 'error');
+        }
+
+    }
+}
+
 
 
 </script>
 
 <style scoped>
+.menu-btn {
+    border: none;
+    background: transparent;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0 6px;
+}
 .account-container {
     background: #f8fafc;
     min-height: 100vh;
@@ -281,7 +402,7 @@ function handleSave(payload: {
 .account-balance {
     font-size: 16px;
     font-weight: bold;
-    color: #059669;
+    color: #10b981;
     text-align: right;
 }
 </style>

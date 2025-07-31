@@ -46,11 +46,12 @@ import ExpenseDetails from './IncomeExpenseDetails.vue';
 import DatePicker from './DatePicker.vue';
 import { useExpenseStore } from '../stores/expense.store';
 import { expenseApi } from '../api';
-import { convertToDateString, get_auth_user_in_local_storage } from '../utils/helpers';
+import { convertToDateString, get_auth_user_in_local_storage, showToast } from '../utils/helpers';
 import { useLayoutStore } from '../stores/layout.store';
 
 const expenseStore = useExpenseStore();
 const layoutStore = useLayoutStore();
+
 const isLoadingItems = ref(false);
 const isSaving = ref(false);
 const showDetails = ref(false);
@@ -84,6 +85,7 @@ const expense_items = computed(() => {
         notes: expense.notes,
         date: expense.expense_date,
         icon: expense.category?.icon,
+        category: expense.category!,
     }));
 });
 
@@ -129,7 +131,7 @@ async function handleUpdateExpense(payload: {
             expense_date: updated.expense_date,
             category: updated.category
         });
-        alert('Item updated successfully!');
+        showToast('Item updated successfully!', 'success');
 
         layoutStore.setHeader({
             title: 'Add Expense',
@@ -138,7 +140,7 @@ async function handleUpdateExpense(payload: {
         });
 
     } else {
-        alert('Failed to add expense. Please try again.');
+        showToast('Failed to update item. Please try again.', 'error');
     }
 
 }
@@ -169,9 +171,9 @@ async function handleAddExpense(payload: { notes: string; amount: string; catego
             expense_date: created.expense_date,
             category: created.category,
         });
-        alert('Expense added successfully!');
+        showToast('Item added successfully!');
     } else {
-        alert('Failed to add expense. Please try again.');
+        showToast('Failed to add item. Please try again.', 'error');
     }
 
 }
@@ -191,9 +193,9 @@ async function handleDeleteExpense(payload: { id: string }) {
 
     if (deleted) {
         expenseStore.deleteExpense(id);
-        alert('Expense deleted successfully!');
+        showToast('Item deleted successfully!');
     } else {
-        alert('Failed to delete expense. Please try again.');
+        showToast('Failed to delete item. Please try again.', 'error');
     }
 }
 

@@ -13,13 +13,13 @@
                     <div class="summary-item">
                         <div class="summary-label">Total Income</div>
                         <div class="summary-income-amount">
-                            +{{ summary?.totalIncome?.toLocaleString() ?? '0' }}
+                            +{{ formatAmount(summary?.totalIncome) }}
                         </div>
                     </div>
                     <div class="summary-item">
                         <div class="summary-label">Total Expense</div>
                         <div class="summary-expense-amount">
-                            -{{ summary?.totalExpense?.toLocaleString() ?? '0' }}
+                            -{{ formatAmount(summary?.totalExpense) }}
                         </div>
                     </div>
                     <div class="summary-item">
@@ -32,7 +32,7 @@
                                 'neutral-cash-flow': summary?.totalCashFlow === 0
                             }"
                         >
-                            {{ summary?.totalCashFlow > 0 ? '+' : '' }}{{ summary?.totalCashFlow?.toLocaleString() ?? '0' }}
+                            {{ summary?.totalCashFlow > 0 ? '+' : '' }}{{ formatAmount(summary?.totalCashFlow) }}
                         </div>
                     </div>
                 </div>
@@ -63,10 +63,14 @@
                             <span v-if="idx === currentMonth" class="current-indicator"></span>
                         </div>
                         <div class="amount-column amount-cell">
-                            <span class="income-amount">+{{ month.totalIncome?.toLocaleString() ?? '0' }}</span>
+                            <span class="income-amount">
+                                +{{ formatAmount(month.totalIncome) }}
+                            </span>
                         </div>
                         <div class="amount-column amount-cell">
-                            <span class="expense-amount">-{{ month.totalExpense?.toLocaleString() ?? '0' }}</span>
+                            <span class="expense-amount">
+                                -{{ formatAmount(month.totalExpense) }}
+                            </span>
                         </div>
                         <div class="amount-column amount-cell">
                             <span
@@ -79,14 +83,14 @@
                                         : 'neutral-cash-flow'
                                 ]"
                             >
-                                {{ month.netCashFlow > 0 ? '+' : '' }}{{ month.netCashFlow?.toLocaleString() ?? '0' }}
+                                {{ month.netCashFlow > 0 ? '+' : '' }}{{ formatAmount(month.netCashFlow) }}
                             </span>
                         </div>
                     </div>
                     <!-- Average Row -->
                     <div class="table-row average-row">
                         <div class="month-column month-cell">
-                            <span class="month-text fw-bold">Average</span>
+                            <span class="month-text fw-bold">Avg</span>
                         </div>
                         <div class="amount-column amount-cell">
                             <span class="income-amount fw-bold">
@@ -115,7 +119,7 @@
             </div>
 
             <!-- PieChart Section -->
-            <div class="mt-6 mb-6">
+            <div class="mb-6">
                 <PieChart :categories="cashFlowStore.cashFlowYearSummary?.incomeCategories" class="mb-3"/>
                 <PieChart :categories="cashFlowStore.cashFlowYearSummary?.expenseCategories" class="mb-3"/>
             </div>
@@ -198,16 +202,21 @@ async function handleYearUpdate(newYear: number) {
 
     isLoading.value = false;
 }
+
+function formatAmount(val: number | null | undefined): string {
+    if (val == null) return '0';
+    return Math.round(val).toLocaleString();
+}
 </script>
 
 <style scoped>
 .summary-container {
     background: white;
-    margin: 16px;
-    margin-top: 16px;
-    padding: 24px;
+    margin: 0 0 24px 0; /* match PieChart.vue */
+    padding: 32px;
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    width: 100%; /* match PieChart.vue */
 }
 .summary-title {
     font-size: 18px;
@@ -253,7 +262,6 @@ async function handleYearUpdate(newYear: number) {
 }
 .monthly-section {
     margin-top: 16px;
-    padding-bottom: 20px;
 }
 .section-title {
     font-size: 18px;
@@ -264,10 +272,12 @@ async function handleYearUpdate(newYear: number) {
 }
 .table-container {
     background: white;
-    margin: 0 16px;
+    margin: 0 0 24px 0; /* match PieChart.vue */
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     overflow: hidden;
+    padding: 32px;
+    width: 100%; /* match PieChart.vue */
 }
 .table-header {
     display: flex;

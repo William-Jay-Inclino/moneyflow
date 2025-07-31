@@ -230,6 +230,7 @@ export const userAccountsApi = {
         notes?: string;
     }): Promise<any> => {
         const response = await api.post('/user-accounts', data);
+        console.log('Created account:', response.data);
         return response.data;
     },
 
@@ -247,7 +248,8 @@ export const userAccountsApi = {
         return response.data;
     },
 
-    delete: async (id: string): Promise<void> => {
-        await api.delete(`/user-accounts/${id}`);
+    delete: async (id: string): Promise<any> => {
+        const res = await api.delete(`/user-accounts/${id}`);
+        return res
     },
 };

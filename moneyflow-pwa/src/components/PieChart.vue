@@ -115,9 +115,9 @@ const chartOptions: ChartOptions<'pie'> = {
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    width: calc(100% - 32px); /* match .summary-container and .table-container margin */
-    margin: 0 16px 24px 16px;
-    padding: 16px;
+    width: 100%; 
+    margin: 0 0 24px 0; 
+    padding: 32px;
     display: flex;
     flex-direction: column;
     align-items: center;

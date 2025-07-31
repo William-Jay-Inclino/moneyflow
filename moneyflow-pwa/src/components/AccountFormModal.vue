@@ -1,28 +1,65 @@
 <template>
     <div class="modal fade" id="account_modal" tabindex="-1" aria-labelledby="account_modal_label" aria-hidden="true">
-        <div class="modal-dialog">
-            <form @submit.prevent="handleSave" class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="account_modal_label">{{ isEditMode ? 'Edit' : 'Add' }} Account</h1>
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <form @submit.prevent="handleSave" class="modal-content shadow-lg rounded-4 border-0">
+                <div class="modal-header border-0 pb-0">
+                    <h1 class="modal-title fs-4 fw-semibold" id="account_modal_label">
+                        {{ isEditMode ? 'Edit Account' : 'Add Account' }}
+                    </h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="account_name" class="form-label">Account Name</label>
-                        <input type="text" class="form-control" id="account_name" v-model="formData.name" required>
+
+                <div class="modal-body pt-1">
+                    <div class="form-floating mb-3">
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="account_name"
+                            placeholder="Account Name"
+                            v-model="formData.name"
+                            required
+                        />
+                        <label for="account_name">Account Name</label>
                     </div>
-                    <div class="mb-3">
-                        <label for="account_balance" class="form-label">Balance</label>
-                        <input type="number" class="form-control" id="account_balance" v-model="formData.balance" required>
+
+                    <div class="form-floating mb-3">
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="account_balance"
+                            placeholder="Balance"
+                            v-model="formData.balance"
+                            step="0.01"
+                            required
+                        />
+                        <label for="account_balance">Balance</label>
                     </div>
-                    <div class="mb-3">
-                        <label for="account_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="account_notes" v-model="formData.notes"></textarea>
+
+                    <div class="form-floating">
+                        <textarea
+                            class="form-control"
+                            id="account_notes"
+                            placeholder="Notes"
+                            style="height: 100px"
+                            v-model="formData.notes"
+                        ></textarea>
+                        <label for="account_notes">Notes</label>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button ref="closeBtn" @click="clearForm()" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+
+                <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                    <button
+                        ref="closeBtn"
+                        @click="clearForm()"
+                        type="button"
+                        class="btn btn-outline-secondary rounded-pill px-4"
+                        data-bs-dismiss="modal"
+                    >
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">
+                        Save
+                    </button>
                 </div>
             </form>
         </div>
@@ -30,11 +67,17 @@
 </template>
 
 
-<script setup lang="ts">
-import { reactive, ref } from 'vue';
 
-defineProps<{
-    isEditMode?: boolean
+<script setup lang="ts">
+import { reactive, ref, watch } from 'vue';
+
+const props = defineProps<{
+    isEditMode?: boolean,
+    defaultData?: {
+        name: string;
+        balance: number;
+        notes?: string;
+    };
 }>();
 
 const emit = defineEmits(['save']);
@@ -46,6 +89,19 @@ const formData = reactive({
 });
 
 const closeBtn = ref<HTMLButtonElement | null>(null);
+
+
+watch(
+    () => props.defaultData,
+    (newVal) => {
+        if (newVal && props.defaultData) {
+            formData.name = props.defaultData.name;
+            formData.balance = props.defaultData.balance;
+            formData.notes = props.defaultData.notes || '';
+        }
+    },
+    { immediate: true, deep: true }
+);
 
 function handleSave() {
     emit('save', { ...formData }, closeBtn.value);
@@ -59,3 +115,21 @@ function clearForm() {
 }
 
 </script>
+
+
+<style scoped>
+.modal-content {
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>

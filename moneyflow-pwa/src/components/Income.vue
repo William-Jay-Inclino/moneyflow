@@ -46,7 +46,7 @@ import IncomeDetails from './IncomeExpenseDetails.vue';
 import DatePicker from './DatePicker.vue';
 import { useIncomeStore } from '../stores/income.store';
 import { incomeApi } from '../api';
-import { convertToDateString, get_auth_user_in_local_storage } from '../utils/helpers';
+import { convertToDateString, get_auth_user_in_local_storage, showToast } from '../utils/helpers';
 import { useLayoutStore } from '../stores/layout.store';
 
 const incomeStore = useIncomeStore();
@@ -84,6 +84,7 @@ const income_items = computed(() => {
         notes: income.notes,
         date: income.income_date,
         icon: income.category?.icon,
+        category: income.category!,
     }));
 });
 
@@ -129,7 +130,7 @@ async function handleUpdateIncome(payload: {
             income_date: updated.income_date,
             category: updated.category
         });
-        alert('Item updated successfully!');
+        showToast('Item updated successfully!', 'success');
 
         layoutStore.setHeader({
             title: 'Add Income',
@@ -138,7 +139,7 @@ async function handleUpdateIncome(payload: {
         });
 
     } else {
-        alert('Failed to add income. Please try again.');
+        showToast('Failed to add item. Please try again.', 'error');
     }
 
 }
@@ -169,9 +170,9 @@ async function handleAddIncome(payload: { notes: string; amount: string; categor
             income_date: created.income_date,
             category: created.category,
         });
-        alert('Income added successfully!');
+        showToast('Item added successfully!', 'success');
     } else {
-        alert('Failed to add income. Please try again.');
+        showToast('Failed to add item. Please try again.', 'error');
     }
 
 }
@@ -191,9 +192,9 @@ async function handleDeleteIncome(payload: { id: string }) {
 
     if (deleted) {
         incomeStore.deleteIncome(id);
-        alert('Income deleted successfully!');
+        showToast('Item deleted successfully!', 'success');
     } else {
-        alert('Failed to delete income. Please try again.');
+        showToast('Failed to delete item. Please try again.', 'error');
     }
 }
 
