@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 
-const props = defineProps<{
+defineProps<{
     isEditMode?: boolean
 }>();
 
