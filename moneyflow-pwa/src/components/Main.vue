@@ -7,6 +7,7 @@
         <main class="flex-fill container py-3 mb-5">
 
             <Expense v-if="layoutStore.route === 'expense'" />
+            <Income v-if="layoutStore.route === 'income'" />
             <CashFlow v-if="layoutStore.route === 'cashflow'" />
 
         </main>
@@ -22,6 +23,7 @@
     import Expense from './Expense.vue';
     import Header from './Header.vue';
     import CashFlow from './CashFlow.vue';
+    import Income from './Income.vue';
     import { useLayoutStore } from '../stores/layout.store';
 
     const layoutStore = useLayoutStore();

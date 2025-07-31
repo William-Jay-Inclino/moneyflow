@@ -158,8 +158,9 @@ export const incomeApi = {
         const response = await api.patch(`/users/${userId}/income/${incomeId}`, data);
         return response.data;
     },
-    deleteIncome: async (userId: string, incomeId: string): Promise<void> => {
-        await api.delete(`/users/${userId}/income/${incomeId}`);
+    deleteIncome: async (userId: string, incomeId: string): Promise<any> => {
+        const res = await api.delete(`/users/${userId}/income/${incomeId}`);
+        return res
     },
 };
 

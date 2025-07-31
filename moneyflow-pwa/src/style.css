@@ -29,17 +29,13 @@
     align-items: center;
 }
 .expense-list-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 50%;
-    background: #f1f5f9;
-    color: #334155;
-    margin-right: 1rem;
 }
 .expense-notes-amount {
     display: flex;
@@ -60,8 +56,8 @@
 .expense-amount-modern {
     font-size: 1rem; /* smaller than before */
     font-weight: 700;
-    color: #ef4444;
-    background: #fef2f2;
+    /* color: #ef4444; */
+    /* background: #fef2f2; */
     border-radius: 8px;
     padding: 3px 10px;
     min-width: 64px;
@@ -124,6 +120,9 @@
 }
 .text-soft-danger {
     color: #f87171 !important;
+}
+.text-soft-success {
+    color: #34d399 !important;
 }
 .input-label {
     color: #64748b;

@@ -18,6 +18,7 @@ const categoryDefaults = [
   { name: 'Grants', type: CategoryType.INCOME, color: '#85C1E9', icon: '🎯', is_default: false },
   { name: 'Cashback', type: CategoryType.INCOME, color: '#58D68D', icon: '💳', is_default: true },
   { name: 'Gifts Received', type: CategoryType.INCOME, color: '#F8C471', icon: '🎀', is_default: false },
+  { name: 'Savings Interest', type: CategoryType.INCOME, color: '#40E0D0', icon: '🏦', is_default: true },
   { name: 'Other Income', type: CategoryType.INCOME, color: '#95A5A6', icon: '💎', is_default: false },
 
   // Expense categories - common ones marked as default

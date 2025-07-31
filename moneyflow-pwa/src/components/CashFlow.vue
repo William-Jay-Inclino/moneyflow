@@ -83,6 +83,34 @@
                             </span>
                         </div>
                     </div>
+                    <!-- Average Row -->
+                    <div class="table-row average-row">
+                        <div class="month-column month-cell">
+                            <span class="month-text fw-bold">Average</span>
+                        </div>
+                        <div class="amount-column amount-cell">
+                            <span class="income-amount fw-bold">
+                                +{{ avgIncome.toLocaleString() }}
+                            </span>
+                        </div>
+                        <div class="amount-column amount-cell">
+                            <span class="expense-amount fw-bold">
+                                -{{ avgExpense.toLocaleString() }}
+                            </span>
+                        </div>
+                        <div class="amount-column amount-cell">
+                            <span
+                                class="cash-flow-amount fw-bold"
+                                :class="{
+                                    'positive-cash-flow': avgCashFlow > 0,
+                                    'negative-cash-flow': avgCashFlow < 0,
+                                    'neutral-cash-flow': avgCashFlow === 0
+                                }"
+                            >
+                                {{ avgCashFlow > 0 ? '+' : '' }}{{ avgCashFlow.toLocaleString() }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -135,6 +163,23 @@ const summary = computed(() => cashFlowStore.cashFlowData?.yearSummary ?? {
     totalIncome: 0,
     totalExpense: 0,
     totalCashFlow: 0
+});
+
+// Compute averages only for months with non-zero values
+const avgIncome = computed(() => {
+    const valid = months.value.filter(m => m.totalIncome && m.totalIncome !== 0);
+    if (!valid.length) return 0;
+    return Math.round(valid.reduce((sum, m) => sum + m.totalIncome, 0) / valid.length);
+});
+const avgExpense = computed(() => {
+    const valid = months.value.filter(m => m.totalExpense && m.totalExpense !== 0);
+    if (!valid.length) return 0;
+    return Math.round(valid.reduce((sum, m) => sum + m.totalExpense, 0) / valid.length);
+});
+const avgCashFlow = computed(() => {
+    const valid = months.value.filter(m => m.netCashFlow && m.netCashFlow !== 0);
+    if (!valid.length) return 0;
+    return Math.round(valid.reduce((sum, m) => sum + m.netCashFlow, 0) / valid.length);
 });
 
 async function handleYearUpdate(newYear: number) {
@@ -337,5 +382,12 @@ async function handleYearUpdate(newYear: number) {
     font-size: 16px;
     color: #64748b;
     text-align: center;
+}
+.average-row {
+    background: #f3f4f6;
+    font-weight: bold;
+}
+.fw-bold {
+    font-weight: bold;
 }
 </style>

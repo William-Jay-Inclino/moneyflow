@@ -1,12 +1,12 @@
 <template>
-    <div class="container expense-container">
+    <div class="container income-container">
 
         <div v-show="!isEditMode" class="mb-3">
             <DatePicker @update="handleUpdateDate"/>
         </div>
 
-        <ExpenseForm 
-            type="expense" 
+        <IncomeForm 
+            type="income" 
             @submit="handleSubmit" 
             @cancel="handleCancelEdit"
             :is-loading="isSaving" 
@@ -20,13 +20,13 @@
             </button>
         </div>
 
-        <ExpenseDetails 
+        <IncomeDetails 
             v-if="showDetails && !isEditMode" 
-            :items="expense_items" 
+            :items="income_items" 
             :isLoading="isLoadingItems"
-            @delete="handleDeleteExpense" 
+            @delete="handleDeleteIncome" 
             @edit="handleEditClick"
-            type="expense"
+            type="income"
         />
 
         <div v-if="showDetails && !isEditMode" class="toggle-section text-center mb-3">
@@ -40,16 +40,16 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import ExpenseForm from './ExpenseForm.vue';
+import IncomeForm from './IncomeForm.vue';
 import type { AuthUser, Category} from '../types';
-import ExpenseDetails from './IncomeExpenseDetails.vue';
+import IncomeDetails from './IncomeExpenseDetails.vue';
 import DatePicker from './DatePicker.vue';
-import { useExpenseStore } from '../stores/expense.store';
-import { expenseApi } from '../api';
+import { useIncomeStore } from '../stores/income.store';
+import { incomeApi } from '../api';
 import { convertToDateString, get_auth_user_in_local_storage } from '../utils/helpers';
 import { useLayoutStore } from '../stores/layout.store';
 
-const expenseStore = useExpenseStore();
+const incomeStore = useIncomeStore();
 const layoutStore = useLayoutStore();
 const isLoadingItems = ref(false);
 const isSaving = ref(false);
@@ -68,8 +68,8 @@ onMounted(async () => {
     }
     authUser.value = user;
 
-    const expenses = await expenseApi.getExpenses(user.user_id, expenseStore.selectedYear, expenseStore.selectedMonth);
-    expenseStore.setExpenses(expenses);
+    const incomes = await incomeApi.getIncome(user.user_id, incomeStore.selectedYear, incomeStore.selectedMonth);
+    incomeStore.setIncomes(incomes);
 
     isLoadingItems.value = false;
 
@@ -77,35 +77,35 @@ onMounted(async () => {
 
 const isEditMode = computed(() => !!selectedItemIdForEdit.value);
 
-const expense_items = computed(() => {
-    return expenseStore.expenses.map(expense => ({
-        id: expense.id,
-        amount: expense.cost,
-        notes: expense.notes,
-        date: expense.expense_date,
-        icon: expense.category?.icon,
+const income_items = computed(() => {
+    return incomeStore.incomes.map(income => ({
+        id: income.id,
+        amount: income.amount,
+        notes: income.notes,
+        date: income.income_date,
+        icon: income.category?.icon,
     }));
 });
 
 async function handleSubmit(payload: { notes: string; amount: string; category: Category; day: number }) {
     
     if(selectedItemIdForEdit.value) {
-        await handleUpdateExpense({...payload, expense_id: selectedItemIdForEdit.value });
+        await handleUpdateIncome({...payload, income_id: selectedItemIdForEdit.value });
         selectedItemIdForEdit.value = null;
     } else {
-        await handleAddExpense(payload);
+        await handleAddIncome(payload);
     }
 
 }
 
-async function handleUpdateExpense(payload: {
-    expense_id: string;
+async function handleUpdateIncome(payload: {
+    income_id: string;
     notes: string; 
     amount: string; 
     category: Category; 
     day: number;
 }) {
-    const dateString = convertToDateString(expenseStore.selectedYear, expenseStore.selectedMonth, payload.day);
+    const dateString = convertToDateString(incomeStore.selectedYear, incomeStore.selectedMonth, payload.day);
 
     if (!authUser.value) {
         console.error('No authenticated user found');
@@ -113,39 +113,39 @@ async function handleUpdateExpense(payload: {
     }
 
     isSaving.value = true;
-    const updated = await expenseApi.updateExpense(authUser.value.user_id, payload.expense_id, {
+    const updated = await incomeApi.updateIncome(authUser.value.user_id, payload.income_id, {
         category_id: payload.category.id,
-        cost: payload.amount,
+        amount: payload.amount,
         notes: payload.notes,
-        expense_date: dateString
+        income_date: dateString
     });
     isSaving.value = false;
 
     if(updated) {
-        expenseStore.updateExpense({
+        incomeStore.updateIncome({
             id: updated.id,
-            cost: updated.cost,
+            amount: updated.amount,
             notes: updated.notes,
-            expense_date: updated.expense_date,
+            income_date: updated.income_date,
             category: updated.category
         });
         alert('Item updated successfully!');
 
         layoutStore.setHeader({
-            title: 'Add Expense',
-            subtitle: 'Quick and easy expense tracking',
+            title: 'Add Income',
+            subtitle: 'Quick and easy income tracking',
             color: '#3b82f6'
         });
 
     } else {
-        alert('Failed to add expense. Please try again.');
+        alert('Failed to add income. Please try again.');
     }
 
 }
 
-async function handleAddExpense(payload: { notes: string; amount: string; category: Category; day: number }) {
+async function handleAddIncome(payload: { notes: string; amount: string; category: Category; day: number }) {
 
-    const dateString = convertToDateString(expenseStore.selectedYear, expenseStore.selectedMonth, payload.day);
+    const dateString = convertToDateString(incomeStore.selectedYear, incomeStore.selectedMonth, payload.day);
 
     if (!authUser.value) {
         console.error('No authenticated user found');
@@ -153,30 +153,30 @@ async function handleAddExpense(payload: { notes: string; amount: string; catego
     }
 
     isSaving.value = true;
-    const created = await expenseApi.createExpense(authUser.value.user_id, {
+    const created = await incomeApi.createIncome(authUser.value.user_id, {
         category_id: payload.category.id,
-        cost: payload.amount,
+        amount: payload.amount,
         notes: payload.notes,
-        expense_date: dateString
+        income_date: dateString
     });
     isSaving.value = false;
 
     if(created) {
-        expenseStore.addExpense({
+        incomeStore.addIncome({
             id: created.id,
-            cost: created.cost,
+            amount: created.amount,
             notes: created.notes,
-            expense_date: created.expense_date,
+            income_date: created.income_date,
             category: created.category,
         });
-        alert('Expense added successfully!');
+        alert('Income added successfully!');
     } else {
-        alert('Failed to add expense. Please try again.');
+        alert('Failed to add income. Please try again.');
     }
 
 }
 
-async function handleDeleteExpense(payload: { id: string }) {
+async function handleDeleteIncome(payload: { id: string }) {
     console.log('payload', payload);
     if (!authUser.value) {
         console.error('No authenticated user found');
@@ -186,20 +186,20 @@ async function handleDeleteExpense(payload: { id: string }) {
     const id = payload.id;
 
     isLoadingItems.value = true;
-    const deleted = await expenseApi.deleteExpense(authUser.value.user_id, id);
+    const deleted = await incomeApi.deleteIncome(authUser.value.user_id, id);
     isLoadingItems.value = false;
 
     if (deleted) {
-        expenseStore.deleteExpense(id);
-        alert('Expense deleted successfully!');
+        incomeStore.deleteIncome(id);
+        alert('Income deleted successfully!');
     } else {
-        alert('Failed to delete expense. Please try again.');
+        alert('Failed to delete income. Please try again.');
     }
 }
 
 async function handleUpdateDate(payload: { year: number, month: number}) {
-    expenseStore.selectedYear = payload.year;
-    expenseStore.selectedMonth = payload.month;
+    incomeStore.selectedYear = payload.year;
+    incomeStore.selectedMonth = payload.month;
 
     isLoadingItems.value = true;
 
@@ -208,26 +208,26 @@ async function handleUpdateDate(payload: { year: number, month: number}) {
         return;
     }
 
-    const expenses = await expenseApi.getExpenses(authUser.value.user_id, payload.year, payload.month);
-    expenseStore.setExpenses(expenses);
+    const incomes = await incomeApi.getIncome(authUser.value.user_id, payload.year, payload.month);
+    incomeStore.setIncomes(incomes);
     isLoadingItems.value = false;
 }
 
 function handleEditClick(payload: { id: string }) {
-    const item = expenseStore.expenses.find(exp => exp.id === payload.id);
+    const item = incomeStore.incomes.find(exp => exp.id === payload.id);
     if (item) {
         selectedItemIdForEdit.value = payload.id;
-        expenseStore.formData = {
-            amount: item.cost.toString(),
+        incomeStore.formData = {
+            amount: item.amount.toString(),
             notes: item.notes,
             category: item.category,
-            day: new Date(item.expense_date).getDate()
+            day: new Date(item.income_date).getDate()
         };
 
         layoutStore.setHeader({
-            title: 'Update Expense',
-            subtitle: 'Quick and easy expense tracking',
-            color: '#3b82f6'
+            title: 'Update Income',
+            subtitle: 'Track your earnings effortlessly',
+            color: '#15803d'
         });
 
     }
@@ -235,12 +235,12 @@ function handleEditClick(payload: { id: string }) {
 
 function handleCancelEdit() {
     selectedItemIdForEdit.value = null;
-    expenseStore.resetFormData();
+    incomeStore.resetFormData();
 
     layoutStore.setHeader({
-        title: 'Add Expense',
-        subtitle: 'Quick and easy expense tracking',
-        color: '#3b82f6'
+        title: 'Add Income',
+        subtitle: 'Track your earnings effortlessly',
+        color: '#15803d'
     });
 }
 

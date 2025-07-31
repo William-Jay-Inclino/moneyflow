@@ -2,7 +2,7 @@
     <div>
         <div class="soft-card summary-card text-center mb-3">
             <div class="summary-label text-muted">Total {{ type === 'expense' ? 'Expense' : 'Income' }}</div>
-            <div class="summary-amount text-soft-danger fw-bold fs-2">{{ type === 'expense' ? '-' : '+' }} {{ formatAmount(total) }} </div>
+            <div :class="{ 'text-soft-danger': type === 'expense', 'text-soft-success': type === 'income' }" class="summary-amount fw-bold fs-2">{{ type === 'expense' ? '-' : '+' }} {{ formatAmount(total) }} </div>
         </div>
         <div class="d-flex justify-content-between align-items-center section-header px-2 mb-2">
             <span class="section-title fw-semibold">Details</span>
@@ -20,17 +20,38 @@
                 <div class="expense-date-absolute">
                     {{ formatDate(item.date) }}
                 </div>
-                <div class="expense-info flex-grow-1 d-flex align-items-center me-3">
-                    <span class="expense-list-icon me-3"> {{ item.icon || '💵' }} </span>
-                    <div class="flex-grow-1">
+
+                <div class="expense-info d-flex align-items-center flex-grow-1 overflow-hidden me-2">
+                    <span
+                        :class="['expense-list-icon me-3', type === 'expense' ? 'bg-expense-soft' : 'bg-income-soft']"
+                    >
+                        {{ item.icon || '💵' }}
+                    </span>
+
+                    <div class="flex-grow-1 overflow-hidden">
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
-                            <span class="expense-notes fw-semibold">{{ item.notes || 'No notes' }}</span>
-                            <span class="expense-amount-modern ms-2">-{{ formatAmount(item.amount) }}</span>
+                            <span
+                                class="expense-notes fw-semibold text-truncate"
+                                style="max-width: 160px;"
+                            >
+                                {{ item.notes || 'No notes' }}
+                            </span>
+
+                            <span
+                                :style="{
+                                    color: type === 'expense' ? '#ef4444' : '#34d399',
+                                    backgroundColor: type === 'expense' ? '#fef2f2' : '#f0fdf4'
+                                }"
+                                class="expense-amount-modern ms-2 text-nowrap"
+                            >
+                                {{ `${type === 'expense' ? '-' : '+'}${formatAmount(item.amount)}` }}
+                            </span>
                         </div>
                     </div>
                 </div>
+
                 <!-- 3 dots menu -->
-                <div class="dropdown">
+                <div class="dropdown flex-shrink-0">
                     <button
                         class="btn expense-menu-btn dropdown-toggle expense-menu-dots dropdown-toggle-no-caret"
                         type="button"
@@ -39,7 +60,7 @@
                     >
                         <span class="vertical-dots">⋮</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm expense-menu-dropdown-modern">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm expense-menu-dropdown-modern z-10">
                         <li>
                             <a @click="onEdit(item.id)" class="dropdown-item" href="#">
                                 Edit
@@ -53,10 +74,11 @@
                     </ul>
                 </div>
             </div>
+
         </div>
         <div v-else class="empty-container text-center py-4">
-            <div class="empty-text fw-semibold text-muted">No expenses found</div>
-            <div class="empty-subtext text-secondary">Add your first expense above</div>
+            <div class="empty-text fw-semibold text-muted">No {{ type === 'expense' ? 'expenses' : 'income' }} found</div>
+            <div class="empty-subtext text-secondary">Add your first {{ type === 'expense' ? 'expense' : 'income' }} above</div>
         </div>
     </div>
 </template>
@@ -118,5 +140,24 @@ function onEdit(itemId: string) {
 .expense-list-icon {
     font-size: 2rem;
     line-height: 1;
+}
+.expense-amount-modern {
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-weight: 500;
+    display: inline-block;
+}
+.expense-menu-btn {
+    padding: 4px 8px;
+}
+.vertical-dots {
+    font-size: 18px;
+    line-height: 1;
+}
+.bg-expense-soft {
+    background-color: #fef2f2;
+}
+.bg-income-soft {
+    background-color: #f0fdf4;
 }
 </style>
