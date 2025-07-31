@@ -262,6 +262,7 @@ function formatAmount(val: number | null | undefined): string {
 }
 .monthly-section {
     margin-top: 16px;
+    overflow-x: auto; /* allow horizontal scroll if needed */
 }
 .section-title {
     font-size: 18px;
@@ -272,12 +273,60 @@ function formatAmount(val: number | null | undefined): string {
 }
 .table-container {
     background: white;
-    margin: 0 0 24px 0; /* match PieChart.vue */
+    margin: 0 0 24px 0;
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    overflow: hidden;
+    overflow: auto; /* allow scrolling inside the container */
     padding: 32px;
-    width: 100%; /* match PieChart.vue */
+    width: 100%;
+    min-width: 600px;
+    max-width: 100%;
+}
+.table-header,
+.table-row,
+.average-row {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    display: flex;
+}
+.table-header-text,
+.amount-column,
+.month-column {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    word-break: keep-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+.month-column {
+    flex: 0.6 1 0; /* decreased from 1 to 0.6 */
+    justify-content: flex-start;
+    text-align: left;
+    min-width: 60px; /* ensure still readable */
+    max-width: 100px;
+}
+@media (max-width: 700px) {
+    .table-container {
+        min-width: 0;
+        padding: 16px;
+        overflow-x: auto;
+    }
+    .table-header-text,
+    .amount-column,
+    .month-column {
+        flex: 1 1 0;
+        min-width: 80px;
+        max-width: 100%;
+    }
+    .month-column {
+        flex: 0.6 1 0;
+        min-width: 48px;
+        max-width: 80px;
+    }
 }
 .table-header {
     display: flex;
