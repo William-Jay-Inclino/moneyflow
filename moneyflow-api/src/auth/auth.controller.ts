@@ -123,4 +123,24 @@ export class AuthController {
     // This endpoint exists for consistency and future refresh token invalidation
     return { message: 'Logout successful' };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized or invalid old password',
+  })
+  async changePassword(
+    @Request() req: any,
+    @Body() body: { oldPassword: string; newPassword: string }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.authService.changePassword(req.user.id, body.oldPassword, body.newPassword);
+  }
 }

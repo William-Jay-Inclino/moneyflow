@@ -101,6 +101,11 @@ export const authApi = {
         const response = await api.get('/auth/profile');
         return response.data;
     },
+
+    changePassword: async (oldPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post('/auth/change-password', { oldPassword, newPassword });
+        return response.data;
+    },
 }
 
 export const expenseApi = {

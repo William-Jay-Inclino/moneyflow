@@ -1,5 +1,13 @@
 <template>
     <div class="account-container">
+
+        <!-- User Info Section -->
+        <div class="user-info-card mb-3">
+            <div class="user-email-label">Email</div>
+            <div class="user-email-value"> {{ authStore.authUser?.email }} </div>
+            <button data-bs-toggle="modal" data-bs-target="#change_password_modal" class="change-password-btn">Change Password</button>
+        </div>
+
         <!-- Total Balance Card -->
         <div class="balance-card">
             <div class="balance-label">Total Balance</div>
@@ -62,7 +70,7 @@
         </div>
 
         <AccountFormModal @save="handleSave" :default-data="accountToEdit"/>
-
+        <ChangePasswordModal @save="handleChangePassword"/>
     </div>
 </template>
 
@@ -72,10 +80,12 @@ import { useUserAccountStore } from '../stores/account.store';
 import { userAccountsApi } from '../api';
 import { formatAmount, formatShortDate, showToast } from '../utils/helpers';
 import AccountFormModal from './AccountFormModal.vue';
+import ChangePasswordModal from './ChangePasswordModal.vue';
 import type { UserAccount } from '../types';
-
+import { useAuthStore } from '../stores/auth.store';
 
 const accountStore = useUserAccountStore();
+const authStore = useAuthStore();
 const accountToEdit = ref<{ id: string; name: string; balance: number; notes?: string } | undefined>(undefined);
 const isSaving = ref(false);    
 
@@ -183,7 +193,10 @@ async function handleDelete(account: UserAccount) {
     }
 }
 
-
+async function handleChangePassword(newPassword: string) {
+    console.log('Change password:', newPassword);
+    // Call API to change password
+}
 
 </script>
 
@@ -404,5 +417,41 @@ async function handleDelete(account: UserAccount) {
     font-weight: bold;
     color: #10b981;
     text-align: right;
+}
+.user-info-card {
+    background: #eef2ff;
+    padding: 18px 24px 18px 24px;
+    border-radius: 12px;
+    margin: 16px 16px 0 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    box-shadow: 0 1px 4px rgba(99,102,241,0.07);
+}
+.user-email-label {
+    font-size: 13px;
+    color: #6366f1;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+.user-email-value {
+    font-size: 16px;
+    color: #1e293b;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.change-password-btn {
+    background: #6366f1;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.change-password-btn:hover {
+    background: #4f46e5;
 }
 </style>
