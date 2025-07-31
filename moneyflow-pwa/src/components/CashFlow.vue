@@ -90,7 +90,7 @@
                     <!-- Average Row -->
                     <div class="table-row average-row">
                         <div class="month-column month-cell">
-                            <span class="month-text fw-bold">Avg</span>
+                            <span class="month-text fw-bold">AVG.</span>
                         </div>
                         <div class="amount-column amount-cell">
                             <span class="income-amount fw-bold">
@@ -394,8 +394,10 @@ function formatAmount(val: number | null | undefined): string {
     text-align: center;
 }
 .average-row {
-    background: #f3f4f6;
-    font-weight: bold;
+    background: linear-gradient(90deg, #e0f7ef 60%, #bbf7d0 100%);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10);
+    position: relative;
+    color: #065f46;
 }
 .fw-bold {
     font-weight: bold;
