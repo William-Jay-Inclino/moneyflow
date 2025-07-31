@@ -228,7 +228,7 @@ function handleEditClick(payload: { id: string }) {
         layoutStore.setHeader({
             title: 'Update Income',
             subtitle: 'Track your earnings effortlessly',
-            color: '#15803d'
+            color: '#10b981'
         });
 
     }
@@ -241,7 +241,7 @@ function handleCancelEdit() {
     layoutStore.setHeader({
         title: 'Add Income',
         subtitle: 'Track your earnings effortlessly',
-        color: '#15803d'
+        color: '#10b981'
     });
 }
 

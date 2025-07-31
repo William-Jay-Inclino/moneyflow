@@ -58,7 +58,7 @@ function onClickTab(tab: Tab) {
         layoutStore.setHeader({
             title: 'Add Income',
             subtitle: 'Track your earnings effortlessly',
-            color: '#15803d'
+            color: '#10b981'
         });
         layoutStore.setRoute('income');
     } else if(tab === 'cashflow') {
