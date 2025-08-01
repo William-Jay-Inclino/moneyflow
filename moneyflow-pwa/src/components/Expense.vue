@@ -2,7 +2,7 @@
     <div class="container expense-container">
 
         <div v-show="!isEditMode" class="mb-3">
-            <DatePicker @update="handleUpdateDate"/>
+            <DatePicker @update="handleUpdateDate" :model-value="{ year: expenseStore.selectedYear, month: expenseStore.selectedMonth }"/>
         </div>
 
         <ExpenseForm 
@@ -79,15 +79,18 @@ onMounted(async () => {
 const isEditMode = computed(() => !!selectedItemIdForEdit.value);
 
 const expense_items = computed(() => {
-    return expenseStore.expenses.map(expense => ({
-        id: expense.id,
-        amount: expense.cost,
-        notes: expense.notes,
-        date: expense.expense_date,
-        icon: expense.category?.icon,
-        category: expense.category!,
-    }));
+    return expenseStore.expenses
+        .map(expense => ({
+            id: expense.id,
+            amount: expense.cost,
+            notes: expense.notes,
+            date: expense.expense_date,
+            icon: expense.category?.icon,
+            category: expense.category!,
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 });
+
 
 async function handleSubmit(payload: { notes: string; amount: string; category: Category; day: number }) {
     

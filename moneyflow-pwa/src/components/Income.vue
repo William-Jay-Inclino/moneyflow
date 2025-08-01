@@ -2,7 +2,7 @@
     <div class="container income-container">
 
         <div v-show="!isEditMode" class="mb-3">
-            <DatePicker @update="handleUpdateDate"/>
+            <DatePicker @update="handleUpdateDate" :model-value="{ year: incomeStore.selectedYear, month: incomeStore.selectedMonth }"/>
         </div>
 
         <IncomeForm 
@@ -78,14 +78,16 @@ onMounted(async () => {
 const isEditMode = computed(() => !!selectedItemIdForEdit.value);
 
 const income_items = computed(() => {
-    return incomeStore.incomes.map(income => ({
-        id: income.id,
-        amount: income.amount,
-        notes: income.notes,
-        date: income.income_date,
-        icon: income.category?.icon,
-        category: income.category!,
-    }));
+    return incomeStore.incomes
+        .map(income => ({
+            id: income.id,
+            amount: income.amount,
+            notes: income.notes,
+            date: income.income_date,
+            icon: income.category?.icon,
+            category: income.category!,
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 });
 
 async function handleSubmit(payload: { notes: string; amount: string; category: Category; day: number }) {

@@ -39,7 +39,9 @@
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
                             <span
                                 class="expense-notes fw-semibold text-truncate"
-                                style="max-width: 160px;"
+                                :title="item.notes || 'No notes'"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
                             >
                                 {{ item.notes || 'No notes' }}
                             </span>
@@ -49,7 +51,7 @@
                                     color: type === 'expense' ? '#ef4444' : '#34d399',
                                     backgroundColor: type === 'expense' ? '#fef2f2' : '#f0fdf4'
                                 }"
-                                class="expense-amount-modern ms-2 text-nowrap"
+                                class="expense-amount-modern ms-2"
                             >
                                 {{ `${type === 'expense' ? '-' : '+'}${formatAmount(item.amount)}` }}
                             </span>
@@ -92,10 +94,11 @@
 
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { formatDate, formatAmount } from '../utils/helpers';
 import type { Category } from '../types';
 import PieChart from './PieChart.vue';
+import { Tooltip } from 'bootstrap';
 
 interface Item {
     id: string;
@@ -113,6 +116,11 @@ const props = defineProps<{
     isLoading: boolean,
     type: 'expense' | 'income'
 }>();
+
+onMounted(() => {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new Tooltip(el));
+});
 
 const categories = computed(() => {
     const categoryMap: Record<number, { id: number, name: string, icon: string, color: string, amount: number, type: 'INCOME' | 'EXPENSE' }> = {};
