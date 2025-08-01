@@ -3,7 +3,7 @@
     <div>
 
         <div v-if="!authStore.isAuthenticated">
-            <Login v-if="route === 'login'" @signup="setRoute('signup')"/>
+            <Login v-if="route === 'login'" @signup="setRoute('signup')" @forgot-password="setRoute('forgot-password')" />
             <Signup v-else-if="route === 'signup'" 
                 @login="setRoute('login')"
                 @email-verification="setRoute('email-verification')"
@@ -12,6 +12,9 @@
                 :email="loginStore.pendingVerificationEmail"
                 :userId="loginStore.pendingVerificationUserId"
                 @signup="setRoute('signup')"
+                @login="setRoute('login')"
+            />
+            <ForgotPassword v-else-if="route === 'forgot-password'" 
                 @login="setRoute('login')"
             />
         </div>
@@ -30,6 +33,7 @@
     import Login from './components/Login.vue';
     import Signup from './components/Signup.vue';
     import EmailVerification from './components/EmailVerification.vue';
+    import ForgotPassword from './components/ForgotPassword.vue';
     import Main from './components/Main.vue';
     import PWABadge from './components/PWABadge.vue'
     import { useAuthStore } from './stores/auth.store';
@@ -38,7 +42,7 @@
     const authStore = useAuthStore();
     const loginStore = useLoginStore();
 
-    type route = 'login' | 'signup' | 'email-verification'
+    type route = 'login' | 'signup' | 'email-verification' | 'forgot-password';
 
     const route = ref<route>('login')
 

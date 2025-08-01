@@ -262,4 +262,43 @@ export class AuthService {
     return { success: true, message: 'Password changed successfully' };
   }
 
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    console.log('🔔 [AuthService] forgotPassword called for email:', email);
+
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    console.log('🔍 [AuthService] User lookup result:', user);
+
+    if (!user) {
+      console.log('❌ [AuthService] User not found for forgotPassword:', email);
+      return { success: false, message: 'User not found' };
+    }
+
+    // Generate temporary password (6-digit pin)
+    const tempPassword = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('🔑 [AuthService] Generated temporary password:', tempPassword);
+
+    // Hash temporary password
+    const saltRounds = 12;
+    const hashedTempPassword = await bcrypt.hash(tempPassword, saltRounds);
+
+    // Update user's password to temporary password
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedTempPassword,
+      },
+    });
+
+    // Send temporary password via email
+    await this.emailService.sendForgotPasswordEmail(email, tempPassword);
+
+    console.log('✉️ [AuthService] Temporary password sent to:', email);
+
+    return { success: true, message: 'Temporary password sent to your email' };
+  }
+
 }

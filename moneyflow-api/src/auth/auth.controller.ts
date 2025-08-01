@@ -146,4 +146,25 @@ export class AuthController {
     console.log('✅ [AuthController] Change Password result:', result);
     return result;
   }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send temporary password to user email' })
+  @ApiResponse({
+    status: 200,
+    description: 'Temporary password sent to email',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User not found',
+  })
+  async forgotPassword(
+    @Body() body: { email: string }
+  ): Promise<{ success: boolean; message: string }> {
+    console.log('🔔 [AuthController] Forgot Password called with:', body.email);
+    const result = await this.authService.forgotPassword(body.email);
+    console.log('✅ [AuthController] Forgot Password result:', result);
+    return result;
+  }
 }

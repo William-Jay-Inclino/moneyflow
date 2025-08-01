@@ -92,4 +92,38 @@ export class EmailService {
             throw new Error('Failed to send password reset email');
         }
     }
+
+    async sendForgotPasswordEmail(email: string, tempPassword: string): Promise<void> {
+        const mailOptions = {
+            from: this.configService.get<string>('SYSTEM_EMAIL'),
+            to: email,
+            subject: 'Your MoneyFlow Temporary Password',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #dc2626;">MoneyFlow Password Reset</h2>
+                    <p>We received a request to reset your MoneyFlow account password.</p>
+                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 30px 0; text-align: center;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold;">Your Temporary Password:</p>
+                        <p style="font-size: 36px; font-family: monospace; background-color: white; padding: 20px; border-radius: 8px; letter-spacing: 8px; margin: 0; color: #dc2626; font-weight: bold;">
+                            ${tempPassword}
+                        </p>
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Enter this 6-digit code in the MoneyFlow app to log in and change your password.</p>
+                    </div>
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                    <p style="color: #666; font-size: 12px;">
+                        If you did not request a password reset, you can safely ignore this email.<br>
+                        For your security, this temporary password will expire soon.
+                    </p>
+                </div>
+            `,
+        };
+
+        try {
+            await this.transporter.sendMail(mailOptions);
+            console.log(`✅ Forgot password email sent to ${email}`);
+        } catch (error) {
+            console.error(`❌ Failed to send forgot password email to ${email}:`, error);
+            throw new Error('Failed to send forgot password email');
+        }
+    }
 }

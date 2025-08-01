@@ -120,6 +120,11 @@ export const authApi = {
         const response = await api.post('/auth/change-password', { oldPassword, newPassword });
         return response.data;
     },
+
+    forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post('/auth/forgot-password', { email });
+        return response.data;
+    },
 }
 
 export const expenseApi = {

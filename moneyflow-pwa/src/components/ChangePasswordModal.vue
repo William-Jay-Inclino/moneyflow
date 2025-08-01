@@ -10,6 +10,14 @@
                 </div>
 
                 <div class="modal-body pt-1">
+                    <input
+                        type="text"
+                        name="username"
+                        autocomplete="username"
+                        value="current_username_or_email"
+                        style="position: absolute; left: -9999px; opacity: 0;"
+                        readonly
+                    />
                     <div class="form-floating mb-3">
                         <input
                             type="password"
@@ -17,6 +25,7 @@
                             class="form-control"
                             id="current_password"
                             placeholder="Current Password"
+                            autocomplete="current-password"
                             required
                         />
                         <label for="current_password">Current Password</label>
@@ -28,6 +37,7 @@
                             class="form-control"
                             id="new_password"
                             placeholder="New Password"
+                            autocomplete="new-password"
                             required
                         />
                         <label for="new_password">New Password</label>
@@ -39,6 +49,7 @@
                             class="form-control"
                             id="confirm_password"
                             placeholder="Confirm Password"
+                            autocomplete="new-password"
                             required
                         />
                         <label for="confirm_password">Confirm Password</label>

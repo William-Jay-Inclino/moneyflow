@@ -21,6 +21,7 @@
                 autocomplete="current-password"
                 required
             />
+
             <button
                 class="login-button"
                 :class="{ disabled: isLoading }"
@@ -39,6 +40,15 @@
                     :disabled="isLoading"
                 >Sign Up</button>
             </div>
+            <div class="signup-container">
+                <span class="signup-text">Forgot password?</span>
+                <button
+                    class="signup-link"
+                    type="button"
+                    @click="navigateToForgotPassword"
+                    :disabled="isLoading"
+                >Click here</button>
+            </div>
         </form>
     </div>
 </template>
@@ -53,7 +63,7 @@ const email = ref('');
 const password = ref('');
 const isLoading = ref(false);
 
-const emit = defineEmits(['login', 'signup']);
+const emit = defineEmits(['login', 'signup', 'forgot-password']);
 
 function validateEmail(email: string) {
     // Simple email validation
@@ -90,6 +100,9 @@ async function handleLogin() {
 
 function navigateToSignup() {
     emit('signup');
+}
+function navigateToForgotPassword() {
+    emit('forgot-password');
 }
 </script>
 
