@@ -201,12 +201,15 @@ async function handleChangePassword(newPassword: string) {
 </script>
 
 <style scoped>
+
 .menu-btn {
-    border: none;
     background: transparent;
-    font-size: 1.25rem;
-    line-height: 1;
-    padding: 0 6px;
+    border: none;
+    font-size: 16px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-right: 8px;
+    cursor: pointer;
 }
 .account-container {
     background: #f8fafc;
@@ -395,15 +398,6 @@ async function handleChangePassword(newPassword: string) {
     min-height: 60px;
     padding-left: 16px;
     position: relative;
-}
-.menu-btn {
-    background: transparent;
-    border: none;
-    font-size: 16px;
-    color: #94a3b8;
-    font-weight: 600;
-    margin-right: 8px;
-    cursor: pointer;
 }
 .balance-container {
     display: flex;
