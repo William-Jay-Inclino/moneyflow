@@ -72,10 +72,6 @@ const handleSubmit = async () => {
     }
 };
 
-const handleCancel = () => {
-    emit('login'); 
-};
-
 </script>
 
 
