@@ -12,7 +12,7 @@
                 <div class="modal-body pt-1">
                     <div class="form-floating mb-3">
                         <input
-                            type="text"
+                            type="password"
                             v-model="formData.currentPassword"
                             class="form-control"
                             id="current_password"
@@ -23,7 +23,7 @@
                     </div>
                     <div class="form-floating mb-3">
                         <input
-                            type="text"
+                            type="password"
                             v-model="formData.newPassword"
                             class="form-control"
                             id="new_password"
@@ -34,7 +34,7 @@
                     </div>
                     <div class="form-floating mb-3">
                         <input
-                            type="text"
+                            type="password"
                             v-model="formData.confirmPassword"
                             class="form-control"
                             id="confirm_password"

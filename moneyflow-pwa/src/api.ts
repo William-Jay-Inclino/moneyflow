@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { CashFlowData, Category, Expense, User } from './types';
-import { get_auth_user_in_local_storage } from './utils/helpers';
+import { get_auth_user_in_local_storage, showToast } from './utils/helpers';
 import { AUTH_KEY } from './utils/config';
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -44,16 +44,28 @@ api.interceptors.response.use(
     },
     async (error: any) => {
         console.error(`❌ ${error.response?.status || 'Network Error'} ${error.config?.url}`);
+
+        console.log('error', error);
         
         // 401 = immediate logout (industry standard)
         if (error.response?.status === 401) {
-            console.log('🔒 401 Unauthorized - Logging out user');
+
+            if(error.response?.data?.message === "Invalid email or password") {
+
+                showToast("Invalid email or password", "error");
+
+            } else {
+
+                console.log('🔒 401 Unauthorized - Logging out user');
+                
+                // Clear token
+                localStorage.removeItem(AUTH_KEY);
+                
+                // reload the page
+                window.location.reload();
+
+            }
             
-            // Clear token
-            localStorage.removeItem(AUTH_KEY);
-            
-            // reload the page
-            window.location.reload();
         }
         
         return Promise.reject(error);
@@ -79,6 +91,7 @@ export async function api_health_check() {
 export const authApi = {
     login: async (credentials: { email: string; password: string }): Promise<{ user: User; accessToken: string }> => {
         const response = await api.post('/auth/login', credentials);
+        console.log('response', response.data);
         const { accessToken, user } = response.data;
         return { user, accessToken };
     },
