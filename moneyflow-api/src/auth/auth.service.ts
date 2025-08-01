@@ -265,15 +265,25 @@ export class AuthService {
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     console.log('🔔 [AuthService] forgotPassword called for email:', email);
 
-    // Find user by email
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const users = await this.prisma.user.findMany({
+      select: {
+        email: true
+      }
+    });
+
+    console.log('🔍 [AuthService] Users found:', users);
+
+    // Find user by normalized email
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     console.log('🔍 [AuthService] User lookup result:', user);
 
     if (!user) {
-      console.log('❌ [AuthService] User not found for forgotPassword:', email);
+      console.log('❌ [AuthService] User not found for forgotPassword:', normalizedEmail);
       return { success: false, message: 'User not found' };
     }
 

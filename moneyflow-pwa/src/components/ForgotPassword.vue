@@ -13,24 +13,29 @@
                         type="email"
                         class="form-control rounded-pill px-3 py-2"
                         placeholder="Email address"
+                        v-model="email"
                         required
                         autocomplete="email"
                         autofocus
                     />
                 </div>
-                <button
-                    type="submit"
-                    class="btn btn-primary rounded-pill w-100 py-2 fw-medium mb-2"
-                >
-                    Send Reset Link
-                </button>
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary rounded-pill w-100 py-2 fw-medium"
-                    @click="handleCancel"
-                >
-                    Cancel
-                </button>
+                <div class="d-flex gap-2">
+                    <button
+                        :disabled="isSubmitting"
+                        type="submit"
+                        class="btn btn-primary rounded-pill w-100 py-2 fw-medium"
+                    >
+                        {{ isSubmitting ? 'Sending...' : 'Send Reset Link' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary rounded-pill w-100 py-2 fw-medium"
+                        @click="emit('login')"
+                        :disabled="isSubmitting"
+                    >
+                        Cancel
+                    </button>
+                </div>
             </form>
         </div>
     </div>
