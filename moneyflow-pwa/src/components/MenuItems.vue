@@ -121,12 +121,12 @@ ul.nav.flex-nowrap {
     border-top: 1px solid #e5e7eb;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
     z-index: 1000;
-    height: 70px;
+    height: 80px;
     display: flex;
     align-items: center;
-    /* Equal top and bottom padding, plus safe area for iOS */
-    padding-top: 18px;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 18px);
+    /* Increased top and bottom padding, plus safe area for iOS */
+    padding-top: 28px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 28px);
     /* Prevent scrolling content under the bar */
     touch-action: none;
 }
