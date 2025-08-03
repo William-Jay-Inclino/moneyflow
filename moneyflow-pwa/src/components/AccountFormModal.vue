@@ -23,13 +23,20 @@
                     </div>
 
                     <div class="form-floating mb-3">
-                        <input
+                        <!-- <input
                             type="number"
                             class="form-control"
                             id="account_balance"
                             placeholder="Balance"
                             v-model="formData.balance"
                             step="0.01"
+                            required
+                        />< -->
+                        <CurrencyInput 
+                            class="form-control"
+                            id="account_balance"
+                            placeholder="Balance"
+                            v-model="formData.balance"
                             required
                         />
                         <label for="account_balance">Balance</label>
@@ -70,6 +77,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
+import CurrencyInput from './CurrencyInput.vue';
 
 const props = defineProps<{
     isEditMode?: boolean,

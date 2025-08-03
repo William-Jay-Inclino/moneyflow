@@ -48,7 +48,7 @@
     color: #334155;
     font-weight: 600;
     letter-spacing: 0.01em;
-    max-width: 50vw;
+    max-width: 60vw;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -279,6 +279,13 @@
     z-index: 2;
 }
 
+.expense-amount-absolute {
+    position: absolute;
+    top: 18px;
+    right: 32px;
+    z-index: 2;
+}
+
 @media (max-width: 576px) {
     .expense-container {
         padding-left: 0.25rem;
@@ -317,6 +324,10 @@
         top: 10px;
         left: 14px;
         font-size: 0.88rem;
+    }
+    .expense-amount-absolute {
+        top: 10px;
+        right: 14px;
     }
 }
 

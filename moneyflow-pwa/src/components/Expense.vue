@@ -223,7 +223,7 @@ function handleEditClick(payload: { id: string }) {
     if (item) {
         selectedItemIdForEdit.value = payload.id;
         expenseStore.formData = {
-            amount: item.cost.toString(),
+            amount: Number(item.cost),
             notes: item.notes,
             category: item.category,
             day: new Date(item.expense_date).getDate()

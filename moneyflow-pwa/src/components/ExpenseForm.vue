@@ -3,7 +3,8 @@
         <div class="row g-2 mb-3">
             <div class="col-4">
                 <label class="form-label input-label">Amount</label>
-                <input
+                <CurrencyInput class="form-control cost-input" v-model="expenseStore.formData.amount" />
+                <!-- <input
                     class="form-control cost-input"
                     type="number"
                     step="0.01"
@@ -11,7 +12,7 @@
                     v-model="expenseStore.formData.amount"
                     :disabled="isLoading"
                     required
-                />
+                /> -->
             </div>
             <div class="col-8">
                 <label class="form-label input-label">Notes</label>
@@ -83,6 +84,7 @@ import { computed } from 'vue';
 import type { Category } from '../types';
 import { useCategoryStore } from '../stores/category.store';
 import { useExpenseStore } from '../stores/expense.store';
+import CurrencyInput from './CurrencyInput.vue';
 
 const props = defineProps<{
     type: 'expense' | 'income';

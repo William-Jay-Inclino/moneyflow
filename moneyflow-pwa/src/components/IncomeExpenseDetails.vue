@@ -27,6 +27,17 @@
                 <div class="expense-date-absolute">
                     {{ formatDate(item.date) }}
                 </div>
+                <div class="expense-amount-absolute">
+                    <span
+                        :style="{
+                            color: type === 'expense' ? '#ef4444' : '#34d399',
+                            backgroundColor: type === 'expense' ? '#fef2f2' : '#f0fdf4'
+                        }"
+                        class="expense-amount-modern ms-2"
+                    >
+                        {{ `${type === 'expense' ? '-' : '+'}${formatAmount(item.amount)}` }}
+                    </span>
+                </div>
 
                 <div class="expense-info d-flex align-items-center flex-grow-1 overflow-hidden me-2">
                     <span
@@ -38,7 +49,7 @@
                     <div class="flex-grow-1 overflow-hidden">
                         <div class="expense-notes-amount d-flex align-items-end justify-content-between">
                             <Notes :item="item" />
-                            <span
+                            <!-- <span
                                 :style="{
                                     color: type === 'expense' ? '#ef4444' : '#34d399',
                                     backgroundColor: type === 'expense' ? '#fef2f2' : '#f0fdf4'
@@ -46,7 +57,7 @@
                                 class="expense-amount-modern ms-2"
                             >
                                 {{ `${type === 'expense' ? '-' : '+'}${formatAmount(item.amount)}` }}
-                            </span>
+                            </span> -->
                         </div>
                     </div>
                 </div>
