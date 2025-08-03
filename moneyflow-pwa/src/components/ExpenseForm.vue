@@ -3,7 +3,7 @@
         <div class="row g-2 mb-3">
             <div class="col-4">
                 <label class="form-label input-label">Amount</label>
-                <CurrencyInput class="form-control cost-input" v-model="expenseStore.formData.amount" />
+                <CurrencyInput inputClass="form-control cost-input" v-model="expenseStore.formData.amount" />
                 <!-- <input
                     class="form-control cost-input"
                     type="number"

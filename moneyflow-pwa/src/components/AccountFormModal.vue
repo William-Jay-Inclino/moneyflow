@@ -33,7 +33,7 @@
                             required
                         />< -->
                         <CurrencyInput 
-                            class="form-control"
+                            inputClass="form-control"
                             id="account_balance"
                             placeholder="Balance"
                             v-model="formData.balance"

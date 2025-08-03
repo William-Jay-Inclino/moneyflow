@@ -1,7 +1,7 @@
 <template>
     <input
         type="text"
-        :class="class"
+        :class="inputClass"
         :value="inputValue"
         @input="onInput"
         @blur="formatValue"
@@ -21,7 +21,7 @@ const props = defineProps({
         type: Number,
         required: true
     },
-    class: {
+    inputClass: {
         type: String,
         default: ''
     }
