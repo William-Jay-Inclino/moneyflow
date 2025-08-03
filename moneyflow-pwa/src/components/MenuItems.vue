@@ -99,12 +99,12 @@ ul.nav.flex-nowrap {
     border-top: 1px solid #e5e7eb;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
     z-index: 1000;
-    padding: 0;
-    height: 60px;
+    height: 70px;
     display: flex;
     align-items: center;
-    /* Safe area for iOS */
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Equal top and bottom padding, plus safe area for iOS */
+    padding-top: 18px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + 18px);
     /* Prevent scrolling content under the bar */
     touch-action: none;
 }
@@ -141,7 +141,12 @@ ul.nav.flex-nowrap {
 .tabbar-link:active,
 .tabbar-link:focus,
 .tabbar-link.router-link-exact-active {
-    color: #1e40af;
+    color: #2563eb; /* modern blue */
+    background: rgba(37, 99, 235, 0.08); /* subtle blue background */
+    border-radius: 12px;
+    outline: none;
+    box-shadow: 0 2px 8px 0 rgba(37,99,235,0.08);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .tabbar-icon {
