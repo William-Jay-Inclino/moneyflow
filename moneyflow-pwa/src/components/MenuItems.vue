@@ -2,25 +2,41 @@
     <nav class="moneyflow-tabbar">
         <ul class="tabbar-list">
             <li class="tabbar-item">
-                <a @click="onClickTab('expense')" class="tabbar-link" href="#">
+                <a
+                    @click="onClickTab('expense')"
+                    :class="['tabbar-link', { active: activeTab === 'expense' }]"
+                    href="#"
+                >
                     <span class="tabbar-icon" aria-label="Expense">💸</span>
                     <span class="tabbar-label">Expense</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a @click="onClickTab('income')" class="tabbar-link" href="#">
+                <a
+                    @click="onClickTab('income')"
+                    :class="['tabbar-link', { active: activeTab === 'income' }]"
+                    href="#"
+                >
                     <span class="tabbar-icon" aria-label="Income">💰</span>
                     <span class="tabbar-label">Income</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a @click="onClickTab('cashflow')" class="tabbar-link" href="#">
+                <a
+                    @click="onClickTab('cashflow')"
+                    :class="['tabbar-link', { active: activeTab === 'cashflow' }]"
+                    href="#"
+                >
                     <span class="tabbar-icon" aria-label="Cash Flow">📊</span>
                     <span class="tabbar-label">Cash Flow</span>
                 </a>
             </li>
             <li class="tabbar-item">
-                <a @click="onClickTab('accounts')" class="tabbar-link" href="#">
+                <a
+                    @click="onClickTab('accounts')"
+                    :class="['tabbar-link', { active: activeTab === 'accounts' }]"
+                    href="#"
+                >
                     <span class="tabbar-icon" aria-label="Accounts">🏦</span>
                     <span class="tabbar-label">Accounts</span>
                 </a>
@@ -39,13 +55,19 @@
 
 import { useLayoutStore } from '../stores/layout.store';
 import { useAuthStore } from '../stores/auth.store';
+import { ref } from 'vue';
 
 type Tab = 'expense' | 'income' | 'cashflow' | 'categories' | 'accounts';
 
 const layoutStore = useLayoutStore();
 const authStore = useAuthStore();
 
+const activeTab = ref<Tab>(layoutStore.route as Tab || 'expense')
+
+
 function onClickTab(tab: Tab) {
+
+    activeTab.value = tab;
     
     if(tab === 'expense') {
         layoutStore.setHeader({
@@ -138,6 +160,7 @@ ul.nav.flex-nowrap {
     transition: color 0.2s;
     padding: 6px 0 0 0;
 }
+.tabbar-link.active,
 .tabbar-link:active,
 .tabbar-link:focus,
 .tabbar-link.router-link-exact-active {
