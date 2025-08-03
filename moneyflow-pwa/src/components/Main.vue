@@ -4,7 +4,7 @@
         
         <Header :title="layoutStore.header.title" :subtitle="layoutStore.header.subtitle" :color="layoutStore.header.color"/>
 
-        <main class="flex-fill container py-3 mb-5">
+        <main class="flex-fill container py-3">
 
             <Expense v-if="layoutStore.route === 'expense'" />
             <Income v-if="layoutStore.route === 'income'" />
@@ -40,7 +40,8 @@
         background: #f8f9fa;
     }
     main {
-        padding-bottom: 70px; /* space for bottom nav */
+        padding-bottom: 200px; /* space for bottom nav */
+        margin-bottom: 5rem !important;
     }
     @media (max-width: 480px) {
         .app-container {
