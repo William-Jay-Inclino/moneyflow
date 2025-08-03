@@ -8,7 +8,7 @@ export const useIncomeStore = defineStore('income', () => {
     const selectedYear = ref<number>(new Date().getFullYear())
     const selectedMonth = ref<number>(new Date().getMonth() + 1) 
     const formData = ref({
-        amount: '',
+        amount: 0,
         notes: '',
         category: undefined as Category | undefined,
         day: new Date().getDate(),
@@ -35,7 +35,7 @@ export const useIncomeStore = defineStore('income', () => {
 
     function resetFormData() {
         formData.value = {
-            amount: '',
+            amount: 0,
             notes: '',
             category: undefined,
             day: new Date().getDate(),
