@@ -13,7 +13,7 @@
 
             <ul class="mt-2 w-full">
                 <li
-                    v-for="(item, i) in displayData"
+                    v-for="(item) in displayData"
                     :key="item.category"
                     class="flex justify-between items-center py-1 text-sm"
                 >

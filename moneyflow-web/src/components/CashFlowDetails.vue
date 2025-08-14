@@ -96,14 +96,6 @@ const store = useGlobalStore();
 const income_list = ref<IeRecord[]>([]);
 const expense_list = ref<IeRecord[]>([]);
 
-const current_date = computed(() => {
-    const date = new Date(props.year, props.month - 1);
-    return date.toLocaleDateString('en-US', {
-        month: 'short',
-        year: 'numeric',
-    });
-});
-
 const expense_categories = computed((): Category[] => {
     const categoryMap = new Map<string, Category>();
 
@@ -149,15 +141,6 @@ const income_categories = computed((): Category[] => {
 
     return Array.from(categoryMap.values());
 });
-
-const total_income = computed(() => {
-    return income_list.value.reduce((sum, income) => sum + parseFloat(income.amount), 0);
-});
-
-const total_expense = computed(() => {
-    return expense_list.value.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-});
-
 
 function format_date(date_str: string): string {
     const date_obj = new Date(date_str);
