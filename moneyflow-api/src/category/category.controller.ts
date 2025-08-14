@@ -4,12 +4,17 @@ import {
     Query,
     ValidationPipe,
     HttpStatus,
+    Param,
+    ParseIntPipe,
+    ParseUUIDPipe,
 } from '@nestjs/common';
 import {
     ApiTags,
     ApiOperation,
     ApiResponse,
     ApiQuery,
+    ApiParam,
+    ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
 import { FilterCategoryDto } from './dto';
@@ -46,5 +51,40 @@ export class CategoryController {
         @Query(ValidationPipe) filterDto?: FilterCategoryDto,
     ): Promise<CategoryEntity[]> {
         return this.categoryService.findAll(filterDto);
+    }
+
+    @Get(':categoryId/transactions/:userId')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get user transactions by category' })
+    @ApiParam({ name: 'categoryId', description: 'Category ID', type: 'integer' })
+    @ApiParam({ name: 'userId', description: 'User ID', type: 'string' })
+    @ApiQuery({ 
+        name: 'type', 
+        required: true, 
+        enum: CategoryType, 
+        description: 'Transaction type (INCOME or EXPENSE)' 
+    })
+    @ApiQuery({ 
+        name: 'year', 
+        required: true, 
+        type: 'integer', 
+        description: 'Year to filter transactions' 
+    })
+    @ApiResponse({
+        status: HttpStatus.OK,
+        description: 'User transactions retrieved successfully',
+    })
+    async getUserTransactionsByCategory(
+        @Param('categoryId', ParseIntPipe) categoryId: number,
+        @Param('userId', ParseUUIDPipe) userId: string,
+        @Query('type') type: CategoryType,
+        @Query('year', ParseIntPipe) year: number,
+    ) {
+        return this.categoryService.getUserTransactionsByCategory(
+            userId,
+            type,
+            categoryId,
+            year
+        );
     }
 }

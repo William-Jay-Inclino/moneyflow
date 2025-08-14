@@ -120,21 +120,42 @@
 
             <!-- PieChart Section -->
             <div class="mb-6">
-                <PieChart :categories="cashFlowStore.cashFlowYearSummary?.incomeCategories" class="mb-3"/>
-                <PieChart :categories="cashFlowStore.cashFlowYearSummary?.expenseCategories" class="mb-3"/>
+                <PieChart 
+                    :categories="cashFlowStore.cashFlowYearSummary?.incomeCategories" 
+                    :is-clickable-category="true"
+                    @category-click="handleCategoryClick"
+                    class="mb-3"
+                />
+                <PieChart 
+                    :categories="cashFlowStore.cashFlowYearSummary?.expenseCategories" 
+                    :is-clickable-category="true"
+                    @category-click="handleCategoryClick"
+                    class="mb-3"
+                />
             </div>
+
+            <!-- Modal - Always render to avoid Bootstrap initialization issues -->
+            <IEitemsModal
+                :user_id="user?.user_id || ''"
+                :category_id="selectedCategory?.id || 0"
+                :type="selectedCategory?.type || 'EXPENSE'"
+                :year="selectedYear"
+                :enabled="!!selectedCategory"
+            />
 
         </template>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, nextTick } from 'vue';
 import YearPicker from './YearPicker.vue';
 import PieChart from './PieChart.vue';
+import IEitemsModal from './IEitemsModal.vue';
 import { useCashflowStore } from '../stores/cashflow.store';
 import { get_auth_user_in_local_storage } from '../utils/helpers'
 import { cashFlowApi } from '../api';
+import type { Category } from '../types';
 
 const cashFlowStore = useCashflowStore();
 
@@ -145,6 +166,7 @@ const user = get_auth_user_in_local_storage()
 const tz = import.meta.env.VITE_TZ || 'Asia/Manila'
 
 const isLoading = ref(true);
+const selectedCategory = ref<Category | null>(null);
 
 onMounted(async () => {
     if(!user || !user.user_id) {
@@ -160,6 +182,15 @@ onMounted(async () => {
     cashFlowStore.setCashFlowYearSummary(res2)
 
     isLoading.value = false;
+
+    // Add event listener for modal hidden event
+    await nextTick();
+    const modalElement = document.getElementById('ieItemsModal');
+    if (modalElement) {
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            selectedCategory.value = null;
+        });
+    }
 })
 
 const months = computed(() => cashFlowStore.cashFlowData?.months ?? []);
@@ -201,6 +232,11 @@ async function handleYearUpdate(newYear: number) {
     cashFlowStore.setCashFlowYearSummary(res2)
 
     isLoading.value = false;
+}
+
+function handleCategoryClick(category: Category) {
+    console.log('Category clicked in CashFlow:', category);
+    selectedCategory.value = category;
 }
 
 function formatAmount(val: number | null | undefined): string {

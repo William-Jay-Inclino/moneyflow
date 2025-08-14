@@ -205,6 +205,7 @@ export class CashFlowService {
 
         // Build incomeCategories
         const incomeCategories: Category[] = incomeAgg.map(i => ({
+            id: i.category_id,
             name: categoryMap.get(i.category_id)?.name ?? 'Unknown',
             color: categories.find(c => c.id === i.category_id)?.color || '#000000', // Default color if not found
             amount: Math.round(this.decimalToNumber(i._sum.amount) * 100) / 100,
@@ -213,6 +214,7 @@ export class CashFlowService {
 
         // Build expenseCategories
         const expenseCategories: Category[] = expenseAgg.map(e => ({
+            id: e.category_id,
             name: categoryMap.get(e.category_id)?.name ?? 'Unknown',
             color: categories.find(c => c.id === e.category_id)?.color || '#000000', // Default color if not found
             amount: Math.round(this.decimalToNumber(e._sum.cost) * 100) / 100,

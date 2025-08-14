@@ -31,10 +31,15 @@ export const useCategoryStore = defineStore('category', () => {
         categories.value = newCategories
     }   
 
+    function getCategoryById(id: number): Category | undefined {
+        return categories.value.find(category => category.id === id)
+    }
+
     return {
         setCategories,
         incomeCategories,
         expenseCategories,
+        getCategoryById
     }
 
 })

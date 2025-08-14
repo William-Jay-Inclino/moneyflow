@@ -195,6 +195,19 @@ export const categoryApi = {
         const response = await api.get(url);
         return response.data;
     },
+    
+    getUserTransactionsByCategory: async (
+        categoryId: number, 
+        userId: string, 
+        type: 'INCOME' | 'EXPENSE', 
+        year: number
+    ): Promise<any> => {
+        const url = `/categories/${categoryId}/transactions/${userId}?type=${type}&year=${year}`;
+        console.log('📤 Making GET request to:', url);
+        const response = await api.get(url);
+        console.log('✅ getUserTransactionsByCategory SUCCESS:', response.data);
+        return response.data;
+    },
 };
 
 export const cashFlowApi = {
