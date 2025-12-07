@@ -5,6 +5,9 @@ import vue from '@vitejs/plugin-vue'
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/moneyflow-pwa',
+  preview: {
+    allowedHosts: ['jaytechsolutions.cloud'],
+  },
   plugins: [vue(), VitePWA({
     registerType: 'autoUpdate',
     injectRegister: false,
