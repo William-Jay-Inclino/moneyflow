@@ -113,10 +113,11 @@ ul.nav.flex-nowrap {
 }
 .moneyflow-tabbar {
     position: fixed;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
     bottom: 0;
     width: 100vw;
+    max-width: 480px;
     background: #fff;
     border-top: 1px solid #e5e7eb;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
