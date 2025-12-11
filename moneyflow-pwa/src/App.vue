@@ -3,7 +3,11 @@
     <div>
 
         <div v-if="!authStore.isAuthenticated">
-            <Login v-if="route === 'login'" @signup="setRoute('signup')" @forgot-password="setRoute('forgot-password')" />
+            <Login v-if="route === 'login'" 
+                @signup="setRoute('signup')" 
+                @forgot-password="setRoute('forgot-password')"
+                @email-verification="setRoute('email-verification')"
+            />
             <Signup v-else-if="route === 'signup'" 
                 @login="setRoute('login')"
                 @email-verification="setRoute('email-verification')"
