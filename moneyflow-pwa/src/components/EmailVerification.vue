@@ -56,7 +56,8 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
 import { authApi } from '../api';
-import { useLoginStore } from '../stores/login.store';  
+import { useLoginStore } from '../stores/login.store';
+import { showErrorAlert, showSuccessAlert, showWarningAlert } from '../utils/swal';  
 
 const loginStore = useLoginStore();
 
@@ -78,57 +79,99 @@ const hasUserId = computed(() => !!props.userId);
 
 async function handleVerify() {
     if (!props.email) {
-        window.alert('No email address provided.');
+        showErrorAlert({
+            title: 'No Email',
+            text: 'No email address provided.'
+        });
         return;
     }
     if (!code.value.trim()) {
-        window.alert('Please enter the verification code');
+        showErrorAlert({
+            title: 'Missing Code',
+            text: 'Please enter the verification code'
+        });
         return;
     }
 
     isLoading.value = true;
 
-    const user = await authApi.verifyEmail({
-        email: props.email,
-        code: code.value.trim()
-    });
+    try {
+        const user = await authApi.verifyEmail({
+            email: props.email,
+            code: code.value.trim()
+        });
 
-    isLoading.value = false;
+        if (user) {
+            loginStore.clearPendingVerification();
+        }
 
-    if (user) {
-        loginStore.clearPendingVerification();
+        showSuccessAlert({
+            title: 'Email Verified!',
+            text: 'Your email has been successfully verified. Please log in to continue.'
+        });
+
+        setTimeout(() => {
+            emit('login');
+        }, 1000);
+    } catch (error: any) {
+        console.error('Verification error:', error);
+        const errorMessage = error.response?.data?.message || 'Invalid verification code';
+        showErrorAlert({
+            title: 'Verification Failed',
+            text: errorMessage
+        });
+    } finally {
+        isLoading.value = false;
     }
-
-    alert('Email verified! Your email has been successfully verified. Please log in again to continue.');
-    emit('login');
 }
 
-function handleResend() {
+async function handleResend() {
     if (!props.email) {
-        window.alert('No email address provided.');
+        showErrorAlert({
+            title: 'No Email',
+            text: 'No email address provided.'
+        });
         return;
     }
     if (!canResend.value) {
-        window.alert(`You can resend the code in ${resendCounter.value} seconds.`);
+        showWarningAlert({
+            title: 'Please Wait',
+            text: `You can resend the code in ${resendCounter.value} seconds.`
+        });
         return;
     }
+    
     isResending.value = true;
-    // resend function
-    // Start cooldown
-    canResend.value = false;
-    resendCounter.value = 60;
-    resendInterval = window.setInterval(() => {
-        resendCounter.value -= 1;
-        if (resendCounter.value <= 0) {
-            canResend.value = true;
-            clearInterval(resendInterval);
-            resendInterval = undefined;
-        }
-    }, 1000);
-    // Parent should handle isResending state and reset as needed
-    setTimeout(() => {
+    
+    try {
+        await authApi.resendVerification({ email: props.email });
+        
+        showSuccessAlert({
+            title: 'Code Sent!',
+            text: 'A new verification code has been sent to your email.'
+        });
+        
+        // Start cooldown
+        canResend.value = false;
+        resendCounter.value = 60;
+        resendInterval = window.setInterval(() => {
+            resendCounter.value -= 1;
+            if (resendCounter.value <= 0) {
+                canResend.value = true;
+                clearInterval(resendInterval);
+                resendInterval = undefined;
+            }
+        }, 1000);
+    } catch (error: any) {
+        console.error('Resend error:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to resend verification code';
+        showErrorAlert({
+            title: 'Resend Failed',
+            text: errorMessage
+        });
+    } finally {
         isResending.value = false;
-    }, 1200);
+    }
 }
 
 function handleBack() {

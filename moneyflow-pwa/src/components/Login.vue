@@ -109,19 +109,24 @@ async function handleLogin() {
         
         if (errorMessage === 'Please verify your email address') {
             try {
-                // Get user ID and redirect to verification
+                // Get user ID
                 const { userId } = await authApi.getUserIdByEmail(email.value.trim().toLowerCase());
+                
+                // Resend verification email
+                await authApi.resendVerification({ email: email.value.trim().toLowerCase() });
+                
+                // Store for verification page
                 loginStore.setPendingVerification(email.value.trim().toLowerCase(), userId);
                 
                 showInfoAlert({
                     title: 'Email Not Verified',
-                    text: 'Redirecting to email verification...'
+                    text: 'A new verification code has been sent to your email. Redirecting...'
                 });
                 
                 // Small delay for user to see the message
                 setTimeout(() => {
                     emit('email-verification');
-                }, 1000);
+                }, 1500);
             } catch (err) {
                 console.error('Error getting user ID:', err);
                 showErrorAlert({
