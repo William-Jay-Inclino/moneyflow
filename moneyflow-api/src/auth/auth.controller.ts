@@ -167,4 +167,22 @@ export class AuthController {
     console.log('✅ [AuthController] Forgot Password result:', result);
     return result;
   }
+
+  @Public()
+  @Post('get-user-id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get user ID by email' })
+  @ApiResponse({
+    status: 200,
+    description: 'User ID retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getUserIdByEmail(
+    @Body() body: { email: string }
+  ): Promise<{ userId: string }> {
+    return this.authService.getUserIdByEmail(body.email);
+  }
 }

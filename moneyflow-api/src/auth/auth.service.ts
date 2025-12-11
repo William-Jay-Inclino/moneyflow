@@ -311,4 +311,19 @@ export class AuthService {
     return { success: true, message: 'Temporary password sent to your email' };
   }
 
+  async getUserIdByEmail(email: string): Promise<{ userId: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return { userId: user.id };
+  }
+
 }

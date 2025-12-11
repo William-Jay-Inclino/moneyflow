@@ -56,6 +56,7 @@
 import { ref } from 'vue';
 import { authApi } from '../api';
 import { useLoginStore } from '../stores/login.store';
+import { showErrorAlert, showSuccessAlert } from '../utils/swal';
 
 const loginStore = useLoginStore();
 const email = ref('');
@@ -76,19 +77,31 @@ function validatePassword(password: string) {
 
 async function handleSignup() {
     if (!email.value || !password.value || !confirmPassword.value) {
-        window.alert('Please fill in all fields');
+        showErrorAlert({
+            title: 'Missing Fields',
+            text: 'Please fill in all fields'
+        });
         return;
     }
     if (!validateEmail(email.value)) {
-        window.alert('Please enter a valid email address');
+        showErrorAlert({
+            title: 'Invalid Email',
+            text: 'Please enter a valid email address'
+        });
         return;
     }
     if (!validatePassword(password.value)) {
-        window.alert('Password must be at least 6 characters');
+        showErrorAlert({
+            title: 'Invalid Password',
+            text: 'Password must be at least 6 characters'
+        });
         return;
     }
     if (password.value !== confirmPassword.value) {
-        window.alert('Passwords do not match');
+        showErrorAlert({
+            title: 'Password Mismatch',
+            text: 'Passwords do not match'
+        });
         return;
     }
     isLoading.value = true;
@@ -99,13 +112,19 @@ async function handleSignup() {
         });
         
         loginStore.setPendingVerification(email.value, user.id);
-        alert('Registration Successful! A verification email has been sent to your email address. Please check your email and enter the verification code.');
+        
+        showSuccessAlert({
+            title: 'Registration Successful!',
+            text: 'A verification email has been sent to your email address. Please check your email and enter the verification code.'
+        });
 
-        emit('email-verification');
+        // Small delay for user to see the success message
+        setTimeout(() => {
+            emit('email-verification');
+        }, 1000);
 
     } catch (error: any) {
         console.error('❌ [SignupScreen] Signup error:', error);
-        alert('Registration Failed: ' + JSON.stringify(error));
         let errorMessage = 'An error occurred during registration';
         if (error.response?.status === 409) {
             errorMessage = 'An account with this email already exists';
@@ -116,7 +135,10 @@ async function handleSignup() {
         } else if (error.message) {
             errorMessage = error.message;
         }
-        alert('Registration Failed: ' + errorMessage);
+        showErrorAlert({
+            title: 'Registration Failed',
+            text: errorMessage
+        });
     }
     
     finally {

@@ -57,13 +57,16 @@
 import { ref } from 'vue';
 import { authApi } from '../api';
 import { useAuthStore } from '../stores/auth.store';
+import { useLoginStore } from '../stores/login.store';
+import { showErrorAlert, showInfoAlert } from '../utils/swal';
 
 const authStore = useAuthStore();
+const loginStore = useLoginStore();
 const email = ref('');
 const password = ref('');
 const isLoading = ref(false);
 
-const emit = defineEmits(['login', 'signup', 'forgot-password']);
+const emit = defineEmits(['login', 'signup', 'forgot-password', 'email-verification']);
 
 function validateEmail(email: string) {
     // Simple email validation
@@ -72,11 +75,17 @@ function validateEmail(email: string) {
 
 async function handleLogin() {
     if (!email.value || !password.value) {
-        window.alert('Please fill in all fields');
+        showErrorAlert({
+            title: 'Missing Fields',
+            text: 'Please fill in all fields'
+        });
         return;
     }
     if (!validateEmail(email.value)) {
-        window.alert('Please enter a valid email address');
+        showErrorAlert({
+            title: 'Invalid Email',
+            text: 'Please enter a valid email address'
+        });
         return;
     }
     isLoading.value = true;
@@ -93,6 +102,44 @@ async function handleLogin() {
             token: accessToken
         });
 
+    } catch (error: any) {
+        console.error('Login error:', error);
+        
+        const errorMessage = error.response?.data?.message || 'An error occurred during login';
+        
+        if (errorMessage === 'Please verify your email address') {
+            try {
+                // Get user ID and redirect to verification
+                const { userId } = await authApi.getUserIdByEmail(email.value.trim().toLowerCase());
+                loginStore.setPendingVerification(email.value.trim().toLowerCase(), userId);
+                
+                showInfoAlert({
+                    title: 'Email Not Verified',
+                    text: 'Redirecting to email verification...'
+                });
+                
+                // Small delay for user to see the message
+                setTimeout(() => {
+                    emit('email-verification');
+                }, 1000);
+            } catch (err) {
+                console.error('Error getting user ID:', err);
+                showErrorAlert({
+                    title: 'Error',
+                    text: 'Unable to redirect to verification. Please try again.'
+                });
+            }
+        } else if (errorMessage === 'Invalid email or password') {
+            showErrorAlert({
+                title: 'Login Failed',
+                text: 'Invalid email or password. Please try again.'
+            });
+        } else {
+            showErrorAlert({
+                title: 'Login Failed',
+                text: errorMessage
+            });
+        }
     } finally {
         isLoading.value = false;
     }

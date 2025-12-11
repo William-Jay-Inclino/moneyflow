@@ -50,12 +50,13 @@ api.interceptors.response.use(
         // 401 = immediate logout (industry standard)
         if (error.response?.status === 401) {
 
-            if(error.response?.data?.message === "Invalid email or password") {
+            const errorMessage = error.response?.data?.message;
 
-                showToast("Invalid email or password", "error");
-
+            // Don't reload on login-related errors - let the login component handle them
+            if(errorMessage === "Invalid email or password" || 
+               errorMessage === "Please verify your email address") {
+                // These errors will be caught by the login component
             } else {
-
                 console.log('🔒 401 Unauthorized - Logging out user');
                 
                 // Clear token
@@ -63,7 +64,6 @@ api.interceptors.response.use(
                 
                 // reload the page
                 window.location.reload();
-
             }
             
         }
@@ -123,6 +123,11 @@ export const authApi = {
 
     forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
         const response = await api.post('/auth/forgot-password', { email });
+        return response.data;
+    },
+
+    getUserIdByEmail: async (email: string): Promise<{ userId: string }> => {
+        const response = await api.post('/auth/get-user-id', { email });
         return response.data;
     },
 }
