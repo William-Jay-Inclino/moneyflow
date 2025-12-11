@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { CashFlowData, Category, Expense, User } from './types';
-import { get_auth_user_in_local_storage, showToast } from './utils/helpers';
+import { get_auth_user_in_local_storage } from './utils/helpers';
 import { AUTH_KEY } from './utils/config';
 
 const API_URL = import.meta.env.VITE_API_URL
