@@ -91,6 +91,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    // Check if email is verified
+    if (!user.email_verified) {
+      throw new UnauthorizedException('Please verify your email address');
+    }
+
     // Generate JWT token
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
